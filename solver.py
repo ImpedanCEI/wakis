@@ -111,23 +111,28 @@ class EMSolver2D:
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj] and self.grid.flag_unst_cell[ii, jj]:
+                    self.V_enl[ii, jj] = self.rho[ii, jj] * self.grid.S[ii, jj]
+                    if len(self.grid.borrowing[ii, jj]) == 0:
+                        print('error in one_step_ect')
                     for (ip, jp, patch, _) in self.grid.borrowing[ii, jj]:
-                        self.V_enl[ii, jj] = self.rho[ii, jj] * self.grid.S[ii, jj] + self.rho[ip, jp] * patch
-                        rho_enl = self.V_enl[ii, jj] / self.grid.S_enl[ii, jj]
+                        self.V_enl[ii, jj] += self.rho[ip, jp] * patch
+                    rho_enl = self.V_enl[ii, jj] / self.grid.S_enl[ii, jj]
+                    # communicate to the intruded cell the intruding rho
+                    for (ip, jp, patch, _) in self.grid.borrowing[ii, jj]:
                         for num, (iii, jjj, _, _) in enumerate(self.grid.lending[ip, jp]):
                             if iii == ii and jjj == jj:
                                 self.grid.lending[ip, jp][num][3] = rho_enl
-                        # V_new = rho_enl* self.grid.S[ii, jj]
-                        self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * rho_enl
 
-        # take care of regular cells
+                    self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * rho_enl
+
+        # take care of stable cells
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj] and not self.grid.flag_unst_cell[ii, jj]:
-                    # regular cell which hasn't been intruded
+                    # stable cell which hasn't been intruded
                     if len(self.grid.lending[ii, jj]) == 0:
                         self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * self.rho[ii, jj]
-                    # regular cell which has been intruded
+                    # stable cell which has been intruded
                     elif len(self.grid.lending[ii, jj]) != 0:
                         Vnew = 0
                         red_area = self.grid.S[ii, jj]
@@ -135,10 +140,9 @@ class EMSolver2D:
                             if rho_enl is None:
                                 print('big mistake')
 
-                            red_area -= patch
                             Vnew += rho_enl * patch
 
-                        Vnew += self.rho[ii, jj] * red_area
+                        Vnew += self.rho[ii, jj] * self.grid.S_red[ii, jj]
                         self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * Vnew / self.grid.S[ii, jj]
 
         self.advance_e_dm()
