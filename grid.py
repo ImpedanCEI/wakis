@@ -321,10 +321,10 @@ class Grid:
     """
   Function to compute the four-cell extension of the unstable cells 
     """
-
     def _compute_extensions_four_cells(self):
         for ii in range(0, self.nx):
             for jj in range(0, self.ny):
+                local_avail = self.flag_avail_cell.copy()
                 if self.flag_unst_cell[ii, jj] and self.flag_int_cell[ii, jj] and \
                         self.flag_ext_cell[ii, jj]:
                     denom = ((self.flag_avail_cell[ii - 1, jj]) * self.S[ii - 1, jj] + (
@@ -333,32 +333,71 @@ class Grid:
                                  self.flag_avail_cell[ii, jj + 1]) * self.S[ii, jj + 1])
                     S_ext = self.S_stab[ii, jj] - self.S[ii, jj]
                     # if ii == 30 and jj == 69: breakpoint()
+                    neg_cell = True
+                    # idea: if any cell would reach negative area it is locally not available.
+                    #       then denom has to be recomputed from scratch
+
+                    while denom >= S_ext and neg_cell:
+                        neg_cell = False
+                        if local_avail[ii - 1, jj]:
+                            patch = S_ext * self.S[ii - 1, jj] / denom
+                            if self.S_red[ii - 1, jj] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii - 1, jj] = False
+                            # self.flag_avail_cell[ii - 1, jj] = False
+                        if local_avail[ii + 1, jj]:
+                            patch = S_ext * self.S[ii + 1, jj] / denom
+                            if self.S_red[ii + 1, jj] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii + 1, jj] = False
+                            # self.flag_avail_cell[ii + 1, jj] = False
+                        if local_avail[ii, jj - 1]:
+                            patch = S_ext * self.S[ii, jj - 1] / denom
+                            if self.S_red[ii, jj - 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii, jj - 1] = False
+                            # self.flag_avail_cell[ii, jj - 1] = False
+                        if local_avail[ii, jj + 1]:
+                            patch = S_ext * self.S[ii, jj + 1] / denom
+                            if self.S_red[ii, jj + 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii, jj + 1] = False
+                        denom = ((local_avail[ii - 1, jj]) * self.S[ii - 1, jj] +
+                                 (local_avail[ii + 1, jj]) * self.S[ii + 1, jj] +
+                                 (local_avail[ii, jj - 1]) * self.S[ii, jj - 1] +
+                                 (local_avail[ii, jj + 1]) * self.S[ii, jj + 1])
+
+                            # self.flag_avail_cell[ii, jj + 1] = False
                     # If possible, do 4-cell extension
                     if denom >= S_ext:
                         self.S_enl[ii, jj] = self.S[ii, jj]
-                        if self.flag_avail_cell[ii - 1, jj]:
+                        if local_avail[ii - 1, jj]:
                             patch = S_ext * self.S[ii - 1, jj] / denom
                             self.borrowing[ii, jj].append([ii - 1, jj, patch, None])
                             self.lending[ii - 1, jj].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
+                            self.S_red[ii - 1, jj] -= patch
                             # self.flag_avail_cell[ii - 1, jj] = False
-                        if self.flag_avail_cell[ii + 1, jj]:
+                        if local_avail[ii + 1, jj]:
                             patch = S_ext * self.S[ii + 1, jj] / denom
                             self.borrowing[ii, jj].append([ii + 1, jj, patch, None])
                             self.lending[ii + 1, jj].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
+                            self.S_red[ii + 1, jj] -= patch
                             # self.flag_avail_cell[ii + 1, jj] = False
-                        if self.flag_avail_cell[ii, jj - 1]:
+                        if local_avail[ii, jj - 1]:
                             patch = S_ext * self.S[ii, jj - 1] / denom
                             self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
                             self.lending[ii, jj - 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
+                            self.S_red[ii, jj - 1] -= patch
                             # self.flag_avail_cell[ii, jj - 1] = False
-                        if self.flag_avail_cell[ii, jj + 1]:
+                        if local_avail[ii, jj + 1]:
                             patch = S_ext * self.S[ii, jj + 1] / denom
                             self.borrowing[ii, jj].append([ii, jj + 1, patch, None])
                             self.lending[ii, jj + 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
+                            self.S_red[ii, jj + 1] -= patch
                             # self.flag_avail_cell[ii, jj + 1] = False
 
                         self.flag_ext_cell[ii, jj] = False
@@ -370,6 +409,7 @@ class Grid:
     def _compute_extensions_eight_cells(self):
         for ii in range(0, self.nx):
             for jj in range(0, self.ny):
+                local_avail = self.flag_avail_cell.copy()
                 if self.flag_unst_cell[ii, jj] and self.flag_int_cell[ii, jj] and \
                         self.flag_ext_cell[ii, jj]:
                     self.S_enl[ii, jj] = self.S[ii, jj]
@@ -385,57 +425,121 @@ class Grid:
                              (self.flag_avail_cell[ii - 1, jj + 1]) * self.S[ii - 1, jj + 1] +
                              (self.flag_avail_cell[ii + 1, jj + 1]) * self.S[ii + 1, jj + 1])
 
-                    if denom < self.S_stab[ii, jj]:
-                        print('broken')
-                        self.broken[ii, jj] = True
-                    else:
+                    neg_cell = True
+                    while denom >= S_ext and neg_cell:
+                        neg_cell = False
+                        if local_avail[ii - 1, jj]:
+                            patch = S_ext * self.S[ii - 1, jj] / denom
+                            if self.S_red[ii - 1, jj] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii - 1, jj] = False
+                            # self.flag_avail_cell[ii - 1, jj] = False
+                        if local_avail[ii + 1, jj]:
+                            patch = S_ext * self.S[ii + 1, jj] / denom
+                            if self.S_red[ii + 1, jj] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii + 1, jj] = False
+                            # self.flag_avail_cell[ii + 1, jj] = False
+                        if local_avail[ii, jj - 1]:
+                            patch = S_ext * self.S[ii, jj - 1] / denom
+                            if self.S_red[ii, jj - 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii, jj - 1] = False
+                            # self.flag_avail_cell[ii, jj - 1] = False
+                        if local_avail[ii, jj + 1]:
+                            patch = S_ext * self.S[ii, jj + 1] / denom
+                            if self.S_red[ii, jj + 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii, jj + 1] = False
+                        if local_avail[ii - 1, jj - 1]:
+                            patch = S_ext * self.S[ii - 1, jj - 1] / denom
+                            if self.S_red[ii - 1, jj - 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii - 1, jj - 1] = False
+                            # self.flag_avail_cell[ii - 1, jj] = False
+                        if local_avail[ii + 1, jj - 1]:
+                            patch = S_ext * self.S[ii + 1, jj - 1] / denom
+                            if self.S_red[ii + 1, jj - 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii + 1, jj - 1] = False
+                            # self.flag_avail_cell[ii + 1, jj] = False
+                        if local_avail[ii - 1, jj + 1]:
+                            patch = S_ext * self.S[ii - 1, jj + 1] / denom
+                            if self.S_red[ii - 1, jj + 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii - 1, jj + 1] = False
+                            # self.flag_avail_cell[ii, jj - 1] = False
+                        if local_avail[ii + 1, jj + 1]:
+                            patch = S_ext * self.S[ii + 1, jj + 1] / denom
+                            if self.S_red[ii + 1, jj + 1] - patch <= 0:
+                                neg_cell = True
+                                local_avail[ii + 1, jj + 1] = False
+
+                        denom = ((local_avail[ii - 1, jj]) * self.S[ii - 1, jj] +
+                                 (local_avail[ii + 1, jj]) * self.S[ii + 1, jj] +
+                                 (local_avail[ii, jj - 1]) * self.S[ii, jj - 1] +
+                                 (local_avail[ii, jj + 1]) * self.S[ii, jj + 1] +
+                                 (local_avail[ii - 1, jj - 1]) * self.S[ii - 1, jj - 1] +
+                                 (local_avail[ii + 1, jj - 1]) * self.S[ii + 1, jj - 1] +
+                                 (local_avail[ii - 1, jj + 1]) * self.S[ii - 1, jj + 1] +
+                                 (local_avail[ii + 1, jj + 1]) * self.S[ii + 1, jj + 1])
+
+                    if denom >= S_ext:
                         self.S_enl[ii, jj] = self.S[ii, jj]
-                        if self.flag_avail_cell[ii - 1, jj]:
+                        if local_avail[ii - 1, jj]:
                             patch = S_ext * self.S[ii - 1, jj] / denom
                             self.borrowing[ii, jj].append([ii - 1, jj, patch, None])
                             self.lending[ii - 1, jj].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii - 1, jj] = False
-                        if self.flag_avail_cell[ii + 1, jj]:
+                            self.S_red[ii - 1, jj] -= patch
+                            # local_avail[ii - 1, jj] = False
+                        if local_avail[ii + 1, jj]:
                             patch = S_ext * self.S[ii + 1, jj] / denom
                             self.borrowing[ii, jj].append([ii + 1, jj, patch, None])
                             self.lending[ii + 1, jj].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii + 1, jj] = False
-                        if self.flag_avail_cell[ii, jj - 1]:
+                            self.S_red[ii + 1, jj] -= patch
+                            # local_avail[ii + 1, jj] = False
+                        if local_avail[ii, jj - 1]:
                             patch = S_ext * self.S[ii, jj - 1] / denom
                             self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
                             self.lending[ii, jj - 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii, jj - 1] = False
-                        if self.flag_avail_cell[ii, jj + 1]:
+                            self.S_red[ii, jj - 1] -= patch
+                            # local_avail[ii, jj - 1] = False
+                        if local_avail[ii, jj + 1]:
                             patch = S_ext * self.S[ii, jj + 1] / denom
                             self.borrowing[ii, jj].append([ii, jj + 1, patch, None])
                             self.lending[ii, jj + 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii, jj + 1] = False
-                        if self.flag_avail_cell[ii - 1, jj - 1]:
+                            self.S_red[ii, jj + 1] -= patch
+                            # local_avail[ii, jj + 1] = False
+                        if local_avail[ii - 1, jj - 1]:
                             patch = S_ext * self.S[ii - 1, jj - 1] / denom
                             self.borrowing[ii, jj].append([ii - 1, jj - 1, patch, None])
                             self.lending[ii - 1, jj - 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii - 1, jj - 1] = False
-                        if self.flag_avail_cell[ii + 1, jj - 1]:
+                            self.S_red[ii - 1, jj - 1] -= patch
+                            # local_avail[ii - 1, jj - 1] = False
+                        if local_avail[ii + 1, jj - 1]:
                             patch = S_ext * self.S[ii + 1, jj - 1] / denom
                             self.borrowing[ii, jj].append([ii + 1, jj - 1, patch, None])
                             self.lending[ii + 1, jj - 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii + 1, jj - 1] = False
-                        if self.flag_avail_cell[ii - 1, jj + 1]:
+                            self.S_red[ii + 1, jj - 1] -= patch
+                            # local_avail[ii + 1, jj - 1] = False
+                        if local_avail[ii - 1, jj + 1]:
                             patch = S_ext * self.S[ii - 1, jj + 1] / denom
                             self.borrowing[ii, jj].append([ii - 1, jj + 1, patch, None])
                             self.lending[ii - 1, jj + 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
-                            # self.flag_avail_cell[ii - 1, jj + 1] = False
-                        if self.flag_avail_cell[ii + 1, jj + 1]:
+                            self.S_red[ii - 1, jj + 1] -= patch
+                            # local_avail[ii - 1, jj + 1] = False
+                        if local_avail[ii + 1, jj + 1]:
                             patch = S_ext * self.S[ii + 1, jj + 1] / denom
                             self.borrowing[ii, jj].append([ii + 1, jj + 1, patch, None])
                             self.lending[ii + 1, jj + 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] += patch
+                            self.S_red[ii + 1, jj + 1] -= patch
                             # self.flag_avail_cell[ii + 1, jj + 1] = False
                         self.flag_ext_cell[ii, jj] = False
