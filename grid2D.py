@@ -268,10 +268,8 @@ class Grid2D:
         N = np.sum(flag_ext_cell)
         print('ext cells: %d' % N)
         # Do the simple one-cell extension
-        Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, flag_int_cell=flag_int_cell,
-                                            S_stab=S_stab, S_enl=S_enl, S_red=S_red,
-                                            flag_unst_cell=flag_unst_cell,
-                                            flag_avail_cell=flag_avail_cell,
+        Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, S_stab=S_stab, S_enl=S_enl,
+                                            S_red=S_red, flag_avail_cell=flag_avail_cell,
                                             flag_ext_cell=flag_ext_cell, borrowing=borrowing,
                                             lending=lending)
 
@@ -310,10 +308,9 @@ class Grid2D:
     """
 
     @staticmethod
-    def _compute_extensions_one_cell(nx=None, ny=None, S=None, flag_int_cell=None,
-                                     S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
-                                     flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
-                                     lending=None):
+    def _compute_extensions_one_cell(nx=None, ny=None, S=None,
+                                     S_stab=None, S_enl=None, S_red=None, flag_avail_cell=None,
+                                     flag_ext_cell=None, borrowing=None, lending=None):
 
         for ii in range(0, nx):
             for jj in range(0, ny):
