@@ -95,31 +95,6 @@ class Grid2D:
     @staticmethod
     def compute_edges(tol=1e-8, in_conductor=None, intersec_x=None, intersec_y=None, l_x=None,
                       l_y=None, dx=None, dy=None, nx=None, ny=None, xmin=None, ymin=None):
-        '''
-        # shortcuts
-        if in_conductor is None:
-            in_conductor = self.conductors.in_conductor
-        if intersec_x is None:
-            intersec_x = self.conductors.intersec_x
-        if intersec_y is None:
-            intersec_y = self.conductors.intersec_y
-        if l_x is None:
-            l_x = self.l_x
-        if l_y is None:
-            l_y = self.l_y
-        if dx is None:
-            dx = self.dx
-        if dy is None:
-            dy = self.dy
-        if nx is None:
-            nx = self.nx
-        if ny is None:
-            ny = self.ny
-        if xmin is None:
-            xmin = self.xmin
-        if ymin is None:
-            ymin = self.ymin
-        '''
         """
          Notation:
         
@@ -285,32 +260,6 @@ class Grid2D:
     def mark_cells(l_x=None, l_y=None, nx=None, ny=None, dx=None, dy=None, S=None,
                    flag_int_cell=None, S_stab=None, flag_unst_cell=None, flag_bound_cell=None,
                    flag_avail_cell=None):
-        '''
-        if l_x is None:
-            l_x = self.l_x
-        if l_y is None:
-            l_y = self.l_y
-        if S is None:
-            S = self.S
-        if S_stab is None:
-            S_stab = self.S_stab
-        if nx is None:
-            nx = self.nx
-        if ny is None:
-            ny = self.ny
-        if dx is None:
-            dx = self.dx
-        if dy is None:
-            dy = self.dy
-        if flag_int_cell is None:
-            flag_int_cell = self.flag_int_cell
-        if flag_unst_cell is None:
-            flag_unst_cell = self.flag_unst_cell
-        if flag_bound_cell is None:
-            flag_bound_cell = self.flag_bound_cell
-        if flag_avail_cell is None:
-            flag_avail_cell = self.flag_avail_cell
-        '''
         for ii in range(nx):
             for jj in range(ny):
                 flag_int_cell[ii, jj] = S[ii, jj] > 0
