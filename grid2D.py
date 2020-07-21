@@ -59,9 +59,18 @@ class Grid2D:
             self.compute_areas()
             self.mark_cells()
         elif sol_type is 'ECT':
-            self.compute_edges()
-            self.compute_areas()
-            self.mark_cells()
+            self.compute_edges(in_conductor=self.conductors.in_conductor,
+                               intersec_x=self.conductors.intersec_x,
+                               intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,
+                               dx=self.dx, dy=self.dy, nx=self.nx, ny=self.ny, xmin=self.xmin,
+                               ymin=self.ymin)
+            self.compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
+                               ny=self.ny, dx=self.dx, dy=self.dy)
+            self.mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
+                            dy=self.dy, S=self.S, flag_int_cell=self.flag_int_cell,
+                            S_stab=self.S_stab, flag_unst_cell=self.flag_unst_cell,
+                            flag_bound_cell=self.flag_bound_cell,
+                            flag_avail_cell=self.flag_avail_cell)
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
             self.borrowing = np.empty((nx, ny), dtype=object)
             # info about intruding cells  (i, j, [(i_lending, j_lending, area_lending)])
@@ -70,7 +79,12 @@ class Grid2D:
                 for j in range(ny):
                     self.borrowing[i, j] = []
                     self.lending[i, j] = []
-            self.compute_extensions()
+            self.compute_extensions(nx=nx, ny=ny, S=self.S, flag_int_cell=self.flag_int_cell,
+                                    S_stab=self.S_stab, S_enl=self.S_enl, S_red=self.S_red,
+                                    flag_unst_cell=self.flag_unst_cell,
+                                    flag_avail_cell=self.flag_avail_cell,
+                                    flag_ext_cell=self.flag_ext_cell, borrowing=self.borrowing,
+                                    lending=self.lending)
 
     """
   Function to compute the length of the edges of the conformal grid.
@@ -78,11 +92,34 @@ class Grid2D:
         - tol: an edge shorter than tol will be considered as of zero length
     """
 
-    def compute_edges(self, tol=1e-8):
+    @staticmethod
+    def compute_edges(tol=1e-8, in_conductor=None, intersec_x=None, intersec_y=None, l_x=None,
+                      l_y=None, dx=None, dy=None, nx=None, ny=None, xmin=None, ymin=None):
+        '''
         # shortcuts
-        in_conductor = self.conductors.in_conductor
-        intersec_x = self.conductors.intersec_x
-        intersec_y = self.conductors.intersec_y
+        if in_conductor is None:
+            in_conductor = self.conductors.in_conductor
+        if intersec_x is None:
+            intersec_x = self.conductors.intersec_x
+        if intersec_y is None:
+            intersec_y = self.conductors.intersec_y
+        if l_x is None:
+            l_x = self.l_x
+        if l_y is None:
+            l_y = self.l_y
+        if dx is None:
+            dx = self.dx
+        if dy is None:
+            dy = self.dy
+        if nx is None:
+            nx = self.nx
+        if ny is None:
+            ny = self.ny
+        if xmin is None:
+            xmin = self.xmin
+        if ymin is None:
+            ymin = self.ymin
+        '''
         """
          Notation:
         
@@ -95,182 +132,245 @@ class Grid2D:
                (x_1, y_1)------- l_x[i, j] -------(x_2, y_2)
          
         """
-        for ii in range(self.nx):
-            for jj in range(self.ny + 1):
-                x_1 = ii * self.dx + self.xmin
-                y_1 = jj * self.dy + self.ymin
-                x_2 = (ii + 1) * self.dx + self.xmin
-                y_2 = jj * self.dy + self.ymin
+        for ii in range(nx):
+            for jj in range(ny + 1):
+                x_1 = ii * dx + xmin
+                y_1 = jj * dy + ymin
+                x_2 = (ii + 1) * dx + xmin
+                y_2 = jj * dy + ymin
                 # if point 1 is in conductor
                 if in_conductor(x_1, y_1):
                     # if point 2 is in conductor, length of the l_x[i, j] is zero
                     if in_conductor(x_2, y_2):
-                        self.l_x[ii, jj] = 0
+                        l_x[ii, jj] = 0
                     # if point 2 is not in conductor, length of l_x[i, j] is the fractional length
                     else:
-                        self.l_x[ii, jj] = seg_length(intersec_x(x_2, y_2), y_1, x_2, y_2)
+                        l_x[ii, jj] = seg_length(intersec_x(x_2, y_2), y_1, x_2, y_2)
                 # if point 1 is not in conductor
                 else:
                     # if point 2 is in conductor, length of l_x[i, j] is the fractional length
                     if in_conductor(x_2, y_2):
-                        self.l_x[ii, jj] = seg_length(x_1, y_1, intersec_x(x_1, y_1), y_2)
+                        l_x[ii, jj] = seg_length(x_1, y_1, intersec_x(x_1, y_1), y_2)
                     # if point 2 is not in conductor, length of l_x[i, j] is dx
                     else:
-                        self.l_x[ii, jj] = self.dx
+                        l_x[ii, jj] = dx
 
-        for ii in range(self.nx + 1):
-            for jj in range(self.ny):
-                x_1 = ii * self.dx + self.xmin
-                y_1 = jj * self.dy + self.ymin
-                x_3 = ii * self.dx + self.xmin
-                y_3 = (jj + 1) * self.dy + self.ymin
+        for ii in range(nx + 1):
+            for jj in range(ny):
+                x_1 = ii * dx + xmin
+                y_1 = jj * dy + ymin
+                x_3 = ii * dx + xmin
+                y_3 = (jj + 1) * dy + ymin
                 # if point 1 is in conductor
                 if in_conductor(x_1, y_1):
                     # if point 3 to the right is in conductor, length of the l_y[i, j] is zero
                     if in_conductor(x_3, y_3):
-                        self.l_y[ii, jj] = 0
+                        l_y[ii, jj] = 0
                     # if point 3 is not in conductor, length of l_y[i, j] is the fractional length
                     else:
-                        self.l_y[ii, jj] = seg_length(x_1, intersec_y(x_3, y_3), x_3, y_3)
+                        l_y[ii, jj] = seg_length(x_1, intersec_y(x_3, y_3), x_3, y_3)
                 # if point 1 is not in conductor
                 else:
                     # if point 3 is in conductor, length of the l_y[i, j] is the fractional length
                     if in_conductor(x_3, y_3):
-                        self.l_y[ii, jj] = seg_length(x_1, y_1, x_3, intersec_y(x_1, y_1))
+                        l_y[ii, jj] = seg_length(x_1, y_1, x_3, intersec_y(x_1, y_1))
                     # if point 3 is not in conductor, length of l_y[i, j] is dy
                     else:
-                        self.l_y[ii, jj] = self.dy
+                        l_y[ii, jj] = dy
 
         # set to zero the length of very small cells
         if tol > 0.:
-            self.l_x = self.l_x / self.dx
-            self.l_y = self.l_y / self.dy
-            dx = self.dx
-            dy = self.dy
-            self.dx = 1
-            self.dy = 1
-            low_values_flags = abs(self.l_x) < self.dx * tol
-            high_values_flags = abs(self.l_x - self.dx) < self.dx * tol
-            self.l_x[low_values_flags] = 0
-            self.l_x[high_values_flags] = self.dx
+            l_x /= dx
+            l_y /= dy
 
-            low_values_flags = abs(self.l_y) < self.dy * tol
-            high_values_flags = abs(self.l_y - self.dy) < self.dy * tol
-            self.l_y[low_values_flags] = 0
-            self.l_y[high_values_flags] = self.dy
+            low_values_flags = abs(l_x) < tol
+            high_values_flags = abs(l_x - 1.) < tol
+            l_x[low_values_flags] = 0
+            l_x[high_values_flags] = 1.
 
-            self.dx = dx
-            self.dy = dy
-            self.l_x = self.l_x * self.dx
-            self.l_y = self.l_y * self.dy
+            low_values_flags = abs(l_y) < tol
+            high_values_flags = abs(l_y - 1.) < tol
+            l_y[low_values_flags] = 0
+            l_y[high_values_flags] = 1.
+
+            l_x *= dx
+            l_y *= dy
 
     """
   Function to compute the area of the cells of the conformal grid.
     """
 
-    def compute_areas(self):
+    @staticmethod
+    def compute_areas(l_x=None, l_y=None, S=None, S_red=None, nx=None, ny=None, dx=None,
+                      dy=None):
+        '''
+        if l_x is None:
+            l_x = self.l_x
+        if l_y is None:
+            l_y = self.l_y
+        if S is None:
+            S = self.S
+        if S_red is None:
+            S_red = self.S_red
+        if nx is None:
+            nx = self.nx
+        if ny is None:
+            ny = self.ny
+        if dx is None:
+            dx = self.dx
+        if dy is None:
+            dy = self.dy
+        '''
         # Normalize the grid lengths for robustness
-        l_x = self.l_x / self.dx
-        l_y = self.l_y / self.dy
+        l_x /= dx
+        l_y /= dy
 
         # Loop over the cells
-        for ii in range(self.nx):
-            for jj in range(self.ny):
+        for ii in range(nx):
+            for jj in range(ny):
                 # If at least 3 edges have full length consider the area as full
                 # (this also takes care of the case in which an edge lies exactly on the boundary)
                 if np.sum([eq(l_x[ii, jj], 1.0), eq(l_y[ii, jj], 1.0),
                            eq(l_x[ii, jj + 1], 1.0), eq(l_y[ii + 1, jj], 1.0)]) >= 3:
-                    self.S[ii, jj] = 1.0
+                    S[ii, jj] = 1.0
                 elif (eq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
                       and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0)):
-                    self.S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj + 1]
+                    S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj + 1]
                 elif (eq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)
                       and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj]
+                    S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj]
                 elif (eq(l_y[ii, jj], 0.) and neq(l_x[ii, jj], 0.)
                       and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii + 1, jj]
+                    S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii + 1, jj]
                 elif (eq(l_y[ii + 1, jj], 0.) and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
                       and neq(l_x[ii, jj + 1], 0.)):
-                    self.S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii, jj]
+                    S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii, jj]
                 elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii, jj], 0.)
                       and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii + 1, jj]
+                    S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii + 1, jj]
                 elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii + 1, jj], 0.)
                       and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii, jj]
+                    S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii, jj]
                 elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii + 1, jj], 0.)
                       and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii, jj]
+                    S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii, jj]
                 elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii, jj], 0.)
                       and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    self.S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii + 1, jj]
+                    S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii + 1, jj]
                 elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii, jj] <= 1.
                       and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii + 1, jj], 1.)):
-                    self.S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii, jj])
+                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii, jj])
                 elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
                       and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii, jj], 1.)):
-                    self.S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii + 1, jj])
+                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii + 1, jj])
                 elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
                       and eq(l_x[ii, jj], 1.) and eq(l_y[ii, jj], 1.)):
-                    self.S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii + 1, jj])
+                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii + 1, jj])
                 elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii, jj] <= 1.
                       and eq(l_x[ii, jj], 1.) and eq(l_y[ii + 1, jj], 1.)):
-                    self.S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii, jj])
+                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii, jj])
 
         # Undo the normalization
-        self.S = self.S * self.dx * self.dy
-        self.S_red = self.S.copy()
+        S *= dx * dy
+        l_x *= dx
+        l_y *= dy
+        S_red[:] = S.copy()[:]
 
     """
   Function to mark wich cells are interior (int), require extension (unst), 
   are on the boundary(bound), are available for intrusion (avail)
     """
 
-    def mark_cells(self):
-
-        for ii in range(self.nx):
-            for jj in range(self.ny):
-                self.flag_int_cell[ii, jj] = self.S[ii, jj] > 0
-                self.S_stab[ii, jj] = 0.5 * np.max(
-                    [self.l_x[ii, jj] * self.dy, self.l_x[ii, jj + 1] * self.dy,
-                     self.l_y[ii, jj] * self.dx,
-                     self.l_y[ii + 1, jj] * self.dx])
-                self.flag_unst_cell[ii, jj] = self.S[ii, jj] < self.S_stab[ii, jj]
-                self.flag_bound_cell[ii, jj] = (0 < self.l_x[ii, jj] < self.dx) or (
-                        0 < self.l_y[ii, jj] < self.dy) or (
-                                                       0 < self.l_x[ii, jj + 1] < self.dx) or (
-                                                       0 < self.l_y[ii + 1, jj] < self.dy)
-                self.flag_avail_cell[ii, jj] = self.flag_int_cell[ii, jj] and (
-                    not self.flag_unst_cell[ii, jj])  # and (not self.flag_bound_cell[ii, jj])
+    @staticmethod
+    def mark_cells(l_x=None, l_y=None, nx=None, ny=None, dx=None, dy=None, S=None,
+                   flag_int_cell=None, S_stab=None, flag_unst_cell=None, flag_bound_cell=None,
+                   flag_avail_cell=None):
+        '''
+        if l_x is None:
+            l_x = self.l_x
+        if l_y is None:
+            l_y = self.l_y
+        if S is None:
+            S = self.S
+        if S_stab is None:
+            S_stab = self.S_stab
+        if nx is None:
+            nx = self.nx
+        if ny is None:
+            ny = self.ny
+        if dx is None:
+            dx = self.dx
+        if dy is None:
+            dy = self.dy
+        if flag_int_cell is None:
+            flag_int_cell = self.flag_int_cell
+        if flag_unst_cell is None:
+            flag_unst_cell = self.flag_unst_cell
+        if flag_bound_cell is None:
+            flag_bound_cell = self.flag_bound_cell
+        if flag_avail_cell is None:
+            flag_avail_cell = self.flag_avail_cell
+        '''
+        for ii in range(nx):
+            for jj in range(ny):
+                flag_int_cell[ii, jj] = S[ii, jj] > 0
+                S_stab[ii, jj] = 0.5 * np.max(
+                    [l_x[ii, jj] * dy, l_x[ii, jj + 1] * dy,
+                     l_y[ii, jj] * dx,
+                     l_y[ii + 1, jj] * dx])
+                flag_unst_cell[ii, jj] = S[ii, jj] < S_stab[ii, jj]
+                flag_bound_cell[ii, jj] = ((0 <= l_x[ii, jj] < dx) or
+                                           (0 <= l_y[ii, jj] < dy) or
+                                           (0 <= l_x[ii, jj + 1] < dx) or
+                                           (0 <= l_y[ii + 1, jj] < dy))
+                flag_avail_cell[ii, jj] = flag_int_cell[ii, jj] and (not flag_unst_cell[ii, jj])
 
     """
-  Function to compute the extension of the unstable cells 
+  Function to compute the extension of the unstable cells
     """
 
-    def compute_extensions(self):
-        self.flag_ext_cell = self.flag_unst_cell.copy()
-        N = np.sum(self.flag_ext_cell)
+    @staticmethod
+    def compute_extensions(flag_ext_cell=None, flag_unst_cell=None, nx=None, ny=None, S=None,
+                           flag_int_cell=None, S_stab=None, S_enl=None, S_red=None,
+                           flag_avail_cell=None, borrowing=None, lending=None):
+        flag_ext_cell[:] = flag_unst_cell.copy()[:]
+        N = np.sum(flag_ext_cell)
         print('ext cells: %d' % N)
         # Do the simple one-cell extension
-        self._compute_extensions_one_cell()
-        N_one_cell = (N - np.sum(self.flag_ext_cell))
+        Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, flag_int_cell=flag_int_cell,
+                                            S_stab=S_stab, S_enl=S_enl, S_red=S_red,
+                                            flag_unst_cell=flag_unst_cell,
+                                            flag_avail_cell=flag_avail_cell,
+                                            flag_ext_cell=flag_ext_cell, borrowing=borrowing,
+                                            lending=lending)
+
+        N_one_cell = (N - np.sum(flag_ext_cell))
         print('one cell exts: %d' % N_one_cell)
         # If any cell could not be extended do the four-cell extension
-        if np.sum(self.flag_ext_cell) > 0:
-            N = np.sum(self.flag_ext_cell)
-            self._compute_extensions_four_cells()
-            N_four_cells = (N - np.sum(self.flag_ext_cell))
+        if np.sum(flag_ext_cell) > 0:
+            N = np.sum(flag_ext_cell)
+            Grid2D._compute_extensions_four_cells(nx=nx, ny=ny, S=S, flag_int_cell=flag_int_cell,
+                                                  S_stab=S_stab, S_enl=S_enl, S_red=S_red,
+                                                  flag_unst_cell=flag_unst_cell,
+                                                  flag_avail_cell=flag_avail_cell,
+                                                  flag_ext_cell=flag_ext_cell, borrowing=borrowing,
+                                                  lending=lending)
+            N_four_cells = (N - np.sum(flag_ext_cell))
             print('four cell exts: %d' % N_four_cells)
         # If any cell could not be extended do the eight-cell extension
-        if np.sum(self.flag_ext_cell) > 0:
-            N = np.sum(self.flag_ext_cell)
-            self._compute_extensions_eight_cells()
-            N_eight_cells = (N - np.sum(self.flag_ext_cell))
+        if np.sum(flag_ext_cell) > 0:
+            N = np.sum(flag_ext_cell)
+            Grid2D._compute_extensions_eight_cells(nx=nx, ny=ny, S=S, flag_int_cell=flag_int_cell,
+                                                   S_stab=S_stab, S_enl=S_enl, S_red=S_red,
+                                                   flag_unst_cell=flag_unst_cell,
+                                                   flag_avail_cell=flag_avail_cell,
+                                                   flag_ext_cell=flag_ext_cell, borrowing=borrowing,
+                                                   lending=lending)
+            N_eight_cells = (N - np.sum(flag_ext_cell))
             print('eight cell exts: %d' % N_eight_cells)
         # If any cell could not be extended the algorithm failed
-        if np.sum(self.flag_ext_cell) > 0:
-            N = (np.sum(self.flag_ext_cell))
+        if np.sum(flag_ext_cell) > 0:
+            N = (np.sum(flag_ext_cell))
             raise RuntimeError(str(N) + 'cells could not be extended.\n' +
                                'Please refine the mesh')
 
@@ -278,68 +378,76 @@ class Grid2D:
   Function to compute the one-cell extension of the unstable cells 
     """
 
-    def _compute_extensions_one_cell(self):
-        for ii in range(0, self.nx):
-            for jj in range(0, self.ny):
-                if (self.flag_unst_cell[ii, jj] and self.flag_int_cell[ii, jj]
-                        and self.flag_ext_cell[ii, jj]):
-                    S_ext = self.S_stab[ii, jj] - self.S[ii, jj]
-                    if self.S[ii, jj - 1] > S_ext and self.flag_avail_cell[ii, jj - 1]:
-                        denom = self.S[ii, jj - 1]
-                        patch = S_ext * self.S[ii, jj - 1] / denom
-                        if self.S_red[ii, jj - 1] - patch > 0:
-                            self.S_red[ii, jj - 1] -= patch
-                            self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            self.lending[ii, jj - 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] = self.S[ii, jj] + patch
-                            self.flag_ext_cell[ii, jj] = False
-                    if (self.S[ii + 1, jj] > S_ext and self.flag_avail_cell[ii + 1, jj]
-                            and self.flag_ext_cell[ii, jj]):
-                        denom = self.S[ii + 1, jj]
-                        patch = S_ext * self.S[ii + 1, jj] / denom
-                        if self.S_red[ii + 1, jj] - patch > 0:
-                            self.S_red[ii + 1, jj] -= patch
-                            self.borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            self.lending[ii + 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] = self.S[ii, jj] + patch
-                            self.flag_ext_cell[ii, jj] = False
+    @staticmethod
+    def _compute_extensions_one_cell(nx=None, ny=None, S=None, flag_int_cell=None,
+                                     S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
+                                     flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
+                                     lending=None):
 
-                    if (self.S[ii - 1, jj] > S_ext and self.flag_avail_cell[ii - 1, jj]
-                            and self.flag_ext_cell[ii, jj]):
-                        denom = self.S[ii - 1, jj]
-                        patch = S_ext * self.S[ii - 1, jj] / denom
-                        if self.S_red[ii - 1, jj] - patch > 0:
-                            self.S_red[ii - 1, jj] -= patch
-                            self.borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            self.lending[ii - 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] = self.S[ii, jj] + patch
-                            self.flag_ext_cell[ii, jj] = False
-                    if (self.S[ii, jj + 1] > S_ext and self.flag_avail_cell[ii, jj + 1]
-                            and self.flag_ext_cell[ii, jj]):
-                        denom = self.S[ii, jj + 1]
-                        patch = S_ext * self.S[ii, jj + 1] / denom
-                        if self.S_red[ii, jj + 1] - patch > 0:
-                            self.S_red[ii, jj + 1] -= patch
-                            self.borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            self.lending[ii, jj + 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] = self.S[ii, jj] + patch
-                            self.flag_ext_cell[ii, jj] = False
+        for ii in range(0, nx):
+            for jj in range(0, ny):
+                if flag_ext_cell[ii, jj]:
+                    S_ext = S_stab[ii, jj] - S[ii, jj]
+                    if S[ii, jj - 1] > S_ext and flag_avail_cell[ii, jj - 1]:
+                        denom = S[ii, jj - 1]
+                        patch = S_ext * S[ii, jj - 1] / denom
+                        if S_red[ii, jj - 1] - patch > 0:
+                            S_red[ii, jj - 1] -= patch
+                            borrowing[ii, jj].append([ii, jj - 1, patch, None])
+                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
+                    if (S[ii + 1, jj] > S_ext and flag_avail_cell[ii + 1, jj]
+                            and flag_ext_cell[ii, jj]):
+                        denom = S[ii + 1, jj]
+                        patch = S_ext * S[ii + 1, jj] / denom
+                        if S_red[ii + 1, jj] - patch > 0:
+                            S_red[ii + 1, jj] -= patch
+                            borrowing[ii, jj].append([ii + 1, jj, patch, None])
+                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
+
+                    if (S[ii - 1, jj] > S_ext and flag_avail_cell[ii - 1, jj]
+                            and flag_ext_cell[ii, jj]):
+                        denom = S[ii - 1, jj]
+                        patch = S_ext * S[ii - 1, jj] / denom
+                        if S_red[ii - 1, jj] - patch > 0:
+                            S_red[ii - 1, jj] -= patch
+                            borrowing[ii, jj].append([ii - 1, jj, patch, None])
+                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
+                    if (S[ii, jj + 1] > S_ext and flag_avail_cell[ii, jj + 1]
+                            and flag_ext_cell[ii, jj]):
+                        denom = S[ii, jj + 1]
+                        patch = S_ext * S[ii, jj + 1] / denom
+                        if S_red[ii, jj + 1] - patch > 0:
+                            S_red[ii, jj + 1] -= patch
+                            borrowing[ii, jj].append([ii, jj + 1, patch, None])
+                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
 
     """
   Function to compute the four-cell extension of the unstable cells 
     """
 
-    def _compute_extensions_four_cells(self):
-        for ii in range(0, self.nx):
-            for jj in range(0, self.ny):
-                local_avail = self.flag_avail_cell.copy()
-                if (self.flag_unst_cell[ii, jj] and self.flag_int_cell[ii, jj]
-                        and self.flag_ext_cell[ii, jj]):
-                    denom = ((self.flag_avail_cell[ii - 1, jj]) * self.S[ii - 1, jj] + (
-                        self.flag_avail_cell[ii + 1, jj]) * self.S[ii + 1, jj] +
-                             (self.flag_avail_cell[ii, jj - 1]) * self.S[ii, jj - 1] + (
-                                 self.flag_avail_cell[ii, jj + 1]) * self.S[ii, jj + 1])
-                    S_ext = self.S_stab[ii, jj] - self.S[ii, jj]
+    @staticmethod
+    def _compute_extensions_four_cells(nx=None, ny=None, S=None, flag_int_cell=None,
+                                       S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
+                                       flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
+                                       lending=None):
+        for ii in range(0, nx):
+            for jj in range(0, ny):
+                local_avail = flag_avail_cell.copy()
+                if (flag_unst_cell[ii, jj] and flag_int_cell[ii, jj]
+                        and flag_ext_cell[ii, jj]):
+                    denom = ((flag_avail_cell[ii - 1, jj]) * S[ii - 1, jj] + (
+                        flag_avail_cell[ii + 1, jj]) * S[ii + 1, jj] +
+                             (flag_avail_cell[ii, jj - 1]) * S[ii, jj - 1] + (
+                                 flag_avail_cell[ii, jj + 1]) * S[ii, jj + 1])
+                    S_ext = S_stab[ii, jj] - S[ii, jj]
                     neg_cell = True
                     # idea: if any cell would reach negative area it is locally not available.
                     #       then denom has to be recomputed from scratch
@@ -347,188 +455,188 @@ class Grid2D:
                     while denom >= S_ext and neg_cell:
                         neg_cell = False
                         if local_avail[ii - 1, jj]:
-                            patch = S_ext * self.S[ii - 1, jj] / denom
-                            if self.S_red[ii - 1, jj] - patch <= 0:
+                            patch = S_ext * S[ii - 1, jj] / denom
+                            if S_red[ii - 1, jj] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii - 1, jj] = False
-                            # self.flag_avail_cell[ii - 1, jj] = False
                         if local_avail[ii + 1, jj]:
-                            patch = S_ext * self.S[ii + 1, jj] / denom
-                            if self.S_red[ii + 1, jj] - patch <= 0:
+                            patch = S_ext * S[ii + 1, jj] / denom
+                            if S_red[ii + 1, jj] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii + 1, jj] = False
-                            # self.flag_avail_cell[ii + 1, jj] = False
                         if local_avail[ii, jj - 1]:
-                            patch = S_ext * self.S[ii, jj - 1] / denom
-                            if self.S_red[ii, jj - 1] - patch <= 0:
+                            patch = S_ext * S[ii, jj - 1] / denom
+                            if S_red[ii, jj - 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii, jj - 1] = False
-                            # self.flag_avail_cell[ii, jj - 1] = False
                         if local_avail[ii, jj + 1]:
-                            patch = S_ext * self.S[ii, jj + 1] / denom
-                            if self.S_red[ii, jj + 1] - patch <= 0:
+                            patch = S_ext * S[ii, jj + 1] / denom
+                            if S_red[ii, jj + 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii, jj + 1] = False
-                        denom = ((local_avail[ii - 1, jj]) * self.S[ii - 1, jj] +
-                                 (local_avail[ii + 1, jj]) * self.S[ii + 1, jj] +
-                                 (local_avail[ii, jj - 1]) * self.S[ii, jj - 1] +
-                                 (local_avail[ii, jj + 1]) * self.S[ii, jj + 1])
+                        denom = ((local_avail[ii - 1, jj]) * S[ii - 1, jj] +
+                                 (local_avail[ii + 1, jj]) * S[ii + 1, jj] +
+                                 (local_avail[ii, jj - 1]) * S[ii, jj - 1] +
+                                 (local_avail[ii, jj + 1]) * S[ii, jj + 1])
 
                     # If possible, do 4-cell extension
                     if denom >= S_ext:
-                        self.S_enl[ii, jj] = self.S[ii, jj]
+                        S_enl[ii, jj] = S[ii, jj]
                         if local_avail[ii - 1, jj]:
-                            patch = S_ext * self.S[ii - 1, jj] / denom
-                            self.borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            self.lending[ii - 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii - 1, jj] -= patch
+                            patch = S_ext * S[ii - 1, jj] / denom
+                            borrowing[ii, jj].append([ii - 1, jj, patch, None])
+                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii - 1, jj] -= patch
                         if local_avail[ii + 1, jj]:
-                            patch = S_ext * self.S[ii + 1, jj] / denom
-                            self.borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            self.lending[ii + 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii + 1, jj] -= patch
+                            patch = S_ext * S[ii + 1, jj] / denom
+                            borrowing[ii, jj].append([ii + 1, jj, patch, None])
+                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii + 1, jj] -= patch
                         if local_avail[ii, jj - 1]:
-                            patch = S_ext * self.S[ii, jj - 1] / denom
-                            self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            self.lending[ii, jj - 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii, jj - 1] -= patch
+                            patch = S_ext * S[ii, jj - 1] / denom
+                            borrowing[ii, jj].append([ii, jj - 1, patch, None])
+                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii, jj - 1] -= patch
                         if local_avail[ii, jj + 1]:
-                            patch = S_ext * self.S[ii, jj + 1] / denom
-                            self.borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            self.lending[ii, jj + 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii, jj + 1] -= patch
+                            patch = S_ext * S[ii, jj + 1] / denom
+                            borrowing[ii, jj].append([ii, jj + 1, patch, None])
+                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii, jj + 1] -= patch
 
-                        self.flag_ext_cell[ii, jj] = False
+                        flag_ext_cell[ii, jj] = False
 
     """
   Function to compute the eight-cell extension of the unstable cells 
     """
 
-    def _compute_extensions_eight_cells(self):
-        for ii in range(0, self.nx):
-            for jj in range(0, self.ny):
-                local_avail = self.flag_avail_cell.copy()
-                if (self.flag_unst_cell[ii, jj] and self.flag_int_cell[ii, jj]
-                        and self.flag_ext_cell[ii, jj]):
-                    self.S_enl[ii, jj] = self.S[ii, jj]
-                    self.broken[ii, jj] = True
-                    S_ext = self.S_stab[ii, jj] - self.S[ii, jj]
+    @staticmethod
+    def _compute_extensions_eight_cells(nx=None, ny=None, S=None, flag_int_cell=None,
+                                        S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
+                                        flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
+                                        lending=None):
+        for ii in range(0, nx):
+            for jj in range(0, ny):
+                local_avail = flag_avail_cell.copy()
+                if (flag_unst_cell[ii, jj] and flag_int_cell[ii, jj]
+                        and flag_ext_cell[ii, jj]):
+                    S_enl[ii, jj] = S[ii, jj]
+                    S_ext = S_stab[ii, jj] - S[ii, jj]
 
-                    denom = ((self.flag_avail_cell[ii - 1, jj]) * self.S[ii - 1, jj] +
-                             (self.flag_avail_cell[ii + 1, jj]) * self.S[ii + 1, jj] +
-                             (self.flag_avail_cell[ii, jj - 1]) * self.S[ii, jj - 1] +
-                             (self.flag_avail_cell[ii, jj + 1]) * self.S[ii, jj + 1] +
-                             (self.flag_avail_cell[ii - 1, jj - 1]) * self.S[ii - 1, jj - 1] +
-                             (self.flag_avail_cell[ii + 1, jj - 1]) * self.S[ii + 1, jj - 1] +
-                             (self.flag_avail_cell[ii - 1, jj + 1]) * self.S[ii - 1, jj + 1] +
-                             (self.flag_avail_cell[ii + 1, jj + 1]) * self.S[ii + 1, jj + 1])
+                    denom = ((flag_avail_cell[ii - 1, jj]) * S[ii - 1, jj] +
+                             (flag_avail_cell[ii + 1, jj]) * S[ii + 1, jj] +
+                             (flag_avail_cell[ii, jj - 1]) * S[ii, jj - 1] +
+                             (flag_avail_cell[ii, jj + 1]) * S[ii, jj + 1] +
+                             (flag_avail_cell[ii - 1, jj - 1]) * S[ii - 1, jj - 1] +
+                             (flag_avail_cell[ii + 1, jj - 1]) * S[ii + 1, jj - 1] +
+                             (flag_avail_cell[ii - 1, jj + 1]) * S[ii - 1, jj + 1] +
+                             (flag_avail_cell[ii + 1, jj + 1]) * S[ii + 1, jj + 1])
 
                     neg_cell = True
                     while denom >= S_ext and neg_cell:
                         neg_cell = False
                         if local_avail[ii - 1, jj]:
-                            patch = S_ext * self.S[ii - 1, jj] / denom
-                            if self.S_red[ii - 1, jj] - patch <= 0:
+                            patch = S_ext * S[ii - 1, jj] / denom
+                            if S_red[ii - 1, jj] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii - 1, jj] = False
                         if local_avail[ii + 1, jj]:
-                            patch = S_ext * self.S[ii + 1, jj] / denom
-                            if self.S_red[ii + 1, jj] - patch <= 0:
+                            patch = S_ext * S[ii + 1, jj] / denom
+                            if S_red[ii + 1, jj] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii + 1, jj] = False
                         if local_avail[ii, jj - 1]:
-                            patch = S_ext * self.S[ii, jj - 1] / denom
-                            if self.S_red[ii, jj - 1] - patch <= 0:
+                            patch = S_ext * S[ii, jj - 1] / denom
+                            if S_red[ii, jj - 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii, jj - 1] = False
                         if local_avail[ii, jj + 1]:
-                            patch = S_ext * self.S[ii, jj + 1] / denom
-                            if self.S_red[ii, jj + 1] - patch <= 0:
+                            patch = S_ext * S[ii, jj + 1] / denom
+                            if S_red[ii, jj + 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii, jj + 1] = False
                         if local_avail[ii - 1, jj - 1]:
-                            patch = S_ext * self.S[ii - 1, jj - 1] / denom
-                            if self.S_red[ii - 1, jj - 1] - patch <= 0:
+                            patch = S_ext * S[ii - 1, jj - 1] / denom
+                            if S_red[ii - 1, jj - 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii - 1, jj - 1] = False
                         if local_avail[ii + 1, jj - 1]:
-                            patch = S_ext * self.S[ii + 1, jj - 1] / denom
-                            if self.S_red[ii + 1, jj - 1] - patch <= 0:
+                            patch = S_ext * S[ii + 1, jj - 1] / denom
+                            if S_red[ii + 1, jj - 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii + 1, jj - 1] = False
                         if local_avail[ii - 1, jj + 1]:
-                            patch = S_ext * self.S[ii - 1, jj + 1] / denom
-                            if self.S_red[ii - 1, jj + 1] - patch <= 0:
+                            patch = S_ext * S[ii - 1, jj + 1] / denom
+                            if S_red[ii - 1, jj + 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii - 1, jj + 1] = False
                         if local_avail[ii + 1, jj + 1]:
-                            patch = S_ext * self.S[ii + 1, jj + 1] / denom
-                            if self.S_red[ii + 1, jj + 1] - patch <= 0:
+                            patch = S_ext * S[ii + 1, jj + 1] / denom
+                            if S_red[ii + 1, jj + 1] - patch <= 0:
                                 neg_cell = True
                                 local_avail[ii + 1, jj + 1] = False
 
-                        denom = ((local_avail[ii - 1, jj]) * self.S[ii - 1, jj] +
-                                 (local_avail[ii + 1, jj]) * self.S[ii + 1, jj] +
-                                 (local_avail[ii, jj - 1]) * self.S[ii, jj - 1] +
-                                 (local_avail[ii, jj + 1]) * self.S[ii, jj + 1] +
-                                 (local_avail[ii - 1, jj - 1]) * self.S[ii - 1, jj - 1] +
-                                 (local_avail[ii + 1, jj - 1]) * self.S[ii + 1, jj - 1] +
-                                 (local_avail[ii - 1, jj + 1]) * self.S[ii - 1, jj + 1] +
-                                 (local_avail[ii + 1, jj + 1]) * self.S[ii + 1, jj + 1])
+                        denom = ((local_avail[ii - 1, jj]) * S[ii - 1, jj] +
+                                 (local_avail[ii + 1, jj]) * S[ii + 1, jj] +
+                                 (local_avail[ii, jj - 1]) * S[ii, jj - 1] +
+                                 (local_avail[ii, jj + 1]) * S[ii, jj + 1] +
+                                 (local_avail[ii - 1, jj - 1]) * S[ii - 1, jj - 1] +
+                                 (local_avail[ii + 1, jj - 1]) * S[ii + 1, jj - 1] +
+                                 (local_avail[ii - 1, jj + 1]) * S[ii - 1, jj + 1] +
+                                 (local_avail[ii + 1, jj + 1]) * S[ii + 1, jj + 1])
 
                     if denom >= S_ext:
-                        self.S_enl[ii, jj] = self.S[ii, jj]
+                        S_enl[ii, jj] = S[ii, jj]
                         if local_avail[ii - 1, jj]:
-                            patch = S_ext * self.S[ii - 1, jj] / denom
-                            self.borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            self.lending[ii - 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii - 1, jj] -= patch
+                            patch = S_ext * S[ii - 1, jj] / denom
+                            borrowing[ii, jj].append([ii - 1, jj, patch, None])
+                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii - 1, jj] -= patch
                         if local_avail[ii + 1, jj]:
-                            patch = S_ext * self.S[ii + 1, jj] / denom
-                            self.borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            self.lending[ii + 1, jj].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii + 1, jj] -= patch
+                            patch = S_ext * S[ii + 1, jj] / denom
+                            borrowing[ii, jj].append([ii + 1, jj, patch, None])
+                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii + 1, jj] -= patch
                         if local_avail[ii, jj - 1]:
-                            patch = S_ext * self.S[ii, jj - 1] / denom
-                            self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            self.lending[ii, jj - 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii, jj - 1] -= patch
+                            patch = S_ext * S[ii, jj - 1] / denom
+                            borrowing[ii, jj].append([ii, jj - 1, patch, None])
+                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii, jj - 1] -= patch
                         if local_avail[ii, jj + 1]:
-                            patch = S_ext * self.S[ii, jj + 1] / denom
-                            self.borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            self.lending[ii, jj + 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii, jj + 1] -= patch
+                            patch = S_ext * S[ii, jj + 1] / denom
+                            borrowing[ii, jj].append([ii, jj + 1, patch, None])
+                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii, jj + 1] -= patch
                         if local_avail[ii - 1, jj - 1]:
-                            patch = S_ext * self.S[ii - 1, jj - 1] / denom
-                            self.borrowing[ii, jj].append([ii - 1, jj - 1, patch, None])
-                            self.lending[ii - 1, jj - 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii - 1, jj - 1] -= patch
+                            patch = S_ext * S[ii - 1, jj - 1] / denom
+                            borrowing[ii, jj].append([ii - 1, jj - 1, patch, None])
+                            lending[ii - 1, jj - 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii - 1, jj - 1] -= patch
                         if local_avail[ii + 1, jj - 1]:
-                            patch = S_ext * self.S[ii + 1, jj - 1] / denom
-                            self.borrowing[ii, jj].append([ii + 1, jj - 1, patch, None])
-                            self.lending[ii + 1, jj - 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii + 1, jj - 1] -= patch
+                            patch = S_ext * S[ii + 1, jj - 1] / denom
+                            borrowing[ii, jj].append([ii + 1, jj - 1, patch, None])
+                            lending[ii + 1, jj - 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii + 1, jj - 1] -= patch
                         if local_avail[ii - 1, jj + 1]:
-                            patch = S_ext * self.S[ii - 1, jj + 1] / denom
-                            self.borrowing[ii, jj].append([ii - 1, jj + 1, patch, None])
-                            self.lending[ii - 1, jj + 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii - 1, jj + 1] -= patch
+                            patch = S_ext * S[ii - 1, jj + 1] / denom
+                            borrowing[ii, jj].append([ii - 1, jj + 1, patch, None])
+                            lending[ii - 1, jj + 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii - 1, jj + 1] -= patch
                         if local_avail[ii + 1, jj + 1]:
-                            patch = S_ext * self.S[ii + 1, jj + 1] / denom
-                            self.borrowing[ii, jj].append([ii + 1, jj + 1, patch, None])
-                            self.lending[ii + 1, jj + 1].append([ii, jj, patch, None])
-                            self.S_enl[ii, jj] += patch
-                            self.S_red[ii + 1, jj + 1] -= patch
+                            patch = S_ext * S[ii + 1, jj + 1] / denom
+                            borrowing[ii, jj].append([ii + 1, jj + 1, patch, None])
+                            lending[ii + 1, jj + 1].append([ii, jj, patch, None])
+                            S_enl[ii, jj] += patch
+                            S_red[ii + 1, jj + 1] -= patch
 
-                        self.flag_ext_cell[ii, jj] = False
+                        flag_ext_cell[ii, jj] = False
