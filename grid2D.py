@@ -178,24 +178,6 @@ class Grid2D:
     @staticmethod
     def compute_areas(l_x=None, l_y=None, S=None, S_red=None, nx=None, ny=None, dx=None,
                       dy=None):
-        '''
-        if l_x is None:
-            l_x = self.l_x
-        if l_y is None:
-            l_y = self.l_y
-        if S is None:
-            S = self.S
-        if S_red is None:
-            S_red = self.S_red
-        if nx is None:
-            nx = self.nx
-        if ny is None:
-            ny = self.ny
-        if dx is None:
-            dx = self.dx
-        if dy is None:
-            dy = self.dy
-        '''
         # Normalize the grid lengths for robustness
         l_x /= dx
         l_y /= dy
