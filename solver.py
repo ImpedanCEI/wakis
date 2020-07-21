@@ -29,19 +29,26 @@ class EMSolver2D:
         self.Jx = np.zeros((self.Nx + 1, self.Ny + 1))
         self.Jy = np.zeros((self.Nx + 1, self.Ny + 1))
         self.rho = np.zeros((self.Nx, self.Ny))
-        if sol_type == 'DM' or sol_type == 'ECT' or sol_type == 'ECT_one_cell' or sol_type == 'ECT_one_cell_rho' or sol_type == 'ECT_rho':
+
+        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+            raise ValueError("sol_type must be:\n" +
+                       "\t'FDTD' for standard staircased FDTD\n" +
+                       "\t'DM' for Dey-Mittra conformal FDTD\n" +
+                       "\t'ECT' for Enlarged Cell Technique conformal FDTD")
+
+        if sol_type is 'DM' or sol_type is 'ECT':
             self.Vxy = np.zeros((self.Nx + 1, self.Ny + 1))
-        if sol_type == 'ECT' or sol_type == 'ECT_one_cell' or sol_type == 'ECT_one_cell_rho' or sol_type == 'ECT_rho':
+        if sol_type is 'ECT':
             self.V_enl = np.zeros((self.Nx + 1, self.Ny + 1))
 
-        if sol_type == 'ECT' or sol_type == 'ECT_one_cell' or sol_type == 'ECT_one_cell_rho' or sol_type == 'ECT_rho' or sol_type == 'DM':
+        if sol_type is 'ECT' or sol_type is 'DM':
             self.C1 = self.dt / mu_0
             self.C4 = self.dt / (eps_0 * self.dy)
             self.C5 = self.dt / (eps_0 * self.dx)
             self.C3 = self.dt / eps_0
             self.C6 = self.dt / eps_0
 
-        if sol_type == 'FDTD':
+        if sol_type is 'FDTD':
             Z_0 = np.sqrt(mu_0 / eps_0)
 
             self.C1 = self.dt / (self.dx * mu_0)
