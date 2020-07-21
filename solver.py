@@ -32,9 +32,9 @@ class EMSolver2D:
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
             raise ValueError("sol_type must be:\n" +
-                       "\t'FDTD' for standard staircased FDTD\n" +
-                       "\t'DM' for Dey-Mittra conformal FDTD\n" +
-                       "\t'ECT' for Enlarged Cell Technique conformal FDTD")
+                             "\t'FDTD' for standard staircased FDTD\n" +
+                             "\t'DM' for Dey-Mittra conformal FDTD\n" +
+                             "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         if sol_type is 'DM' or sol_type is 'ECT':
             self.Vxy = np.zeros((self.Nx + 1, self.Ny + 1))
@@ -88,13 +88,16 @@ class EMSolver2D:
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
-                    Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) + self.C2 * (Ex[ii, jj + 1]
-                                                                                                    - Ex[ii, jj]))
+                    Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) + self.C2 * (
+                                Ex[ii, jj + 1]
+                                - Ex[ii, jj]))
 
                     if self.grid.l_x[ii, jj] > 0:
-                        Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (Hz[ii, jj] - Hz[ii, jj - 1])
+                        Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
+                                    Hz[ii, jj] - Hz[ii, jj - 1])
                     if self.grid.l_y[ii, jj] > 0:
-                        Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (Hz[ii, jj] - Hz[ii - 1, jj])
+                        Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (
+                                    Hz[ii, jj] - Hz[ii - 1, jj])
 
         self.time += self.dt
 
@@ -104,7 +107,8 @@ class EMSolver2D:
         for i in range(self.Nx):
             for j in range(self.Ny):
                 if self.grid.flag_int_cell[i, j]:
-                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[i, j]
+                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[
+                        i, j]
 
         self.advance_e_dm()
 
@@ -162,8 +166,11 @@ class EMSolver2D:
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
-                    self.Vxy[ii, jj] = (self.Ey[ii + 1, jj] * l_y[ii + 1, jj] - self.Ey[ii, jj] * l_y[ii, jj]
-                                        - self.Ex[ii, jj + 1] * l_x[ii, jj + 1] + self.Ex[ii, jj] * l_x[ii, jj])
+                    self.Vxy[ii, jj] = (
+                                self.Ey[ii + 1, jj] * l_y[ii + 1, jj] - self.Ey[ii, jj] * l_y[
+                            ii, jj]
+                                - self.Ex[ii, jj + 1] * l_x[ii, jj + 1] + self.Ex[ii, jj] * l_x[
+                                    ii, jj])
                     if self.sol_type != 'DM':
                         self.rho[ii, jj] = self.Vxy[ii, jj] / self.grid.S[ii, jj]
 
@@ -173,7 +180,7 @@ class EMSolver2D:
                 if self.grid.flag_int_cell[ii, jj]:
                     if self.grid.l_x[ii, jj] > 0:
                         self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
-                                self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3*self.Jx[ii, jj]
+                                self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
                     if self.grid.l_y[ii, jj] > 0:
                         self.Ey[ii, jj] = self.Ey[ii, jj] - self.dt / (eps_0 * self.dx) * (
-                                self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3*self.Jy[ii, jj]
+                                self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3 * self.Jy[ii, jj]
