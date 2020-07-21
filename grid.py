@@ -18,7 +18,7 @@ def neq(a, b, tol=1e-8):
     return not eq(a, b, tol)
 
 
-class Grid:
+class Grid2D:
     """
   Class holding the grid info and the routines for cell extensions.
     Constructor arguments:
@@ -53,20 +53,28 @@ class Grid:
         self.flag_ext_cell = np.zeros((nx, ny), dtype=bool)
         self.broken = np.zeros((self.nx, self.ny), dtype=bool)
 
-        # info about cells we borrow area from (i, j,[(i_borrowing, j_borrowing, area_borrowing, )])
-        self.borrowing = np.empty((nx, ny), dtype=object)
-        # info about cells we lend area to (i, j, [(i_lending, j_lending, area_lending)])
-        self.lending = np.empty((nx, ny), dtype=object)
+        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+            raise ValueError("sol_type must be:\n" +
+                             "\t'FDTD' for standard staircased FDTD\n" +
+                             "\t'DM' for Dey-Mittra conformal FDTD\n" +
+                             "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        for i in range(nx):
-            for j in range(ny):
-                self.borrowing[i, j] = []
-                self.lending[i, j] = []
-
-        self.compute_edges()
-        self.compute_areas()
-        self.mark_cells()
-        if sol_type == 'ECT':
+        if sol_type is 'DM':
+            self.compute_edges()
+            self.compute_areas()
+            self.mark_cells()
+        elif sol_type is 'ECT':
+            self.compute_edges()
+            self.compute_areas()
+            self.mark_cells()
+            # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
+            self.borrowing = np.empty((nx, ny), dtype=object)
+            # info about intruding cells  (i, j, [(i_lending, j_lending, area_lending)])
+            self.lending = np.empty((nx, ny), dtype=object)
+            for i in range(nx):
+                for j in range(ny):
+                    self.borrowing[i, j] = []
+                    self.lending[i, j] = []
             self.compute_extensions()
 
     """
@@ -283,13 +291,14 @@ class Grid:
                     if self.S[ii, jj - 1] > S_ext and self.flag_avail_cell[ii, jj - 1]:
                         denom = self.S[ii, jj - 1]
                         patch = S_ext * self.S[ii, jj - 1] / denom
-                        if self.S_red[ii, jj - 1] - patch >0:
-                            self.S_red[ii, jj -1] -= patch
+                        if self.S_red[ii, jj - 1] - patch > 0:
+                            self.S_red[ii, jj - 1] -= patch
                             self.borrowing[ii, jj].append([ii, jj - 1, patch, None])
                             self.lending[ii, jj - 1].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] = self.S[ii, jj] + patch
                             self.flag_ext_cell[ii, jj] = False
-                    if self.S[ii + 1, jj] > S_ext and self.flag_avail_cell[ii + 1, jj] and self.flag_ext_cell[ii, jj]:
+                    if self.S[ii + 1, jj] > S_ext and self.flag_avail_cell[ii + 1, jj] and \
+                            self.flag_ext_cell[ii, jj]:
                         denom = self.S[ii + 1, jj]
                         patch = S_ext * self.S[ii + 1, jj] / denom
                         if self.S_red[ii + 1, jj] - patch > 0:
@@ -299,7 +308,8 @@ class Grid:
                             self.S_enl[ii, jj] = self.S[ii, jj] + patch
                             self.flag_ext_cell[ii, jj] = False
 
-                    if self.S[ii - 1, jj] > S_ext and self.flag_avail_cell[ii - 1, jj] and self.flag_ext_cell[ii, jj]:
+                    if self.S[ii - 1, jj] > S_ext and self.flag_avail_cell[ii - 1, jj] and \
+                            self.flag_ext_cell[ii, jj]:
                         denom = self.S[ii - 1, jj]
                         patch = S_ext * self.S[ii - 1, jj] / denom
                         if self.S_red[ii - 1, jj] - patch > 0:
@@ -308,7 +318,8 @@ class Grid:
                             self.lending[ii - 1, jj].append([ii, jj, patch, None])
                             self.S_enl[ii, jj] = self.S[ii, jj] + patch
                             self.flag_ext_cell[ii, jj] = False
-                    if self.S[ii, jj + 1] > S_ext and self.flag_avail_cell[ii, jj + 1] and self.flag_ext_cell[ii, jj]:
+                    if self.S[ii, jj + 1] > S_ext and self.flag_avail_cell[ii, jj + 1] and \
+                            self.flag_ext_cell[ii, jj]:
                         denom = self.S[ii, jj + 1]
                         patch = S_ext * self.S[ii, jj + 1] / denom
                         if self.S_red[ii, jj + 1] - patch > 0:
@@ -321,6 +332,7 @@ class Grid:
     """
   Function to compute the four-cell extension of the unstable cells 
     """
+
     def _compute_extensions_four_cells(self):
         for ii in range(0, self.nx):
             for jj in range(0, self.ny):
@@ -367,7 +379,7 @@ class Grid:
                                  (local_avail[ii, jj - 1]) * self.S[ii, jj - 1] +
                                  (local_avail[ii, jj + 1]) * self.S[ii, jj + 1])
 
-                            # self.flag_avail_cell[ii, jj + 1] = False
+                        # self.flag_avail_cell[ii, jj + 1] = False
                     # If possible, do 4-cell extension
                     if denom >= S_ext:
                         self.S_enl[ii, jj] = self.S[ii, jj]
