@@ -1,9 +1,4 @@
 import numpy as np
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-import matplotlib.pyplot as plt
-from matplotlib import patches
-import os
-from tqdm import tqdm
 
 
 class OutRect:
@@ -19,7 +14,7 @@ class OutRect:
     def out_conductor(self, x, y):
         # [xx, yy] = np.dot(self.mR, np.array([x, y]))
         return (-0.5 * self.Lx + self.x_cent < x < 0.5 * self.Lx + self.x_cent) and (
-                    -0.5 * self.Ly + self.y_cent < y < 0.5 * self.Ly + self.y_cent)
+                -0.5 * self.Ly + self.y_cent < y < 0.5 * self.Ly + self.y_cent)
 
     def in_conductor(self, x, y):
         return not self.out_conductor(x, y)
@@ -123,8 +118,8 @@ class OutCircle:
 
     def intersec_x(self, x, y):
         # if abs(y - self.y_cent) > self.radius:
-        inters_1 = np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.y_cent
-        inters_2 = -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.y_cent
+        inters_1 = np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
+        inters_2 = -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
         if abs(x - inters_1) < abs(x - inters_2):
             return inters_1
         else:
@@ -134,8 +129,8 @@ class OutCircle:
 
     def intersec_y(self, x, y):
         # if abs(x - self.x_cent) > self.radius:
-        inters_1 = np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.x_cent
-        inters_2 = -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.x_cent
+        inters_1 = np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
+        inters_2 = -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
         if abs(y - inters_1) < abs(y - inters_2):
             return inters_1
         else:
