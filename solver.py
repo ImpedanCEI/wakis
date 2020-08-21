@@ -73,7 +73,16 @@ class EMSolver2D:
 
     def one_step(self):
         if self.sol_type == 'ECT':
-            self.one_step_ect()
+            self.compute_v_and_rho()
+            self.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.V_enl,
+                              rho=self.rho, Hz=self.Hz, C1=self.C1,
+                              flag_int_cell=self.grid.flag_int_cell,
+                              flag_unst_cell=self.grid.flag_unst_cell, S=self.grid.S,
+                              borrowing=self.grid.borrowing, S_enl=self.grid.S_enl,
+                              lending=self.grid.lending, S_red=self.grid.S_red)
+
+            self.advance_e_dm()
+            self.time += self.dt
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
@@ -89,15 +98,15 @@ class EMSolver2D:
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
                     Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) + self.C2 * (
-                                Ex[ii, jj + 1]
-                                - Ex[ii, jj]))
+                            Ex[ii, jj + 1]
+                            - Ex[ii, jj]))
 
                     if self.grid.l_x[ii, jj] > 0:
                         Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
-                                    Hz[ii, jj] - Hz[ii, jj - 1])
+                                Hz[ii, jj] - Hz[ii, jj - 1])
                     if self.grid.l_y[ii, jj] > 0:
                         Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (
-                                    Hz[ii, jj] - Hz[ii - 1, jj])
+                                Hz[ii, jj] - Hz[ii - 1, jj])
 
         self.time += self.dt
 
@@ -114,51 +123,49 @@ class EMSolver2D:
 
         self.time += self.dt
 
-    def one_step_ect(self):
+    @staticmethod
+    def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
+                     flag_unst_cell=None, S=None, borrowing=None, S_enl=None, lending=None, 
+                     S_red=None):
         # Compute cell voltages
-        self.compute_v_and_rho()
 
         # take care of unstable cells
-        for ii in range(self.Nx):
-            for jj in range(self.Ny):
-                if self.grid.flag_int_cell[ii, jj] and self.grid.flag_unst_cell[ii, jj]:
-                    self.V_enl[ii, jj] = self.rho[ii, jj] * self.grid.S[ii, jj]
-                    if len(self.grid.borrowing[ii, jj]) == 0:
+        for ii in range(Nx):
+            for jj in range(Ny):
+                if flag_int_cell[ii, jj] and flag_unst_cell[ii, jj]:
+                    V_enl[ii, jj] = rho[ii, jj] * S[ii, jj]
+                    if len(borrowing[ii, jj]) == 0:
                         print('error in one_step_ect')
-                    for (ip, jp, patch, _) in self.grid.borrowing[ii, jj]:
-                        self.V_enl[ii, jj] += self.rho[ip, jp] * patch
-                    rho_enl = self.V_enl[ii, jj] / self.grid.S_enl[ii, jj]
+                    for (ip, jp, patch, _) in borrowing[ii, jj]:
+                        V_enl[ii, jj] += rho[ip, jp] * patch
+                    rho_enl = V_enl[ii, jj] / S_enl[ii, jj]
                     # communicate to the intruded cell the intruding rho
-                    for (ip, jp, patch, _) in self.grid.borrowing[ii, jj]:
-                        for num, (iii, jjj, _, _) in enumerate(self.grid.lending[ip, jp]):
+                    for (ip, jp, patch, _) in borrowing[ii, jj]:
+                        for num, (iii, jjj, _, _) in enumerate(lending[ip, jp]):
                             if iii == ii and jjj == jj:
-                                self.grid.lending[ip, jp][num][3] = rho_enl
+                                lending[ip, jp][num][3] = rho_enl
 
-                    self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * rho_enl
+                    Hz[ii, jj] = Hz[ii, jj] - C1 * rho_enl
 
         # take care of stable cells
-        for ii in range(self.Nx):
-            for jj in range(self.Ny):
-                if self.grid.flag_int_cell[ii, jj] and not self.grid.flag_unst_cell[ii, jj]:
+        for ii in range(Nx):
+            for jj in range(Ny):
+                if flag_int_cell[ii, jj] and not flag_unst_cell[ii, jj]:
                     # stable cell which hasn't been intruded
-                    if len(self.grid.lending[ii, jj]) == 0:
-                        self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * self.rho[ii, jj]
+                    if len(lending[ii, jj]) == 0:
+                        Hz[ii, jj] = Hz[ii, jj] - C1 * rho[ii, jj]
                     # stable cell which has been intruded
-                    elif len(self.grid.lending[ii, jj]) != 0:
+                    elif len(lending[ii, jj]) != 0:
                         Vnew = 0
-                        red_area = self.grid.S[ii, jj]
-                        for (ip, jp, patch, rho_enl) in self.grid.lending[ii, jj]:
+                        red_area = S[ii, jj]
+                        for (ip, jp, patch, rho_enl) in lending[ii, jj]:
                             if rho_enl is None:
                                 print('big mistake')
 
                             Vnew += rho_enl * patch
 
-                        Vnew += self.rho[ii, jj] * self.grid.S_red[ii, jj]
-                        self.Hz[ii, jj] = self.Hz[ii, jj] - self.C1 * Vnew / self.grid.S[ii, jj]
-
-        self.advance_e_dm()
-
-        self.time += self.dt
+                        Vnew += rho[ii, jj] * S_red[ii, jj]
+                        Hz[ii, jj] = Hz[ii, jj] - C1 * Vnew / S[ii, jj]
 
     def compute_v_and_rho(self):
         l_y = self.grid.l_y
@@ -167,20 +174,19 @@ class EMSolver2D:
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
                     self.Vxy[ii, jj] = (
-                                self.Ey[ii + 1, jj] * l_y[ii + 1, jj] - self.Ey[ii, jj] * l_y[
-                            ii, jj]
-                                - self.Ex[ii, jj + 1] * l_x[ii, jj + 1] + self.Ex[ii, jj] * l_x[
-                                    ii, jj])
+                            self.Ey[ii + 1, jj] * l_y[ii + 1, jj] - self.Ey[ii, jj] * l_y[
+                        ii, jj]
+                            - self.Ex[ii, jj + 1] * l_x[ii, jj + 1] + self.Ex[ii, jj] * l_x[
+                                ii, jj])
                     if self.sol_type != 'DM':
                         self.rho[ii, jj] = self.Vxy[ii, jj] / self.grid.S[ii, jj]
 
     def advance_e_dm(self):
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                if self.grid.flag_int_cell[ii, jj]:
-                    if self.grid.l_x[ii, jj] > 0:
-                        self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
-                                self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
-                    if self.grid.l_y[ii, jj] > 0:
-                        self.Ey[ii, jj] = self.Ey[ii, jj] - self.dt / (eps_0 * self.dx) * (
-                                self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3 * self.Jy[ii, jj]
+                if self.grid.l_x[ii, jj] > 0:
+                    self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
+                            self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
+                if self.grid.l_y[ii, jj] > 0:
+                    self.Ey[ii, jj] = self.Ey[ii, jj] - self.dt / (eps_0 * self.dx) * (
+                            self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3 * self.Jy[ii, jj]
