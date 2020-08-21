@@ -54,10 +54,19 @@ class Grid2D:
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        if sol_type is 'DM':
-            self.compute_edges()
-            self.compute_areas()
-            self.mark_cells()
+        if sol_type is 'DM' or sol_type is 'FDTD':
+            self.compute_edges(in_conductor=self.conductors.in_conductor,
+                               intersec_x=self.conductors.intersec_x,
+                               intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,
+                               dx=self.dx, dy=self.dy, nx=self.nx, ny=self.ny, xmin=self.xmin,
+                               ymin=self.ymin)
+            self.compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
+                               ny=self.ny, dx=self.dx, dy=self.dy)
+            self.mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
+                            dy=self.dy, S=self.S, flag_int_cell=self.flag_int_cell,
+                            S_stab=self.S_stab, flag_unst_cell=self.flag_unst_cell,
+                            flag_bound_cell=self.flag_bound_cell,
+                            flag_avail_cell=self.flag_avail_cell)
         elif sol_type is 'ECT':
             self.compute_edges(in_conductor=self.conductors.in_conductor,
                                intersec_x=self.conductors.intersec_x,
@@ -79,6 +88,7 @@ class Grid2D:
                 for j in range(ny):
                     self.borrowing[i, j] = []
                     self.lending[i, j] = []
+            self.flag_ext_cell = self.flag_unst_cell.copy()
             self.compute_extensions(nx=nx, ny=ny, S=self.S, flag_int_cell=self.flag_int_cell,
                                     S_stab=self.S_stab, S_enl=self.S_enl, S_red=self.S_red,
                                     flag_unst_cell=self.flag_unst_cell,
@@ -261,12 +271,17 @@ class Grid2D:
     """
 
     @staticmethod
-    def compute_extensions(flag_ext_cell=None, flag_unst_cell=None, nx=None, ny=None, S=None,
-                           flag_int_cell=None, S_stab=None, S_enl=None, S_red=None,
-                           flag_avail_cell=None, borrowing=None, lending=None):
-        flag_ext_cell[:] = flag_unst_cell.copy()[:]
+    def compute_extensions(nx=None, ny=None, S=None, flag_int_cell=None,
+                           S_stab=None, S_enl=None, S_red=None,
+                           flag_unst_cell=None,
+                           flag_avail_cell=None,
+                           flag_ext_cell=None, borrowing=None, l_verbose=True,
+                           lending=None, kk=0):
+
         N = np.sum(flag_ext_cell)
-        print('ext cells: %d' % N)
+
+        if l_verbose:
+            print('ext cells: %d' % N)
         # Do the simple one-cell extension
         Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, S_stab=S_stab, S_enl=S_enl,
                                             S_red=S_red, flag_avail_cell=flag_avail_cell,
@@ -274,7 +289,8 @@ class Grid2D:
                                             lending=lending)
 
         N_one_cell = (N - np.sum(flag_ext_cell))
-        print('one cell exts: %d' % N_one_cell)
+        if l_verbose:
+            print('one cell exts: %d' % N_one_cell)
         # If any cell could not be extended do the four-cell extension
         if np.sum(flag_ext_cell) > 0:
             N = np.sum(flag_ext_cell)
@@ -285,7 +301,8 @@ class Grid2D:
                                                   flag_ext_cell=flag_ext_cell, borrowing=borrowing,
                                                   lending=lending)
             N_four_cells = (N - np.sum(flag_ext_cell))
-            print('four cell exts: %d' % N_four_cells)
+            if l_verbose:
+                print('four cell exts: %d' % N_four_cells)
         # If any cell could not be extended do the eight-cell extension
         if np.sum(flag_ext_cell) > 0:
             N = np.sum(flag_ext_cell)
@@ -296,7 +313,8 @@ class Grid2D:
                                                    flag_ext_cell=flag_ext_cell, borrowing=borrowing,
                                                    lending=lending)
             N_eight_cells = (N - np.sum(flag_ext_cell))
-            print('eight cell exts: %d' % N_eight_cells)
+            if l_verbose:
+                print('eight cell exts: %d' % N_eight_cells)
         # If any cell could not be extended the algorithm failed
         if np.sum(flag_ext_cell) > 0:
             N = (np.sum(flag_ext_cell))
