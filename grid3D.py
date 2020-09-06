@@ -80,15 +80,11 @@ class Grid3D:
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        self.compute_edges()
+        self.compute_edges(tol=0.)
         if sol_type is 'DM' or sol_type is 'FDTD':
             self.compute_areas()
             self.mark_cells()
-            self.Sxy[self.Sxy>0] = self.dx*self.dy
-            self.Syz[self.Syz>0] = self.dy*self.dz
-            self.Szx[self.Szx>0] = self.dx*self.dz
         elif sol_type is 'ECT':
-            self.compute_edges()
             self.compute_areas()
             self.mark_cells()
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
