@@ -64,6 +64,8 @@ class EMSolver3D:
         self.C3 = self.dt / eps_0
         self.C6 = self.dt / eps_0
 
+        self.CN = self.dt/mu_0
+
         # indices for the source
         self.i_s = i_s
         self.j_s = j_s
@@ -100,10 +102,6 @@ class EMSolver3D:
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
-                    x = self.grid.xmin + ii * self.dx
-                    y = self.grid.ymin + jj * self.dy
-                    z = self.grid.zmin + kk * self.dz
-
                     if self.grid.flag_int_cell_yz[ii, jj, kk]:
                         Hx[ii, jj, kk] = (Hx[ii, jj, kk] -
                                           self.C2 * (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) +
@@ -119,6 +117,9 @@ class EMSolver3D:
                                           self.C1 * (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) +
                                           self.C2 * (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]))
 
+        for ii in range(self.Nx):
+            for jj in range(self.Ny):
+                for kk in range(self.Nz):
                     if self.grid.l_x[ii, jj, kk] > 0:
                         Ex[ii, jj, kk] = (Ex[ii, jj, kk] - self.C3 * self.Jx[ii, jj, kk] +
                                           self.C4 * (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) -
@@ -164,7 +165,7 @@ class EMSolver3D:
     def one_step_ect(self):
         for kk in range(self.Nz):
             EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.Vxy_enl[:, :, kk],
-                                    rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.C1,
+                                    rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_xy[:, :, kk],
                                     flag_unst_cell=self.grid.flag_unst_cell_xy[:, :, kk],
                                     S=self.grid.Sxy[:, :, kk],
@@ -175,7 +176,7 @@ class EMSolver3D:
 
         for ii in range(self.Nx):
             EMSolver2D.one_step_ect(Nx=self.Ny, Ny=self.Nz, V_enl=self.Vyz_enl[ii, :, :],
-                                    rho=self.rho_yz[ii, :, :], Hz=self.Hx[ii, :, :], C1=self.C1,
+                                    rho=self.rho_yz[ii, :, :], Hz=self.Hx[ii, :, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_yz[ii, :, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_yz[ii, :, :],
                                     S=self.grid.Syz[ii, :, :],
@@ -186,7 +187,7 @@ class EMSolver3D:
 
         for jj in range(self.Ny):
             EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Nz, V_enl=self.Vzx_enl[:, jj, :],
-                                    rho=self.rho_zx[:, jj, :], Hz=self.Hy[:, jj, :], C1=self.C1,
+                                    rho=self.rho_zx[:, jj, :], Hz=self.Hy[:, jj, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_zx[:, jj, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_zx[:, jj, :],
                                     S=self.grid.Szx[:, jj, :],
@@ -195,6 +196,7 @@ class EMSolver3D:
                                     lending=self.grid.lending_zx[:, jj, :],
                                     S_red=self.grid.Szx_red[:, jj, :])
 
+        
     def compute_v_and_rho(self):
         l_x = self.grid.l_x
         l_y = self.grid.l_y
