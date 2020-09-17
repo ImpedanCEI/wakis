@@ -11,7 +11,8 @@ def neq(a, b, tol=1e-8):
 
 
 class EMSolver2D:
-    def __init__(self, grid, sol_type, cfln, i_s, j_s):
+    def __init__(self, grid, sol_type, cfln, i_s, j_s, bc_low, bc_high,
+                 N_pml_low = None, N_pml_high = None):
         self.grid = grid
         self.type = type
         self.cfln = cfln
@@ -23,11 +24,28 @@ class EMSolver2D:
         self.Ny = self.grid.ny
         self.sol_type = sol_type
 
-        self.Ex = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Ey = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Hz = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Jx = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Jy = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.N_pml_low = np.zeros(2)
+        self.N_pml_high = np.zeros(2)
+
+        if bc_low[0] == 'pml':
+            self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
+        if bc_low[1] == 'pml':
+            self.N_pml_low[1] = 10 if N_pml_low is None else N_pml_low[1]
+        if bc_high[0] == 'pml':
+            self.N_pml_high[0] = 10 if N_pml_high is None else N_pml_high[0]
+        if bc_high[1] == 'pml':
+            self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
+
+        self.N_tot_x = self.Nx + self.N_pml_low[0] + self.N_pml_high[0]
+        self.N_tot_y = self.Ny + self.N_pml_low[0] + self.N_pml_high[0]
+
+        self.sol_type = sol_type
+
+        self.Ex = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
+        self.Ey = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
+        self.Hz = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
+        self.Jx = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
+        self.Jy = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
         self.rho = np.zeros((self.Nx, self.Ny))
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
