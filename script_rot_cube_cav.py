@@ -8,7 +8,7 @@ import os
 from tqdm import tqdm
 from solver3D import EMSolver3D
 from grid3D import Grid3D
-from conductors3d import InCube, ConductorsAssembly, InSphere
+from conductors3d import InCube, ConductorsAssembly, InSphere, Plane
 from scipy.special import jv
 
 Z0 = np.sqrt(mu_0 / eps_0)
@@ -26,29 +26,59 @@ dx = L / Nx
 dy = L / Ny
 dz = L / Nz
 
-LL = dx*3 - 0.3*dx
+LL = dx*8 - 0.1*dx
 
 r_circ = 0.3
-xmin = - LL
-xmax = Lx - LL
-ymin = - LL
-ymax = Ly - LL
-zmin = - LL
-zmax = Lz - LL
+xmin = -Lx/2
+xmax = Lx/2
+ymin = -Ly/2
+ymax = Ly/2
+zmin = -Lz/2
+zmax = Lz/2
 
 lx = Lx - 2*LL
 ly = Ly - 2*LL
 lz = Lz - 2*LL
-x_cent = lx / 2
-y_cent = ly / 2
-z_cent = lz / 2
+x_cent = 0
+y_cent = 0
+z_cent = 0
+theta = np.pi/4
+
+n1 = -np.array([np.cos(theta), np.sin(theta), 0])
+n2 = -np.array([np.cos(theta + np.pi/2), np.sin(theta + np.pi/2), 0])
+n3 = -np.array([np.cos(theta + np.pi), np.sin(theta + np.pi), 0])
+n4 = -np.array([np.cos(theta + 3*np.pi/2), np.sin(theta + 3*np.pi/2), 0])
+n5 = -np.array([0, 0, 1])
+n6 = np.array([0, 0, 1])
+
+R_theta = np.array([[np.cos(theta), - np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]])
+R_rect = np.array([[np.cos(np.pi/2), - np.sin(np.pi/2), 0], [np.sin(np.pi/2), np.cos(np.pi/2), 0], [0, 0, 1]])
+
+
+
+p1 = np.dot(R_theta, np.array([lx/2, ly/2, 0]))
+p2 = np.dot(R_theta, np.array([-lx/2, ly/2, 0]))
+p3 = np.dot(R_theta, np.array([-lx/2, -ly/2, 0]))
+p4 = np.dot(R_theta, np.array([lx/2, -ly/2, 0]))
+p5 = np.array([0, 0, lz/2])
+p6 = np.array([0, 0, -lz/2])
+
+plane1 = Plane(p1, n1)
+plane2 = Plane(p2, n2)
+plane3 = Plane(p3, n3)
+plane4 = Plane(p4, n4)
+plane5 = Plane(p5, n5)
+plane6 = Plane(p6, n6)
 
 cube = InCube(lx, ly, lz, x_cent, y_cent, z_cent)
-theta = 0
 sphere = InSphere(r_circ, x_cent, y_cent, z_cent)
-conductors = ConductorsAssembly([cube])
+conductors = ConductorsAssembly([plane1, plane2, plane3, plane4, plane5, plane6])
+#conductors = ConductorsAssembly([cube])
+
 # conductors = cube
 sol_type = 'ECT'
+
+
 
 grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, sol_type)
 i_s = int(Nx / 2)
@@ -144,7 +174,7 @@ for ii in range(Nx):
                 solver.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, -0.5 * solver.dt)
 
 
-Nt = 300
+Nt = 0
 
 res_Hy = np.zeros(Nt)
 res_Ex = np.zeros(Nt)
