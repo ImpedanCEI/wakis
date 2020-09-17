@@ -12,7 +12,7 @@ def neq(a, b, tol=1e-8):
 
 class EMSolver2D:
     def __init__(self, grid, sol_type, cfln, i_s, j_s, bc_low, bc_high,
-                 N_pml_low = None, N_pml_high = None):
+                 N_pml_low=None, N_pml_high=None):
         self.grid = grid
         self.type = type
         self.cfln = cfln
@@ -24,8 +24,8 @@ class EMSolver2D:
         self.Ny = self.grid.ny
         self.sol_type = sol_type
 
-        self.N_pml_low = np.zeros(2)
-        self.N_pml_high = np.zeros(2)
+        self.N_pml_low = np.zeros(2, dtype=int)
+        self.N_pml_high = np.zeros(2, dtype=int)
 
         if bc_low[0] == 'pml':
             self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
@@ -38,7 +38,6 @@ class EMSolver2D:
 
         self.N_tot_x = self.Nx + self.N_pml_low[0] + self.N_pml_high[0]
         self.N_tot_y = self.Ny + self.N_pml_low[0] + self.N_pml_high[0]
-
         self.sol_type = sol_type
 
         self.Ex = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
@@ -112,6 +111,15 @@ class EMSolver2D:
         Ey = self.Ey
         Hz = self.Hz
         # Compute cell voltages
+        self.advance_h_fdtd()
+        self.advance_e_fdtd()
+
+        self.time += self.dt
+
+    def advance_h_fdtd(self):
+        Ex = self.Ex
+        Ey = self.Ey
+        Hz = self.Hz
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
@@ -119,14 +127,21 @@ class EMSolver2D:
                             Ex[ii, jj + 1]
                             - Ex[ii, jj]))
 
+    def advance_e_fdtd(self):
+        Z_0 = np.sqrt(mu_0 / eps_0)
+        Ex = self.Ex
+        Ey = self.Ey
+        Hz = self.Hz
+        # Compute cell voltages
+        for ii in range(self.Nx):
+            for jj in range(self.Ny):
+                if self.grid.flag_int_cell[ii, jj]:
                     if self.grid.l_x[ii, jj] > 0:
                         Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
                                 Hz[ii, jj] - Hz[ii, jj - 1])
                     if self.grid.l_y[ii, jj] > 0:
                         Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (
                                 Hz[ii, jj] - Hz[ii - 1, jj])
-
-        self.time += self.dt
 
     def one_step_dm(self):
         self.compute_v_and_rho()
@@ -143,7 +158,7 @@ class EMSolver2D:
 
     @staticmethod
     def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
-                     flag_unst_cell=None, S=None, borrowing=None, S_enl=None, lending=None, 
+                     flag_unst_cell=None, S=None, borrowing=None, S_enl=None, lending=None,
                      S_red=None):
         # Compute cell voltages
 
