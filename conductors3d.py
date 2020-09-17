@@ -153,17 +153,26 @@ class Plane:
         self.n = n
 
     def in_conductor(self, x, y, z):
-        return self.n[0]*(x - self.p[0]) + self.n[1]*(y - self.p[1]) + self.n[2] * (z - self.p[2]) < 0
+        return self.n[0]*(x - self.p[0]) + self.n[1]*(y - self.p[1]) + self.n[2] * (z - self.p[2]) <= 0
 
     def out_conductor(self, x, y, z):
         return not self.in_conductor(x, y, z)
 
     def intersec_x(self, x, y, z):
-        return -(self.n[1]*(y - self.n[1]) + self.n[2]*(z - self.n[2]))/self.n[0] + self.n[0]
+        if self.n[0] == 0:
+            return 1000
+        else:
+            return -(self.n[1]*(y - self.p[1]) + self.n[2]*(z - self.p[2]))/self.n[0] + self.p[0]
 
     def intersec_y(self, x, y, z):
-        return -(self.n[0]*(x - self.n[0]) + self.n[2]*(z - self.n[2]))/self.n[1] + self.n[1]
+        if self.n[1] == 0:
+            return 1000
+        else:
+            return -(self.n[0]*(x - self.p[0]) + self.n[2]*(z - self.p[2]))/self.n[1] + self.p[1]
 
     def intersec_z(self, x, y, z):
-        return -(self.n[0]*(x - self.n[0]) + self.n[1]*(y - self.n[1]))/self.n[2] + self.n[2]
+        if self.n[2] == 0:
+            return 1000
+        else:
+            return -(self.n[0]*(x - self.p[0]) + self.n[1]*(y - self.p[1]))/self.n[2] + self.p[2]
 
