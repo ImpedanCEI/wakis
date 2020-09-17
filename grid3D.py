@@ -80,7 +80,7 @@ class Grid3D:
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        self.compute_edges(tol=0.)
+        self.compute_edges()
         if sol_type is 'DM' or sol_type is 'FDTD':
             self.compute_areas()
             self.mark_cells()
@@ -108,7 +108,8 @@ class Grid3D:
             self.flag_ext_cell_xy = self.flag_unst_cell_xy.copy()
             self.flag_ext_cell_yz = self.flag_unst_cell_yz.copy()
             self.flag_ext_cell_zx = self.flag_unst_cell_zx.copy()
-            self.compute_extensions()
+            self.mark_cells()
+            #self.compute_extensions()
 
     """
   Function to compute the length of the edges of the conformal grid.
@@ -319,7 +320,7 @@ class Grid3D:
                                       flag_avail_cell=self.flag_avail_cell_yz[ii, :, :],
                                       flag_ext_cell=self.flag_ext_cell_yz[ii, :, :],
                                       borrowing=self.borrowing_yz[ii, :, :],
-                                      lending=self.lending_yz[ii, :, :], l_verbose=False)
+                                      lending=self.lending_yz[ii, :, :], kk = ii, l_verbose=False)
             
         for jj in range(self.ny):
             Grid2D.compute_extensions(nx=self.nx, ny=self.nz, S=self.Szx[:, jj, :],
