@@ -255,15 +255,16 @@ class Grid2D:
         for ii in range(nx):
             for jj in range(ny):
                 flag_int_cell[ii, jj] = S[ii, jj] > 0
-                S_stab[ii, jj] = 0.5 * np.max(
-                    [l_x[ii, jj] * dy, l_x[ii, jj + 1] * dy,
-                     l_y[ii, jj] * dx,
-                     l_y[ii + 1, jj] * dx])
+                if flag_int_cell[ii, jj]:
+                    S_stab[ii, jj] = 0.5 * np.max(
+                        [l_x[ii, jj] * dy, l_x[ii, jj + 1] * dy,
+                        l_y[ii, jj] * dx,
+                        l_y[ii + 1, jj] * dx])
                 flag_unst_cell[ii, jj] = S[ii, jj] < S_stab[ii, jj]
-                flag_bound_cell[ii, jj] = ((0 <= l_x[ii, jj] < dx) or
-                                           (0 <= l_y[ii, jj] < dy) or
-                                           (0 <= l_x[ii, jj + 1] < dx) or
-                                           (0 <= l_y[ii + 1, jj] < dy))
+                flag_bound_cell[ii, jj] = ((0 < l_x[ii, jj] < dx) or
+                                           (0 < l_y[ii, jj] < dy) or
+                                           (0 < l_x[ii, jj + 1] < dx) or
+                                           (0 < l_y[ii + 1, jj] < dy))
                 flag_avail_cell[ii, jj] = flag_int_cell[ii, jj] and (not flag_unst_cell[ii, jj])
 
     """
@@ -281,6 +282,7 @@ class Grid2D:
         N = np.sum(flag_ext_cell)
 
         if l_verbose:
+            print(kk)
             print('ext cells: %d' % N)
         # Do the simple one-cell extension
         Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, S_stab=S_stab, S_enl=S_enl,
@@ -318,7 +320,7 @@ class Grid2D:
         # If any cell could not be extended the algorithm failed
         if np.sum(flag_ext_cell) > 0:
             N = (np.sum(flag_ext_cell))
-            raise RuntimeError(str(N) + 'cells could not be extended.\n' +
+            raise RuntimeError(str(N) + ' cells could not be extended.\n' +
                                'Please refine the mesh')
 
     """
