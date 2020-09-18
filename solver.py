@@ -25,7 +25,7 @@ class EMSolver2D:
 
         self.Ex = np.zeros((self.Nx + 1, self.Ny + 1))
         self.Ey = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Hz = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Hz = np.zeros((self.Nx, self.Ny))
         self.Jx = np.zeros((self.Nx + 1, self.Ny + 1))
         self.Jy = np.zeros((self.Nx + 1, self.Ny + 1))
         self.rho = np.zeros((self.Nx, self.Ny))
@@ -37,9 +37,9 @@ class EMSolver2D:
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         if sol_type is 'DM' or sol_type is 'ECT':
-            self.Vxy = np.zeros((self.Nx + 1, self.Ny + 1))
+            self.Vxy = np.zeros((self.Nx, self.Ny))
         if sol_type is 'ECT':
-            self.V_enl = np.zeros((self.Nx + 1, self.Ny + 1))
+            self.V_enl = np.zeros((self.Nx, self.Ny))
 
         if sol_type is 'ECT' or sol_type is 'DM':
             self.C1 = self.dt / mu_0
@@ -101,6 +101,9 @@ class EMSolver2D:
                             Ex[ii, jj + 1]
                             - Ex[ii, jj]))
 
+        for ii in range(1, self.Nx):
+            for jj in range(1, self.Ny):
+                if self.grid.flag_int_cell[ii, jj]:
                     if self.grid.l_x[ii, jj] > 0:
                         Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
                                 Hz[ii, jj] - Hz[ii, jj - 1])
@@ -182,8 +185,8 @@ class EMSolver2D:
                         self.rho[ii, jj] = self.Vxy[ii, jj] / self.grid.S[ii, jj]
 
     def advance_e_dm(self):
-        for ii in range(self.Nx):
-            for jj in range(self.Ny):
+        for ii in range(1, self.Nx):
+            for jj in range(1, self.Ny):
                 if self.grid.l_x[ii, jj] > 0:
                     self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
                             self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
