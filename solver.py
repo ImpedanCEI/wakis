@@ -40,19 +40,14 @@ class EMSolver2D:
         self.N_tot_y = self.Ny + self.N_pml_low[0] + self.N_pml_high[0]
         self.sol_type = sol_type
 
-        self.Ex = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Ey = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Hz = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Exy = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Exz = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Eyx = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Eyz = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Hzx = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Hzy = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
+        self.Ex = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Ey = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Hz = np.zeros((self.Nx, self.Ny))
+        self.Jx = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Jy = np.zeros((self.Nx + 1, self.Ny + 1))
 
-        self.Jx = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
-        self.Jy = np.zeros((self.N_tot_x + 1, self.N_tot_y + 1))
         self.rho = np.zeros((self.Nx, self.Ny))
+
 
         self.sigma_x = np.zeros_like(self.Ex)
         self.sigma_y = np.zeros_like(self.Ex)
@@ -87,9 +82,9 @@ class EMSolver2D:
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         if sol_type is 'DM' or sol_type is 'ECT':
-            self.Vxy = np.zeros((self.Nx + 1, self.Ny + 1))
+            self.Vxy = np.zeros((self.Nx, self.Ny))
         if sol_type is 'ECT':
-            self.V_enl = np.zeros((self.Nx + 1, self.Ny + 1))
+            self.V_enl = np.zeros((self.Nx, self.Ny))
 
         if sol_type is 'ECT' or sol_type is 'DM':
             self.C1 = self.dt / mu_0
@@ -163,9 +158,7 @@ class EMSolver2D:
         Hz = self.Hz
         # Compute cell voltages
         self.advance_h_fdtd()
-        self.advance_h_pml_fdtd()
         self.advance_e_fdtd()
-        self.advance_e_pml_fdtd()
 
         self.time += self.dt
 
@@ -180,184 +173,16 @@ class EMSolver2D:
                             Ex[ii, jj + 1]
                             - Ex[ii, jj]))
 
-    def advance_h_pml_fdtd(self):
-
-        # 00
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1]):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-        # 10
-        for ii in range(self.N_pml_low[0], self.N_pml_low[0] + self.Nx):
-            for jj in range(self.N_pml_low[1]):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 01
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1], self.N_pml_low[1] + self.Ny):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 20
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1]):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 02
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 21
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1], self.N_pml_low[1] + self.Ny):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 21
-        for ii in range(self.N_pml_low[0], self.N_pml_low[0] + self.Nx):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        # 22
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] + self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
-                                                                                                     - self.Ey[ii, jj])
-                self.Hzy[ii, jj] = self.Cy[ii, jj] * self.Hzy[ii, jj] - self.Dy[ii, jj] / self.dy * (self.Ex[ii, jj + 1]
-                                                                                                     - self.Ex[ii, jj])
-
-        self.Hz = self.Hz + self.Hzy + self.Hzx
-
-    def advance_e_pml_fdtd(self):
-
-        # 00
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1]):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 10
-        for ii in range(self.N_pml_low[0], self.N_pml_low[0] + self.Nx):
-            for jj in range(self.N_pml_low[1]):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 01
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1], self.N_pml_low[1] + self.Ny):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 20
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1]):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 02
-        for ii in range(self.N_pml_low[0]):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 21
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1], self.N_pml_low[1] + self.Ny):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 21
-        for ii in range(self.N_pml_low[0], self.N_pml_low[0] + self.Nx):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        # 22
-        for ii in range(self.N_pml_low[0] + self.Nx, self.N_tot_x):
-            for jj in range(self.N_pml_low[1] + self.Ny, self.N_tot_y):
-                self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] - self.By[ii, jj] / self.dy * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii, jj - 1])
-                self.Exz[ii, jj] = self.Az[ii, jj] * self.Exz[ii, jj]
-                self.Eyz[ii, jj] = self.Az[ii, jj] * self.Eyz[ii, jj]
-                self.Eyx[ii, jj] = self.Ax[ii, jj] * self.Eyx[ii, jj] + self.Bx[ii, jj] / self.dx * (self.Hz[ii, jj]
-                                                                                                     - self.Hz[
-                                                                                                         ii - 1, jj])
-
-        self.Ex = self.Ex + self.Exy + self.Exz
-        self.Ey = self.Ey + self.Eyx + self.Eyz
 
     def advance_e_fdtd(self):
         Z_0 = np.sqrt(mu_0 / eps_0)
         Ex = self.Ex
         Ey = self.Ey
         Hz = self.Hz
-        # Compute cell voltages
-        for ii in range(self.N_pml_low[0], self.N_pml_low[0] + self.Nx):
-            for jj in range(self.N_pml_low[1], self.N_pml_low[1] + self.Ny):
-                if self.grid.flag_int_cell[ii - self.N_pml_low[0], jj - self.N_pml_low[1]]:
-                    if self.grid.l_x[ii - self.N_pml_low[0], jj - self.N_pml_low[1]] > 0:
+        for ii in range(1, self.Nx):
+            for jj in range(1, self.Ny):
+                if self.grid.flag_int_cell[ii, jj]:
+                    if self.grid.l_x[ii, jj] > 0:
                         Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
                                 Hz[ii, jj] - Hz[ii, jj - 1])
                     if self.grid.l_y[ii - self.N_pml_low[0], jj - self.N_pml_low[1]] > 0:
@@ -436,8 +261,8 @@ class EMSolver2D:
                         self.rho[ii, jj] = self.Vxy[ii, jj] / self.grid.S[ii, jj]
 
     def advance_e_dm(self):
-        for ii in range(self.Nx):
-            for jj in range(self.Ny):
+        for ii in range(1, self.Nx):
+            for jj in range(1, self.Ny):
                 if self.grid.l_x[ii, jj] > 0:
                     self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
                             self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
