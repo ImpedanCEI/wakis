@@ -79,7 +79,6 @@ conductors = ConductorsAssembly([plane1, plane2, plane3, plane4, plane5, plane6]
 sol_type = 'ECT'
 
 
-
 grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, sol_type)
 i_s = int(Nx / 2)
 j_s = int(Ny / 2)

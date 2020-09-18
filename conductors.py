@@ -168,3 +168,18 @@ class ConductorsAssembly:
 
         dist_inters = abs(list_inters - y)
         return list_inters[np.argmin(dist_inters)]
+
+
+class noConductor:
+    def out_conductor(self, x, y):
+        return True
+
+    def in_conductor(self, x, y):
+        return False
+
+    def intersec_x(self, x, y):
+        return 1000
+
+    def intersec_y(self, x, y):
+        return 1000
+

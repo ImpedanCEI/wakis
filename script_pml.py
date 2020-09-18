@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 from solver import EMSolver2D
 from grid2D import Grid2D
-from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle
+from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle, noConductor
 from scipy.special import jv
 
 L = 1.
@@ -44,7 +44,9 @@ plane2 = Plane(m_plane2, q_plane2, tol=0, sign=-1)
 plane3 = Plane(m_plane3, q_plane3, tol=0, sign=1)
 plane4 = Plane(m_plane4, q_plane4, tol=0, sign=-1)
 
-conductors = ConductorsAssembly([plane1, plane2, plane3, plane4])
+
+
+conductors = ConductorsAssembly([noConductor()])
 
 #theta = 0
 #conductors = ConductorsAssembly([rect])
@@ -54,57 +56,12 @@ grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
 i_s = int(1 * Nx / 2.)
 j_s = int(1 * Ny / 2.)
 NCFL = 1
-bc_low = ['dirichlet', 'dirichlet', 'dirichlet']
-bc_high = ['dirichlet', 'dirichlet', 'dirichlet']
+bc_low = ['pml', 'pml', 'pml']
+bc_high = ['pml', 'pml', 'pml']
 
 solver = EMSolver2D(grid, sol_type, NCFL, i_s, j_s, bc_low, bc_high)
 
-# Constants
-mu_r = 1
-eps_r = 1
-
-Nborrow = np.zeros((Nx, Ny))
-Nlend = np.zeros((Nx, Ny))
-minpatch = np.ones((Nx, Ny))
-small_patch = np.ones((Nx, Ny), dtype = bool)
-'''
-for ii in range(Nx):
-    for jj in range(Ny):
-        Nborrow[ii, jj] = len(grid.borrowing[ii, jj])
-        Nlend[ii, jj] = len(grid.lending[ii, jj])
-
-        for (_, _, patch, _) in grid.borrowing[ii, jj]:
-            if patch < minpatch[ii, jj]:
-                minpatch[ii, jj] = patch
-'''
-for ii in range(Nx):
-    for jj in range(Ny):
-        small_patch[ii, jj] = minpatch[ii, jj] < grid.S_stab[ii, jj]
-
-
-def analytic_sol(x, y, t):
-    Rm = np.array([[np.cos(-theta), - np.sin(-theta)],[np.sin(-theta), np.cos(-theta)]])
-    [x_0, y_0] = np.dot(Rm, np.array([x, y]))
-
-    return np.cos(np.pi/Lx*(x_0 - Lx/2))*np.cos(np.pi/Ly*(y_0 - Lx/2))*np.cos(np.sqrt(2)*np.pi/Lx*c_light*t)
-
-
-for ii in range(Nx):
-    for jj in range(Ny):
-        x = (ii) * dx + xmin
-        y = (jj) * dy + ymin
-
-        if grid.flag_int_cell[ii, jj]:
-            solver.Hz[ii, jj] = analytic_sol(x, y, 0)  # -k*c_light*solver.dt/2)
-
-
-max_sol = solver.Hz
-
-t_f = 1.1*np.sqrt(2)*Lx/c_light
-Nt = int(t_f/solver.dt)
-#Nt = 100
-
-sol = np.zeros_like(solver.Hz)
+Nt = 1000
 
 for t in tqdm(range(Nt)):
     '''
@@ -172,15 +129,4 @@ for t in tqdm(range(Nt)):
     plt.close(fig)
     solver.time += solver.dt
     solver.one_step()
-    #solver.Hz[i_s, j_s] += solver.gauss(solver.time)
-# Compute the analytic solution
-sol = np.zeros_like(solver.Hz)
-
-for ii in range(Nx + 1):
-    for jj in range(Ny + 1):
-        x = (ii + 0.5) * dx + xmin
-        y = (jj + 0.5) * dy + ymin
-        sol[ii, jj] = analytic_sol(x, y, solver.time)
-
-err = np.linalg.norm(solver.Hz - sol) * dx * dy / np.linalg.norm(max_sol)
-print(err)
+    solver.Hz[i_s, j_s] += solver.gauss(solver.time)
