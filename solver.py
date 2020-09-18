@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-
+from pml_block import PmlBlock2D
 
 def eq(a, b, tol=1e-8):
     return abs(a - b) < tol
@@ -26,6 +26,8 @@ class EMSolver2D:
 
         self.N_pml_low = np.zeros(2, dtype=int)
         self.N_pml_high = np.zeros(2, dtype=int)
+        self.bc_low = bc_low
+        self.bc_high = bc_high
 
         if bc_low[0] == 'pml':
             self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
@@ -36,43 +38,38 @@ class EMSolver2D:
         if bc_high[1] == 'pml':
             self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
 
+        if bc_low[0] == 'pml':
+            self.pml_lx = PmlBlock2D(self.N_pml_low[0], self.Ny, self.dt, self.dx, self.dy)
+            if bc_low[0] == 'pml':
+                self.pml_lxly = PmlBlock2D(self.N_pml_low[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
+            if bc_high[1] == 'pml':
+                self.pml_lxry = PmlBlock2D(self.N_pml_low[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
+
+        if bc_high[0] == 'pml':
+            self.pml_rx = PmlBlock2D(self.N_pml_high[0], self.Ny, self.dt, self.dx, self.dy)
+            if bc_low[0] == 'pml':
+                self.pml_rxry = PmlBlock2D(self.N_pml_high[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
+            if bc_high[1] == 'pml':
+                self.pml_rxly = PmlBlock2D(self.N_pml_high[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
+
+        if bc_low[1]:
+            self.pml_ly = PmlBlock2D(self.N_pml_low[1], self.Nx, self.dt, self.dx, self.dy)
+
+        if bc_high[1]:
+            self.pml_ry = PmlBlock2D(self.N_pml_high[1], self.Nx, self.dt, self.dx, self.dy)
+
         self.N_tot_x = self.Nx + self.N_pml_low[0] + self.N_pml_high[0]
         self.N_tot_y = self.Ny + self.N_pml_low[0] + self.N_pml_high[0]
         self.sol_type = sol_type
 
-        self.Ex = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Ey = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Ex = np.zeros((self.Nx, self.Ny + 1))
+        self.Ey = np.zeros((self.Nx + 1, self.Ny))
         self.Hz = np.zeros((self.Nx, self.Ny))
-        self.Jx = np.zeros((self.Nx + 1, self.Ny + 1))
-        self.Jy = np.zeros((self.Nx + 1, self.Ny + 1))
+        self.Jx = np.zeros((self.Nx, self.Ny + 1))
+        self.Jy = np.zeros((self.Nx + 1, self.Ny))
 
         self.rho = np.zeros((self.Nx, self.Ny))
 
-
-        self.sigma_x = np.zeros_like(self.Ex)
-        self.sigma_y = np.zeros_like(self.Ex)
-        self.sigma_z = np.zeros_like(self.Ex)
-        self.sigma_star_x = np.zeros_like(self.Ex)
-        self.sigma_star_y = np.zeros_like(self.Ex)
-        self.sigma_star_z = np.zeros_like(self.Ex)
-
-        self.alpha_pml = 3
-        self.R0_pml = 0.001
-
-        self.assemble_conductivities()
-
-        self.Ax = (2 * eps_0 - self.dt * self.sigma_x) / (2 * eps_0 + self.dt * self.sigma_x)
-        self.Ay = (2 * eps_0 - self.dt * self.sigma_y) / (2 * eps_0 + self.dt * self.sigma_y)
-        self.Az = (2 * eps_0 - self.dt * self.sigma_z) / (2 * eps_0 + self.dt * self.sigma_z)
-        self.Bx = 2 * self.dt / (2 * eps_0 + self.dt * self.sigma_x)
-        self.By = 2 * self.dt / (2 * eps_0 + self.dt * self.sigma_y)
-        self.Bz = 2 * self.dt / (2 * eps_0 + self.dt * self.sigma_z)
-        self.Cx = (2 * mu_0 - self.dt * self.sigma_star_x) / (2 * mu_0 + self.dt * self.sigma_star_x)
-        self.Cy = (2 * mu_0 - self.dt * self.sigma_star_y) / (2 * mu_0 + self.dt * self.sigma_star_y)
-        self.Cz = (2 * mu_0 - self.dt * self.sigma_star_z) / (2 * mu_0 + self.dt * self.sigma_star_z)
-        self.Dx = 2 * self.dt / (2 * mu_0 + self.dt * self.sigma_star_x)
-        self.Dy = 2 * self.dt / (2 * mu_0 + self.dt * self.sigma_star_y)
-        self.Dz = 2 * self.dt / (2 * mu_0 + self.dt * self.sigma_star_z)
 
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
@@ -179,13 +176,17 @@ class EMSolver2D:
         Ex = self.Ex
         Ey = self.Ey
         Hz = self.Hz
-        for ii in range(1, self.Nx):
+        for ii in range(self.Nx):
             for jj in range(1, self.Ny):
                 if self.grid.flag_int_cell[ii, jj]:
                     if self.grid.l_x[ii, jj] > 0:
                         Ex[ii, jj] = Ex[ii, jj] - self.C3 * self.Jx[ii, jj] + self.C4 * (
                                 Hz[ii, jj] - Hz[ii, jj - 1])
-                    if self.grid.l_y[ii - self.N_pml_low[0], jj - self.N_pml_low[1]] > 0:
+
+        for ii in range(1, self.Nx):
+            for jj in range(self.Ny):
+                if self.grid.flag_int_cell[ii, jj]:
+                    if self.grid.l_y[ii, jj] > 0:
                         Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (
                                 Hz[ii, jj] - Hz[ii - 1, jj])
 
@@ -261,11 +262,14 @@ class EMSolver2D:
                         self.rho[ii, jj] = self.Vxy[ii, jj] / self.grid.S[ii, jj]
 
     def advance_e_dm(self):
-        for ii in range(1, self.Nx):
+        for ii in range(self.Nx):
             for jj in range(1, self.Ny):
                 if self.grid.l_x[ii, jj] > 0:
                     self.Ex[ii, jj] = self.Ex[ii, jj] + self.dt / (eps_0 * self.dy) * (
                             self.Hz[ii, jj] - self.Hz[ii, jj - 1]) - self.C3 * self.Jx[ii, jj]
+
+        for ii in range(1, self.Nx):
+            for jj in range(self.Ny):
                 if self.grid.l_y[ii, jj] > 0:
                     self.Ey[ii, jj] = self.Ey[ii, jj] - self.dt / (eps_0 * self.dx) * (
                             self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3 * self.Jy[ii, jj]
