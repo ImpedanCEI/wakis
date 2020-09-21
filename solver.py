@@ -2,6 +2,7 @@ import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from pml_block import PmlBlock2D
 
+
 def eq(a, b, tol=1e-8):
     return abs(a - b) < tol
 
@@ -38,25 +39,51 @@ class EMSolver2D:
         if bc_high[1] == 'pml':
             self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
 
-        if bc_low[0] == 'pml':
+        self.blocks = []
+        self.pml_ly = None
+        self.pml_lx = None
+        self.pml_rx = None
+        self.pml_ry = None
+        self.lxly = None
+        self.rxly = None
+        self.lxry = None
+        self.ryry = None
+
+        if bc_low[0] is 'pml':
             self.pml_lx = PmlBlock2D(self.N_pml_low[0], self.Ny, self.dt, self.dx, self.dy)
-            if bc_low[0] == 'pml':
+            self.blocks.append(self.pml_lx)
+            if bc_low[1] is 'pml':
                 self.pml_lxly = PmlBlock2D(self.N_pml_low[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
-            if bc_high[1] == 'pml':
+                self.blocks.append(self.pml_lxly)
+            if bc_high[1] is 'pml':
                 self.pml_lxry = PmlBlock2D(self.N_pml_low[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
+                self.blocks.append(self.pml_lxry)
 
-        if bc_high[0] == 'pml':
+        if bc_high[0] is 'pml':
             self.pml_rx = PmlBlock2D(self.N_pml_high[0], self.Ny, self.dt, self.dx, self.dy)
-            if bc_low[0] == 'pml':
+            self.blocks.append(self.pml_rx)
+            if bc_low[0] is 'pml':
                 self.pml_rxry = PmlBlock2D(self.N_pml_high[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
-            if bc_high[1] == 'pml':
+                self.blocks.append(self.pml_rxry)
+            if bc_high[1] is 'pml':
                 self.pml_rxly = PmlBlock2D(self.N_pml_high[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
+                self.blocks.append(self.pml_rxly)
 
-        if bc_low[1]:
-            self.pml_ly = PmlBlock2D(self.N_pml_low[1], self.Nx, self.dt, self.dx, self.dy)
+        if bc_low[1] is 'pml':
+            self.pml_ly = PmlBlock2D(self.Nx, self.N_pml_low[1], self.dt, self.dx, self.dy)
+            self.blocks.append(self.pml_ly)
 
-        if bc_high[1]:
-            self.pml_ry = PmlBlock2D(self.N_pml_high[1], self.Nx, self.dt, self.dx, self.dy)
+        if bc_high[1] is 'pml':
+            self.pml_ry = PmlBlock2D(self.Nx, self.N_pml_high[1], self.dt, self.dx, self.dy)
+            self.blocks.append(self.pml_ry)
+
+        self.organize_pmls()
+        self.alpha_pml = 3
+        self.R0_pml = 0.001
+
+        self.assemble_conductivities_pmls()
+
+        self.assemble_coeffs_pmls()
 
         self.N_tot_x = self.Nx + self.N_pml_low[0] + self.N_pml_high[0]
         self.N_tot_y = self.Ny + self.N_pml_low[0] + self.N_pml_high[0]
@@ -69,8 +96,6 @@ class EMSolver2D:
         self.Jy = np.zeros((self.Nx + 1, self.Ny))
 
         self.rho = np.zeros((self.Nx, self.Ny))
-
-
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
             raise ValueError("sol_type must be:\n" +
@@ -106,26 +131,161 @@ class EMSolver2D:
 
         self.time = 0
 
-    def assemble_conductivities(self):
+    def organize_pmls(self):
+        if self.bc_low[0] == 'pml':
+            self.pml_lx.rx_block = self
+            if self.bc_low[1] is 'pml':
+                self.pml_lx.ly_block = self.pml_lxly
+                self.pml_lxly.ry_block = self.pml_lx
+                self.pml_lxly.rx_block = self.pml_ly
+            if self.bc_high[1] is 'pml':
+                self.pml_lx.ry_block = self.pml_lxry
+                self.pml_lxry.ly_block = self.pml_lx
+                self.pml_lxry.rx_block = self.pml_ry
 
-        sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * self.N_pml_low[0]) * np.log(self.R0_pml)
-        sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * self.N_pml_low[1]) * np.log(self.R0_pml)
-        sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * self.N_pml_high[0]) * np.log(self.R0_pml)
-        sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * self.N_pml_high[1]) * np.log(self.R0_pml)
+        if self.bc_high[0] is 'pml':
+            self.pml_rx.lx_block = self
+            if self.bc_high[1] is 'pml':
+                self.pml_rx.ry_block = self.pml_rxry
+                self.pml_rxly.lx_block = self.pml_ly
+                self.pml_rxly.ry_block = self.pml_rx
+            if self.bc_low[1] is 'pml':
+                self.pml_rx.ly_block = self.pml_rxly
+                self.pml_rxry.lx_block = self.pml_ry
+                self.pml_rxry.ly_block = self.pml_rx
 
-        for n in range(self.N_pml_low[0]):
-            self.sigma_x[n, :] = sigma_m_low_x * ((self.N_pml_low[0] - n) / self.N_pml_low[0]) ** self.alpha_pml
-            self.sigma_x[self.N_tot_x - n, :] = sigma_m_high_x * (
-                        (self.N_pml_high[0] - n) / self.N_pml_high[0]) ** self.alpha_pml
-            self.sigma_y[:, n] = sigma_m_low_y * ((self.N_pml_low[1] - n) / self.N_pml_low[1]) ** self.alpha_pml
-            self.sigma_y[:, self.N_tot_y - n] = sigma_m_high_y * (
-                        (self.N_pml_high[1] - n) / self.N_pml_high[1]) ** self.alpha_pml
 
-        self.sigma_star_x = self.sigma_x * mu_0 / eps_0
-        self.sigma_star_y = self.sigma_y * mu_0 / eps_0
+        if self.bc_low[1] is 'pml':
+            self.pml_ly.lx_block = self.pml_lxly
+            self.pml_ly.rx_block = self.pml_rxly
+            self.pml_ly.ry_block = self
+
+        if self.bc_high[1] is 'pml':
+            self.pml_ry.lx_block = self.pml_lxry
+            self.pml_ry.rx_block = self.pml_rxry
+            self.pml_ry.ly_block = self
+
+    def assemble_conductivities_pmls(self):
+        sigma_m_low_x = 0
+        sigma_m_high_x = 0
+        sigma_m_low_y = 0
+        sigma_m_high_y = 0
+        if self.bc_low[0] is 'pml':
+            sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[0]-1)*self.dx) * np.log(self.R0_pml)
+        if self.bc_low[1] is 'pml':
+            sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[1]-1)*self.dy) * np.log(self.R0_pml)
+        if self.bc_high[0] is 'pml':
+            sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[0]-1)*self.dy) * np.log(self.R0_pml)
+        if self.bc_high[1] is 'pml':
+            sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[1]-1)*self.dy) * np.log(self.R0_pml)
+
+        if self.bc_low[0] is 'pml':
+            for n in range(self.N_pml_low[0]):
+                self.pml_lx.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
+            if self.bc_low[1] is 'pml':
+                for n in range((self.N_pml_low[1])):
+                    self.pml_lxly.sigma_y[:, -(n+1)] = sigma_m_low_y * (n / (self.N_pml_low[1])) ** self.alpha_pml
+                for n in range((self.N_pml_low[0])):
+                    self.pml_lxly.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
+            if self.bc_high[1] is 'pml':
+                for n in range(self.N_pml_high[1]):
+                    self.pml_lxry.sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
+                for n in range(self.N_pml_low[0]):
+                    self.pml_lxry.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
+
+        if self.bc_high[0] is 'pml':
+            for n in range(self.N_pml_high[0]):
+                self.pml_rx.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
+            if self.bc_high[1] is 'pml':
+                for n in range(self.N_pml_high[0]):
+                    self.pml_rxry.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
+                for n in range(self.N_pml_high[1]):
+                    self.pml_rxry.sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
+            if self.bc_low[1] == 'pml':
+                for n in range(self.N_pml_low[1]):
+                    self.pml_rxly.sigma_y[:, -(n+1)] = sigma_m_low_y * (n / (self.N_pml_low[1])) ** self.alpha_pml
+                for n in range(self.N_pml_high[0]):
+                    self.pml_rxly.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
+
+        if self.bc_low[1] is 'pml':
+            for n in range(self.N_pml_low[1]):
+                self.pml_ly.sigma_y[:, -(n+1)] = sigma_m_low_y * (n / (self.N_pml_low[1])) ** self.alpha_pml
+
+        if self.bc_high[1] is 'pml':
+            for n in range(self.N_pml_high[1]):
+                self.pml_ry.sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
+
+        if self.pml_lx is not None:
+            self.pml_lx.sigma_star_x = self.pml_lx.sigma_x * mu_0 / eps_0
+            self.pml_lx.sigma_star_y = self.pml_lx.sigma_y * mu_0 / eps_0
+        if self.pml_ly is not None:
+            self.pml_ly.sigma_star_x = self.pml_ly.sigma_x * mu_0 / eps_0
+            self.pml_ly.sigma_star_y = self.pml_ly.sigma_y * mu_0 / eps_0
+        if self.pml_rx is not None:
+            self.pml_rx.sigma_star_x = self.pml_rx.sigma_x * mu_0 / eps_0
+            self.pml_rx.sigma_star_y = self.pml_rx.sigma_y * mu_0 / eps_0
+        if self.pml_ry is not None:
+            self.pml_ry.sigma_star_x = self.pml_ry.sigma_x * mu_0 / eps_0
+            self.pml_ry.sigma_star_y = self.pml_ry.sigma_y * mu_0 / eps_0
+        if self.pml_lxly is not None:
+            self.pml_lxly.sigma_star_x = self.pml_lxly.sigma_x * mu_0 / eps_0
+            self.pml_lxly.sigma_star_y = self.pml_lxly.sigma_y * mu_0 / eps_0
+        if self.pml_lxry is not None:
+            self.pml_lxry.sigma_star_x = self.pml_lxry.sigma_x * mu_0 / eps_0
+            self.pml_lxry.sigma_star_y = self.pml_lxry.sigma_y * mu_0 / eps_0
+        if self.pml_rxry is not None:
+            self.pml_rxry.sigma_star_x = self.pml_rxry.sigma_x * mu_0 / eps_0
+            self.pml_rxry.sigma_star_y = self.pml_rxry.sigma_y * mu_0 / eps_0
+        if self.pml_rxly is not None:
+            self.pml_rxly.sigma_star_x = self.pml_rxly.sigma_x * mu_0 / eps_0
+            self.pml_rxly.sigma_star_y = self.pml_rxly.sigma_y * mu_0 / eps_0
+
+    def assemble_coeffs_pmls(self):
+        if self.bc_low[0] is 'pml':
+            self.pml_lx.assemble_coeffs()
+            if self.bc_low[1] is 'pml':
+                self.pml_lxly.assemble_coeffs()
+            if self.bc_high[1] is 'pml':
+                self.pml_lxry.assemble_coeffs()
+
+        if self.bc_high[0] is 'pml':
+            self.pml_rx.assemble_coeffs()
+            if self.bc_low[0] is 'pml':
+                self.pml_rxry.assemble_coeffs()
+            if self.bc_high[1] is 'pml':
+                self.pml_rxly.assemble_coeffs()
+
+        if self.bc_low[1] is 'pml':
+            self.pml_ly.assemble_coeffs()
+
+        if self.bc_high[1] is 'pml':
+            self.pml_ry.assemble_coeffs() 
+
+    def update_e_boundary(self):
+        Ex = self.Ex
+        Ey = self.Ey
+        Hz = self.Hz
+        if self.pml_lx is not None:
+            for jj in range(self.Ny):
+                Ey[0, jj] = Ey[0, jj] - self.C3 * self.Jy[0, jj] - self.C5 * (Hz[0, jj] - self.pml_lx.Hz[-1, jj])
+
+        if self.pml_rx is not None:
+            for jj in range(self.Ny):
+                Ey[-1, jj] = Ey[-1, jj] - self.C3 * self.Jy[-1, jj] - self.C5 * (self.pml_rx.Hz[0, jj] - Hz[-1, jj])
+
+        if self.pml_ly is not None:
+            for ii in range(self.Nx):
+                Ex[ii, 0] = Ex[ii, 0] - self.C3 * self.Jx[ii, 0] + self.C4 * (Hz[ii, 0] - self.pml_ly.Hz[ii, -1])
+
+        if self.pml_ry is not None:
+            for ii in range(self.Nx):
+                Ex[ii, -1] = Ex[ii, -1] - self.C3 * self.Jx[ii, -1] + self.C4 * (self.pml_ry.Hz[ii, 0] - Hz[ii, -1])
+
+        for block in self.blocks:
+            block.update_e_boundary()
 
     def gauss(self, t):
-        tau = 20 * self.dt
+        tau = 10 * self.dt
         if t < 6 * tau:
             return 100 * np.exp(-(t - 3 * tau) ** 2 / tau ** 2)
         else:
@@ -153,9 +313,14 @@ class EMSolver2D:
         Ex = self.Ex
         Ey = self.Ey
         Hz = self.Hz
-        # Compute cell voltages
+
         self.advance_h_fdtd()
+        for block in self.blocks:
+            block.advance_h_fdtd()
         self.advance_e_fdtd()
+        for block in self.blocks:
+            block.advance_e_fdtd()
+        self.update_e_boundary()
 
         self.time += self.dt
 
@@ -165,11 +330,9 @@ class EMSolver2D:
         Hz = self.Hz
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                if self.grid.flag_int_cell[ii-self.N_pml_low[0], jj-self.N_pml_low[1]]:
-                    Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) + self.C2 * (
-                            Ex[ii, jj + 1]
-                            - Ex[ii, jj]))
-
+                if self.grid.flag_int_cell[ii - self.N_pml_low[0], jj - self.N_pml_low[1]]:
+                    Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) +
+                                  self.C2 * (Ex[ii, jj + 1]- Ex[ii, jj]))
 
     def advance_e_fdtd(self):
         Z_0 = np.sqrt(mu_0 / eps_0)
@@ -196,8 +359,7 @@ class EMSolver2D:
         for i in range(self.Nx):
             for j in range(self.Ny):
                 if self.grid.flag_int_cell[i, j]:
-                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[
-                        i, j]
+                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[i, j]
 
         self.advance_e_dm()
 
@@ -207,8 +369,6 @@ class EMSolver2D:
     def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
                      flag_unst_cell=None, S=None, borrowing=None, S_enl=None, lending=None,
                      S_red=None):
-        # Compute cell voltages
-
         # take care of unstable cells
         for ii in range(Nx):
             for jj in range(Ny):
