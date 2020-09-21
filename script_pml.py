@@ -50,7 +50,7 @@ conductors = ConductorsAssembly([noConductor()])
 
 #theta = 0
 #conductors = ConductorsAssembly([rect])
-sol_type = 'FDTD'
+sol_type = 'DM'
 
 grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
 i_s = int(1 * Nx / 2.)
@@ -61,8 +61,43 @@ bc_high = ['pml', 'pml', 'pml']
 
 solver = EMSolver2D(grid, sol_type, NCFL, i_s, j_s, bc_low, bc_high)
 
-Nt = 1000
+Nt = 300
+'''
+solver.pml_lxly.Hz = 1*np.ones_like(solver.pml_lxly.Hz)
+solver.pml_ly.Hz = 2*np.ones_like(solver.pml_ly.Hz)
+solver.pml_rxly.Hz = 3*np.ones_like(solver.pml_rxly.Hz)
+solver.pml_lx.Hz = 4*np.ones_like(solver.pml_lx.Hz)
+solver.Hz = 5*np.ones_like(solver.Hz)
+solver.pml_rx.Hz = 6*np.ones_like(solver.pml_rx.Hz)
+solver.pml_lxry.Hz = 7*np.ones_like(solver.pml_lxry.Hz)
+solver.pml_ry.Hz = 8*np.ones_like(solver.pml_ry.Hz)
+solver.pml_rxry.Hz = 9*np.ones_like(solver.pml_rxry.Hz)
+E1 = np.concatenate((solver.pml_lxly.Hz, solver.pml_ly.Hz, solver.pml_rxly.Hz), axis=0)
+E2 = np.concatenate((solver.pml_lx.Hz, solver.Hz, solver.pml_rx.Hz), axis=0)
+E3 = np.concatenate((solver.pml_lxry.Hz, solver.pml_ry.Hz, solver.pml_rxry.Hz), axis=0)
+Hz = np.concatenate((E1, E2, E3), axis=1)
 
+solver.sigma_star_x = np.zeros_like(solver.Ex)
+solver.sigma_star_y = np.zeros_like(solver.Ey)
+
+E1 = np.concatenate((solver.pml_lxly.sigma_star_x, solver.pml_ly.sigma_star_x, solver.pml_rxly.sigma_star_x), axis=0)
+E2 = np.concatenate((solver.pml_lx.sigma_star_x, solver.sigma_star_x, solver.pml_rx.sigma_star_x), axis=0)
+E3 = np.concatenate((solver.pml_lxry.sigma_star_x, solver.pml_ry.sigma_star_x, solver.pml_rxry.sigma_star_x), axis=0)
+sigma_star_x = np.concatenate((E1, E2, E3), axis=1)
+plt.subplot(121)
+plt.imshow(sigma_star_x, cmap='jet')
+plt.colorbar()
+plt.show()
+
+E1 = np.concatenate((solver.pml_lxly.sigma_star_y, solver.pml_ly.sigma_star_y, solver.pml_rxly.sigma_star_y), axis=0)
+E2 = np.concatenate((solver.pml_lx.sigma_star_y, solver.sigma_star_y, solver.pml_rx.sigma_star_y), axis=0)
+E3 = np.concatenate((solver.pml_lxry.sigma_star_y, solver.pml_ry.sigma_star_y, solver.pml_rxry.sigma_star_y), axis=0)
+sigma_star_y = np.concatenate((E1, E2, E3), axis=1)
+plt.subplot(122)
+plt.imshow(sigma_star_y, cmap='jet')
+plt.colorbar()
+plt.show()
+'''
 for t in tqdm(range(Nt)):
     '''
     for ii in range(-6, 7):
@@ -87,19 +122,35 @@ for t in tqdm(range(Nt)):
     #        y = (jj + 0.5) * dy + ymin
     #        solver.Hz[ii, jj] = analytic_sol(x, y, t*solver.dt)
 
+    E1 = np.concatenate((solver.pml_lxly.Ex[:,:-1], solver.pml_ly.Ex[:,:-1], solver.pml_rxly.Ex[:,:-1]), axis=0)
+    E2 = np.concatenate((solver.pml_lx.Ex[:,:-1], solver.Ex[:,:-1], solver.pml_rx.Ex[:,:-1]), axis=0)
+    E3 = np.concatenate((solver.pml_lxry.Ex[:,:-1], solver.pml_ry.Ex[:,:-1], solver.pml_rxry.Ex[:,:-1]), axis=0)
+    Ex = np.concatenate((E1, E2, E3), axis=1)
+    #Ex = np.concatenate((solver.pml_lx.Ex[:, :-1], solver.Ex[:, :-1]))
+
     fig, axs = plt.subplots(1, 3, figsize=(16, 5))
     fig.subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.94, wspace=0.15)
-    im1 = axs[0].imshow(solver.Ex, cmap='jet', vmax=200, vmin=-200)  # ,extent=[0, L , 0, L ])
+    im1 = axs[0].imshow(Ex.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')  # ,extent=[0, L , 0, L ])
     axs[0].set_xlabel('x [m]')
     axs[0].set_ylabel('y [m]')
     axs[0].set_title('Ex [V/m]')
     fig.colorbar(im1, ax=axs[0], )
-    im1 = axs[1].imshow(solver.Ey, cmap='jet', vmax=200, vmin=-200)
+    E1 = np.concatenate((solver.pml_lxly.Ey[:-1,:], solver.pml_ly.Ey[:-1,:], solver.pml_rxly.Ey[:-1,:]), axis=0)
+    E2 = np.concatenate((solver.pml_lx.Ey[:-1,:], solver.Ey[:-1,:], solver.pml_rx.Ey[:-1,:]), axis=0)
+    E3 = np.concatenate((solver.pml_lxry.Ey[:-1,:], solver.pml_ry.Ey[:-1,:], solver.pml_rxry.Ey[:-1,:]), axis=0)
+    Ey = np.concatenate((E1, E2, E3), axis=1)
+    #Ey = np.concatenate((solver.pml_lx.Ey[:-1,:],solver.Ey[:-1,:]))
+    im1 = axs[1].imshow(Ey.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')
     axs[1].set_xlabel('x [m]')
     axs[1].set_ylabel('y [m]')
     axs[1].set_title('Ey [V/m]')
     fig.colorbar(im1, ax=axs[1])
-    im1 = axs[2].imshow(solver.Hz, cmap='jet', vmax=1, vmin=-1)
+    E1 = np.concatenate((solver.pml_lxly.Hz, solver.pml_ly.Hz, solver.pml_rxly.Hz), axis=0)
+    E2 = np.concatenate((solver.pml_lx.Hz, solver.Hz, solver.pml_rx.Hz), axis=0)
+    E3 = np.concatenate((solver.pml_lxry.Hz, solver.pml_ry.Hz, solver.pml_rxry.Hz), axis=0)
+    Hz = np.concatenate((E1, E2, E3), axis=1)
+    #Hz = np.concatenate((solver.pml_lx.Hz,solver.Hz))
+    im1 = axs[2].imshow(Hz.T, cmap='jet', vmax=2, vmin=-2, origin = 'lower')
     axs[2].set_xlabel('x [m]')
     axs[2].set_ylabel('y [m]')
     axs[2].set_title('Hz [A/m]')
@@ -120,13 +171,13 @@ for t in tqdm(range(Nt)):
     # axs[1,2].set_ylabel('y [m]')
     # axs[1,2].set_title('Ez [V/m]')
     # fig.colorbar(im1, ax=axs[1,2])
-    folder = sol_type + '_images_rect'
+    folder = sol_type + '_images_pml'
     if not os.path.exists(folder):
         os.mkdir(folder)
 
     filename = folder + '/%d.png' % t
     plt.savefig(filename)
     plt.close(fig)
-    solver.time += solver.dt
     solver.one_step()
     solver.Hz[i_s, j_s] += solver.gauss(solver.time)
+
