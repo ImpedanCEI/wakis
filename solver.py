@@ -44,10 +44,10 @@ class EMSolver2D:
         self.pml_lx = None
         self.pml_rx = None
         self.pml_ry = None
-        self.lxly = None
-        self.rxly = None
-        self.lxry = None
-        self.ryry = None
+        self.pml_lxly = None
+        self.pml_rxly = None
+        self.pml_lxry = None
+        self.pml_rxry = None
 
         if bc_low[0] is 'pml':
             self.pml_lx = PmlBlock2D(self.N_pml_low[0], self.Ny, self.dt, self.dx, self.dy)
