@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-from pml_block import PmlBlock2D
+from pmlBlock2D import PmlBlock2D
 
 
 def eq(a, b, tol=1e-8):
@@ -62,7 +62,7 @@ class EMSolver2D:
         if bc_high[0] is 'pml':
             self.pml_rx = PmlBlock2D(self.N_pml_high[0], self.Ny, self.dt, self.dx, self.dy)
             self.blocks.append(self.pml_rx)
-            if bc_low[0] is 'pml':
+            if bc_low[1] is 'pml':
                 self.pml_rxry = PmlBlock2D(self.N_pml_high[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
                 self.blocks.append(self.pml_rxry)
             if bc_high[1] is 'pml':
@@ -300,9 +300,18 @@ class EMSolver2D:
                               flag_unst_cell=self.grid.flag_unst_cell, S=self.grid.S,
                               borrowing=self.grid.borrowing, S_enl=self.grid.S_enl,
                               lending=self.grid.lending, S_red=self.grid.S_red)
+            for block in self.blocks:
+                block.advance_h_fdtd()
 
             self.advance_e_dm()
+
+            for block in self.blocks:
+                block.advance_e_fdtd()
+
+            self.update_e_boundary()
+
             self.time += self.dt
+
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
@@ -324,13 +333,33 @@ class EMSolver2D:
 
         self.time += self.dt
 
+    def one_step_dm(self):
+        self.compute_v_and_rho()
+
+        for i in range(self.Nx):
+            for j in range(self.Ny):
+                if self.grid.flag_int_cell[i, j]:
+                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[i, j]
+
+        for block in self.blocks:
+            block.advance_h_fdtd()
+
+        self.advance_e_dm()
+
+        for block in self.blocks:
+            block.advance_e_fdtd()
+
+        self.update_e_boundary_dm()
+
+        self.time += self.dt
+
     def advance_h_fdtd(self):
         Ex = self.Ex
         Ey = self.Ey
         Hz = self.Hz
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                if self.grid.flag_int_cell[ii - self.N_pml_low[0], jj - self.N_pml_low[1]]:
+                if self.grid.flag_int_cell[ii, jj]:
                     Hz[ii, jj] = (Hz[ii, jj] - self.C1 * (Ey[ii + 1, jj] - Ey[ii, jj]) +
                                   self.C2 * (Ex[ii, jj + 1]- Ex[ii, jj]))
 
@@ -352,18 +381,6 @@ class EMSolver2D:
                     if self.grid.l_y[ii, jj] > 0:
                         Ey[ii, jj] = Ey[ii, jj] - self.C3 * self.Jy[ii, jj] - self.C5 * (
                                 Hz[ii, jj] - Hz[ii - 1, jj])
-
-    def one_step_dm(self):
-        self.compute_v_and_rho()
-
-        for i in range(self.Nx):
-            for j in range(self.Ny):
-                if self.grid.flag_int_cell[i, j]:
-                    self.Hz[i, j] = self.Hz[i, j] - self.dt / (mu_0 * self.grid.S[i, j]) * self.Vxy[i, j]
-
-        self.advance_e_dm()
-
-        self.time += self.dt
 
     @staticmethod
     def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
@@ -433,3 +450,26 @@ class EMSolver2D:
                 if self.grid.l_y[ii, jj] > 0:
                     self.Ey[ii, jj] = self.Ey[ii, jj] - self.dt / (eps_0 * self.dx) * (
                             self.Hz[ii, jj] - self.Hz[ii - 1, jj]) - self.C3 * self.Jy[ii, jj]
+
+    def update_e_boundary_dm(self):
+        Ex = self.Ex
+        Ey = self.Ey
+        Hz = self.Hz
+        if self.pml_lx is not None:
+            for jj in range(self.Ny):
+                Ey[0, jj] = Ey[0, jj] - self.C3 * self.Jy[0, jj] - self.dt / (eps_0 * self.dy) * (Hz[0, jj] - self.pml_lx.Hz[-1, jj])
+
+        if self.pml_rx is not None:
+            for jj in range(self.Ny):
+                Ey[-1, jj] = Ey[-1, jj] - self.C3 * self.Jy[-1, jj] - self.dt / (eps_0 * self.dy) * (self.pml_rx.Hz[0, jj] - Hz[-1, jj])
+
+        if self.pml_ly is not None:
+            for ii in range(self.Nx):
+                Ex[ii, 0] = Ex[ii, 0] - self.C3 * self.Jx[ii, 0] + self.dt / (eps_0 * self.dy) * (Hz[ii, 0] - self.pml_ly.Hz[ii, -1])
+
+        if self.pml_ry is not None:
+            for ii in range(self.Nx):
+                Ex[ii, -1] = Ex[ii, -1] - self.C3 * self.Jx[ii, -1] + self.dt / (eps_0 * self.dy) * (self.pml_ry.Hz[ii, 0] - Hz[ii, -1])
+
+        for block in self.blocks:
+            block.update_e_boundary()

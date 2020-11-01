@@ -105,9 +105,6 @@ class PmlBlock2D:
         self.Ey = self.Eyx + self.Eyz
 
     def update_e_boundary(self):
-        Ex = self.Ex
-        Ey = self.Ey
-        Hz = self.Hz
 
         if self.lx_block is not None:
             for jj in range(self.Ny):
