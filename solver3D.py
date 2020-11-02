@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-from solver import EMSolver2D
-
+from solver2D import EMSolver2D
+from pmlBlock3D import PmlBlock3D
 
 def eq(a, b, tol=1e-8):
     return abs(a - b) < tol
@@ -12,7 +12,8 @@ def neq(a, b, tol=1e-8):
 
 
 class EMSolver3D:
-    def __init__(self, grid, sol_type, cfln, i_s, j_s, k_s):
+    def __init__(self, grid, sol_type, cfln, i_s, j_s, k_s, bc_low, bc_high,
+                 N_pml_low=None, N_pml_high=None):
         self.grid = grid
         self.type = type
         self.cfln = cfln
@@ -26,6 +27,140 @@ class EMSolver3D:
         self.Ny = self.grid.ny
         self.Nz = self.grid.nz
         self.sol_type = sol_type
+
+        self.N_pml_low = np.zeros(3, dtype=int)
+        self.N_pml_high = np.zeros(3, dtype=int)
+        self.bc_low = bc_low
+        self.bc_high = bc_high
+
+        if bc_low[0] == 'pml':
+            self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
+        if bc_low[1] == 'pml':
+            self.N_pml_low[1] = 10 if N_pml_low is None else N_pml_low[1]
+        if bc_low[2] == 'pml':
+            self.N_pml_low[2] = 10 if N_pml_low is None else N_pml_low[2]
+        if bc_high[0] == 'pml':
+            self.N_pml_high[0] = 10 if N_pml_high is None else N_pml_high[0]
+        if bc_high[1] == 'pml':
+            self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
+        if bc_low[2] == 'pml':
+            self.N_pml_low[2] = 10 if N_pml_low is None else N_pml_low[2]
+
+        self.blocks = []
+        self.pml_ly = None
+        self.pml_lx = None
+        self.pml_lz = None
+        self.pml_rx = None
+        self.pml_ry = None
+        self.pml_rz = None
+        self.pml_lxly = None
+        self.pml_rxly = None
+        self.pml_lxry = None
+        self.pml_rxry = None
+        self.pml_lxlz = None
+        self.pml_rxlz = None
+        self.pml_lxrz = None
+        self.pml_rxrz = None
+        self.pml_lylz = None
+        self.pml_rylz = None
+        self.pml_lyrz = None
+        self.pml_ryrz = None
+        self.lxlylz = None #
+        self.lxlyrz = None #
+        self.lxrylz = None #
+        self.lxryrz = None #
+        self.rxlylz = None #
+        self.rxlyrz = None #
+        self.rxrylz = None
+        self.rxryrz = None
+
+
+        if bc_low[0] is 'pml':
+            self.pml_lx = PmlBlock3D(self.N_pml_low[0], self.Ny, self.Nz, self.dt, self.dx, self.dy, self.dz)
+            self.blocks.append(self.pml_lx)
+            if bc_low[1] is 'pml':
+                self.pml_lxly = PmlBlock3D(self.N_pml_low[0], self.N_pml_low[1], self.Nz, self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxly)
+                if bc_low[2]:
+                    self.pml_lxlylz = PmlBlock3D(self.N_pml_low[0], self.N_pml_low[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_lxlylz)
+                if bc_high[2]:
+                    self.pml_lxlyrz = PmlBlock3D(self.N_pml_low[0], self.N_pml_low[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_lxlyrz)
+            if bc_high[1] is 'pml':
+                self.pml_lxry = PmlBlock3D(self.N_pml_low[0], self.N_pml_high[1], self.Nz, self.dt, self.dx, self.dy, self. dz)
+                self.blocks.append(self.pml_lxry)
+                if bc_low[2]:
+                    self.pml_lxrylz = PmlBlock3D(self.N_pml_low[0], self.N_pml_high[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_lxrylz)
+                if bc_high[2]:
+                    self.pml_lxryrz = PmlBlock3D(self.N_pml_low[0], self.N_pml_high[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_lxryrz)
+            if bc_low[2] is 'pml':
+                self.pml_lxlz = PmlBlock3D(self.N_pml_low[0], self.Ny, self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxlz)
+            if bc_high[2] is 'pml':
+                self.pml_lxrz = PmlBlock3D(self.N_pml_low[0], self.Ny, self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxrz)
+
+        if bc_high[0] is 'pml':
+            self.pml_rx = PmlBlock3D(self.N_pml_high[0], self.Ny, self.Nz, self.dt, self.dx, self.dy, self.dz)
+            self.blocks.append(self.pml_rx)
+            if bc_low[1] is 'pml':
+                self.pml_rxry = PmlBlock3D(self.N_pml_high[0], self.N_pml_high[1], self.Nz, self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_rxry)
+                if bc_low[2]:
+                    self.pml_rxrylz = PmlBlock3D(self.N_pml_high[0], self.N_pml_high[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_rxrylz)
+                if bc_high[2]:
+                    self.pml_rxryrz = PmlBlock3D(self.N_pml_high[0], self.N_pml_high[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_rxryrz)
+            if bc_high[1] is 'pml':
+                self.pml_rxly = PmlBlock3D(self.N_pml_high[0], self.N_pml_low[1], self.Nz, self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_rxly)
+                if bc_low[2]:
+                    self.pml_rxlylz = PmlBlock3D(self.N_pml_high[0], self.N_pml_low[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_rxlylz)
+                if bc_high[2]:
+                    self.pml_rxlyrz = PmlBlock3D(self.N_pml_high[0], self.N_pml_low[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                    self.blocks.append(self.pml_rxlyrz)
+            if bc_low[2] is 'pml':
+                self.pml_rxlz = PmlBlock3D(self.N_pml_high[0], self.Ny, self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_rxlz)
+            if bc_high[2] is 'pml':
+                self.pml_rxrz = PmlBlock3D(self.N_pml_high[0], self.Ny, self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_rxrz)
+
+        if bc_low[1] is 'pml':
+            self.pml_ly = PmlBlock3D(self.Nx, self.N_pml_low[1], self.Nz, self.dt, self.dx, self.dy, self.dz)
+            self.blocks.append(self.pml_ly)
+            if bc_low[2] is 'pml':
+                self.pml_lylz = PmlBlock3D(self.Nx, self.N_pml_low[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxly)
+            if bc_high[2] is 'pml':
+                self.pml_lyrz = PmlBlock3D(self.Nx, self.N_pml_low[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxly)
+
+        if bc_high[1] is 'pml':
+            self.pml_ry = PmlBlock3D(self.Nx, self.N_pml_high[1], self.Nz, self.dt, self.dx, self.dy, self.dz)
+            self.blocks.append(self.pml_ry)
+            if bc_low[2] is 'pml':
+                self.pml_rylz = PmlBlock3D(self.Nx, self.N_pml_low[1], self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxly)
+            if bc_high[2] is 'pml':
+                self.pml_ryrz = PmlBlock3D(self.Nx, self.N_pml_low[1], self.N_pml_high[2], self.dt, self.dx, self.dy, self.dz)
+                self.blocks.append(self.pml_lxly)
+
+        if bc_low[2] is 'pml':
+            self.pml_ly = PmlBlock3D(self.Nx, self.Ny, self.N_pml_low[2], self.dt, self.dx, self.dy, self.dz)
+            self.blocks.append(self.pml_lz)
+
+        if bc_high[2] is 'pml':
+            self.pml_ry = PmlBlock3D(self.Nx, self.Ny, self.N_pml_high[2], self.dt, self.dx, self.dy, self.Nz)
+            self.blocks.append(self.pml_rz)
+
+
+        # TODO: COONTINUE FROM HERE: write organize_pmls
 
         self.Ex = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1))
         self.Ey = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1))
@@ -72,6 +207,89 @@ class EMSolver3D:
         self.k_s = k_s
 
         self.time = 0
+
+    def organize_pmls(self):
+        if self.bc_low[0] == 'pml':
+            self.pml_lx.rx_block = self
+            if self.bc_low[1] is 'pml':
+                self.pml_lx.ly_block = self.pml_lxly
+                self.pml_lxly.ry_block = self.pml_lx
+                self.pml_lxly.rx_block = self.pml_ly
+                if self.bc_low[2] is 'pml':
+                    pass
+                if self.bc_high[2] is 'pml':
+                    pass
+            if self.bc_high[1] is 'pml':
+                self.pml_lx.ry_block = self.pml_lxry
+                self.pml_lxry.ly_block = self.pml_lx
+                self.pml_lxry.rx_block = self.pml_ry
+                if self.bc_low[2] is 'pml':
+                    pass
+                if self.bc_high[2] is 'pml':
+                    pass
+            if self.bc_low[2] is 'pml':
+                self.pml_lx.lz_block = self.pml_lxlz
+                self.pml_lxlz.rz_block = self.pml_lx
+                self.pml_lxlz.rx_block = self.pml_lz
+            if self.bc_high[2] is 'pml':
+                self.pml_lx.rz_block = self.pml_lxrz
+                self.pml_lxrz.lz_block = self.pml_lx
+                self.pml_lxrz.rx_block = self.pml_rz
+
+        if self.bc_high[0] is 'pml':
+            self.pml_rx.lx_block = self
+            if self.bc_high[1] is 'pml':
+                self.pml_rx.ry_block = self.pml_rxry
+                self.pml_rxly.lx_block = self.pml_ly
+                self.pml_rxly.ry_block = self.pml_rx
+                if self.bc_low[2] is 'pml':
+                    pass
+                if self.bc_high[2] is 'pml':
+                    pass
+            if self.bc_low[1] is 'pml':
+                self.pml_rx.ly_block = self.pml_rxly
+                self.pml_rxry.lx_block = self.pml_ry
+                self.pml_rxry.ly_block = self.pml_rx
+                if self.bc_low[2] is 'pml':
+                    pass
+                if self.bc_high[2] is 'pml':
+                    pass
+            if self.bc_low[2] is 'pml':
+                self.pml_rx.lz_block = self.pml_rxlz
+                self.pml_rxlz.rz_block = self.pml_rx
+                self.pml_rxlz.lx_block = self.pml_lz
+            if self.bc_high[2] is 'pml':
+                self.pml_rx.rz_block = self.pml_rxrz
+                self.pml_rxrz.lz_block = self.pml_rx
+                self.pml_rxrz.lx_block = self.pml_rz
+
+
+        if self.bc_low[1] is 'pml':
+            self.pml_ly.ry_block = self
+            if self.bc_low[0] is 'pml':
+                self.pml_ly.lx_block = self.pml_lxly
+            if self.bc_low[0] is 'pml':
+                self.pml_ly.rx_block = self.pml_rxly
+            if self.bc_low[2] is 'pml':
+                pass
+            if self.bc_high[2] is 'pml':
+                pass
+
+        if self.bc_high[1] is 'pml':
+            self.pml_ry.ly_block = self
+            if self.bc_low[0] is 'pml':
+                self.pml_ry.lx_block = self.pml_lxry
+            if self.bc_high[0] is 'pml':
+                self.pml_ry.rx_block = self.pml_rxry
+            if self.bc_low[2] is 'pml':
+                pass
+            if self.bc_high[2] is 'pml':
+                pass
+
+        if self.bc_low[2] is 'pml':
+            self.pml_lz.rz_block = self
+        if self.bc_high[2] is 'pml':
+            self.pml_lz.rz_block = self
 
     def gauss(self, t):
         tau = 20 * self.dt
