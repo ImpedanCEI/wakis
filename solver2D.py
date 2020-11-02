@@ -156,14 +156,18 @@ class EMSolver2D:
 
 
         if self.bc_low[1] is 'pml':
-            self.pml_ly.lx_block = self.pml_lxly
-            self.pml_ly.rx_block = self.pml_rxly
             self.pml_ly.ry_block = self
+            if self.bc_low[0] is 'pml':
+                self.pml_ly.lx_block = self.pml_lxly
+            if self.bc_low[0] is 'pml':
+                self.pml_ly.rx_block = self.pml_rxly
 
         if self.bc_high[1] is 'pml':
-            self.pml_ry.lx_block = self.pml_lxry
-            self.pml_ry.rx_block = self.pml_rxry
             self.pml_ry.ly_block = self
+            if self.bc_low[0] is 'pml':
+                self.pml_ry.lx_block = self.pml_lxry
+            if self.bc_high[0] is 'pml':
+                self.pml_ry.rx_block = self.pml_rxry
 
     def assemble_conductivities_pmls(self):
         sigma_m_low_x = 0
