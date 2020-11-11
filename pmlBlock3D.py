@@ -3,7 +3,7 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 
 
 class PmlBlock3D:
-    def __init__(self, Nx, Ny, Nz, dt, dx, dy, dz, lx_block=None, ly_block=None, lz_block=None, rx_block=None,
+    def __init__(self, Nx, Ny, Nz, dt, dx, dy, dz, i_block, j_block, k_block, lx_block=None, ly_block=None, lz_block=None, rx_block=None,
                  ry_block=None, rz_block=None):
         self.Nx = Nx
         self.Ny = Ny
@@ -12,6 +12,13 @@ class PmlBlock3D:
         self.dx = dx
         self.dy = dy
         self.dz = dz
+
+        self.i_block = i_block
+        self.j_block = j_block
+        self.k_block = k_block
+
+        # Solver3D constructor takes care of populating this matrix (should we ensure this somehow?)
+        self.blocks_mat = np.full((3, 3, 3), None)
 
         self.Ex = np.zeros((Nx, Ny + 1, Nz + 1))
         self.Ey = np.zeros((Nx + 1, Ny, Nz + 1))
@@ -165,77 +172,57 @@ class PmlBlock3D:
 
     def update_e_boundary(self):
 
-        if self.lz_block is not None:
+        i_block = self.i_block
+        j_block = self.j_block
+        k_block = self.k_block
+
+        if k_block > 0 and self.blocks_mat[i_block, j_block, k_block - 1] is not None:
             for ii in range(self.Nx):
                 for jj in range(self.Ny):
                     self.Eyz[ii, jj, 0] = self.Az[ii, jj, 0] * self.Eyz[ii, jj, 0] + self.Bz[ii, jj, 0] / self.dz * (
-                                           self.Hx[ii, jj, 0] - self.lz_block.Hx[ii, jj, - 1])
+                                           self.Hx[ii, jj, 0] - self.blocks_mat[i_block, j_block, k_block - 1].Hx[ii, jj, - 1])
+                    self.Exz[ii, jj, 0] = self.Az[ii, jj, 0] * self.Exz[ii, jj, 0] - self.Bz[ii, jj, 0] / self.dz * (
+                                           self.Hy[ii, jj, 0] - self.blocks_mat[i_block, j_block, k_block - 1].Hy[ii, jj, - 1])
 
-        if self.rz_block is not None:
+        if k_block < 2 and self.blocks_mat[i_block, j_block, k_block + 1] is not None:
             for ii in range(self.Nx):
                 for jj in range(self.Ny):
                     self.Eyz[ii, jj, -1] = self.Az[ii, jj, -1] * self.Eyz[ii, jj, -1] + self.Bz[ii, jj, -1] / self.dz * (
-                                           self.rz_block.Hx[ii, jj, -1] - self.Hx[ii, jj, -1])
+                            self.blocks_mat[i_block, j_block, k_block + 1].Hx[ii, jj, -1] - self.Hx[ii, jj, -1])
+                    self.Exz[ii, jj, -1] = self.Az[ii, jj, -1] * self.Exz[ii, jj, -1] - self.Bz[ii, jj, -1] / self.dz * (
+                            self.blocks_mat[i_block, j_block, k_block + 1].Hy[ii, jj, 0] - self.Hy[ii, jj, - 1])
 
-        if self.lx_block is not None:
+        if i_block > 0 and self.blocks_mat[i_block - 1, j_block, k_block] is not None:
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
                     self.Eyx[0, jj, kk] = self.Ax[0, jj] * self.Eyx[0, jj, kk] - self.Bx[0, jj, kk] / self.dx * (
-                                    self.Hz[0, jj, kk] - self.lx_block.Hz[-1, jj, kk])
+                                    self.Hz[0, jj, kk] - self.blocks_mat[i_block - 1, j_block, k_block].Hz[-1, jj, kk])
+                    self.Ezx[0, jj, kk] = self.Ax[0, jj, kk]*self.Ezx[0, jj, kk] + self.Bx[0, jj, kk] / self.dx * (
+                                    self.Hy[0, jj, kk] - self.blocks_mat[i_block - 1, j_block, k_block].Hy[- 1, jj, kk])
 
-        if self.rx_block is not None:
+        if i_block < 2 and self.blocks_mat[i_block + 1, j_block, k_block] is not None:
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
                     self.Eyx[-1, jj, kk] = self.Ax[-1, jj, kk] * self.Eyx[-1, jj, kk] - self.Bx[-1, jj, kk] / self.dx * (
-                                        self.rx_block.Hz[0, jj, kk] - self.Hz[-1, jj, kk])
+                            self.blocks_mat[i_block + 1, j_block, k_block].Hz[0, jj, kk] - self.Hz[-1, jj, kk])
+                    self.Ezx[-1, jj, kk] = self.Ax[-1, jj, kk]*self.Ezx[-1, jj, kk] + self.Bx[-1, jj, kk] / self.dx * (
+                            self.blocks_mat[i_block + 1, j_block, k_block].Hy[0, jj, kk] - self.Hy[- 1, jj, kk])
 
-        if self.ly_block is not None:
+        if j_block > 0 and self.blocks_mat[i_block, j_block - 1, k_block] is not None:
             for ii in range(self.Nx):
                 for kk in range(self.Nz):
                     self.Exy[ii, 0, kk] = self.Ay[ii, 0, kk] * self.Exy[ii, 0, kk] + self.By[ii, 0, kk] / self.dy * (
-                                         self.Hz[ii, 0, kk] - self.ly_block.Hz[ii, -1, kk])
+                                         self.Hz[ii, 0, kk] - self.blocks_mat[i_block, j_block - 1, k_block].Hz[ii, -1, kk])
+                    self.Ezy[ii, 0, kk] = self.Ay[ii, 0, kk]*self.Ezy[ii, 0, kk] - self.By[ii, 0, kk] / self.dy * (
+                                           self.Hx[ii, 0, kk] - self.blocks_mat[i_block, j_block - 1, k_block].Hx[ii, -1, kk])
 
-        if self.ry_block is not None:
+        if j_block < 2 and self.blocks_mat[i_block, j_block + 1, k_block] is not None:
             for ii in range(self.Nx):
                 for kk in range(self.Nz):
                     self.Exy[ii, -1, kk] = self.Ay[ii, -1, kk] * self.Exy[ii, -1, kk] + self.By[ii, -1, kk] / self.dy * (
-                                        self.ry_block.Hz[ii, 0, kk] - self.Hz[ii, - 1])
-
-        if self.lz_block is not None:
-            for ii in range(self.Nx):
-                for jj in range(self.Ny):
-                    self.Exz[ii, jj, 0] = self.Az[ii, jj, 0] * self.Exz[ii, jj, 0] - self.Bz[ii, jj, 0] / self.dz * (
-                                           self.Hy[ii, jj, 0] - self.lz_block.Hy[ii, jj, - 1])
-
-        if self.rz_block is not None:
-            for ii in range(self.Nx):
-                for jj in range(self.Ny):
-                    self.Exz[ii, jj, -1] = self.Az[ii, jj, -1] * self.Exz[ii, jj, -1] - self.Bz[ii, jj, -1] / self.dz * (
-                                           self.rz_block.Hy[ii, jj, 0] - self.Hy[ii, jj, - 1])
-
-        if self.lx_block is not None:
-            for jj in range(self.Ny):
-                for kk in range(self.Nz):
-                    self.Ezx[0, jj, kk] = self.Ax[0, jj, kk]*self.Ezx[0, jj, kk] + self.Bx[0, jj, kk] / self.dx * (
-                                           self.Hy[0, jj, kk] - self.lx_block.Hy[- 1, jj, kk])
-
-        if self.rx_block is not None:
-            for jj in range(self.Ny):
-                for kk in range(self.Nz):
-                    self.Ezx[-1, jj, kk] = self.Ax[-1, jj, kk]*self.Ezx[-1, jj, kk] + self.Bx[-1, jj, kk] / self.dx * (
-                                           self.rx_block.Hy[0, jj, kk] - self.Hy[- 1, jj, kk])
-
-        if self.ly_block is not None:
-            for ii in range(self.Nx):
-                for kk in range(self.Ny):
-                    self.Ezy[ii, 0, kk] = self.Ay[ii, 0, kk]*self.Ezy[ii, 0, kk] - self.By[ii, 0, kk] / self.dy * (
-                                           self.Hx[ii, 0, kk] - self.ly_block.Hx[ii, -1, kk])
-
-        if self.ry_block is not None:
-            for ii in range(self.Nx):
-                for kk in range(self.Ny):
+                            self.blocks_mat[i_block, j_block + 1, k_block].Hz[ii, 0, kk] - self.Hz[ii, - 1])
                     self.Ezy[ii, -1, kk] = self.Ay[ii, -1, kk]*self.Ezy[ii, -1, kk] - self.By[ii, -1, kk] / self.dy * (
-                                           self.ry_block.Hx[ii, -1, kk] - self.Hx[ii, 0, kk])
+                            self.blocks_mat[i_block, j_block + 1, k_block].Hx[ii, -1, kk] - self.Hx[ii, 0, kk])
 
         self.Ex = self.Exy + self.Exz
         self.Ey = self.Eyx + self.Eyz
