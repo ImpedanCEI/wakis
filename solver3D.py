@@ -541,7 +541,7 @@ class EMSolver3D:
 
         for ii in range(1, self.Nx):
             for jj in range(1, self.Ny):
-                for kk in range(1, self.Nz):
+                for kk in range(self.Nz):
                     if self.grid.l_z[ii, jj, kk] > 0:
                         Ez[ii, jj, kk] = (Ez[ii, jj, kk] - self.C3 * self.Jz[ii, jj, kk] +
                                           self.C5 * (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) -
@@ -654,11 +654,8 @@ class EMSolver3D:
         Hy = self.Hy
         Hz = self.Hz
         for ii in range(self.Nx):
-            x = self.grid.xmin + ii * self.grid.dx
             for jj in range(self.Ny):
-                y = self.grid.ymin + jj * self.grid.dy
                 for kk in range(self.Nz):
-                    z = self.grid.zmin + kk * self.grid.dz
                     if self.grid.l_x[ii, jj, kk] > 0:
                         Ex[ii, jj, kk] = (Ex[ii, jj, kk] - self.C3 * self.Jx[ii, jj, kk] +
                                           self.C4 * (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) -
