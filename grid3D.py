@@ -109,7 +109,7 @@ class Grid3D:
             self.flag_ext_cell_yz = self.flag_unst_cell_yz.copy()
             self.flag_ext_cell_zx = self.flag_unst_cell_zx.copy()
             self.mark_cells()
-            #self.compute_extensions()
+            self.compute_extensions()
 
     """
   Function to compute the length of the edges of the conformal grid.
