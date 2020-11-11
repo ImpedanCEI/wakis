@@ -66,7 +66,6 @@ class InCube:
         else:
             return inters_2
 
-
     def intersec_y(self, x, y, z):
         inters_1 = -0.5 * self.ly + self.y_cent
         inters_2 = inters_1 + self.ly
@@ -82,6 +81,7 @@ class InCube:
             return inters_1
         else:
             return inters_2
+
 
 class InSphere:
 
@@ -153,7 +153,7 @@ class Plane:
         self.n = n
 
     def in_conductor(self, x, y, z):
-        return self.n[0]*(x - self.p[0]) + self.n[1]*(y - self.p[1]) + self.n[2] * (z - self.p[2]) <= 0
+        return self.n[0] * (x - self.p[0]) + self.n[1] * (y - self.p[1]) + self.n[2] * (z - self.p[2]) <= 0
 
     def out_conductor(self, x, y, z):
         return not self.in_conductor(x, y, z)
@@ -162,17 +162,62 @@ class Plane:
         if self.n[0] == 0:
             return 1000
         else:
-            return -(self.n[1]*(y - self.p[1]) + self.n[2]*(z - self.p[2]))/self.n[0] + self.p[0]
+            return -(self.n[1] * (y - self.p[1]) + self.n[2] * (z - self.p[2])) / self.n[0] + self.p[0]
 
     def intersec_y(self, x, y, z):
         if self.n[1] == 0:
             return 1000
         else:
-            return -(self.n[0]*(x - self.p[0]) + self.n[2]*(z - self.p[2]))/self.n[1] + self.p[1]
+            return -(self.n[0] * (x - self.p[0]) + self.n[2] * (z - self.p[2])) / self.n[1] + self.p[1]
 
     def intersec_z(self, x, y, z):
         if self.n[2] == 0:
             return 1000
         else:
-            return -(self.n[0]*(x - self.p[0]) + self.n[1]*(y - self.p[1]))/self.n[2] + self.p[2]
+            return -(self.n[0] * (x - self.p[0]) + self.n[1] * (y - self.p[1])) / self.n[2] + self.p[2]
 
+
+class OutSphere:
+    def __init__(self, radius, x_cent=0, y_cent=0, z_cent=0):
+        self.radius = radius
+        self.x_cent = x_cent
+        self.y_cent = y_cent
+        self.z_cent = z_cent
+
+    def in_conductor(self, x, y, z):
+        return (np.square(x - self.x_cent) + np.square(y - self.y_cent) + np.square(z - self.z_cent)
+                >= np.square(self.radius))
+
+    def out_conductor(self, x, y, z):
+        return not self.in_conductor(x, y, z)
+
+    def intersec_x(self, x, y, z):
+        inters_1 = (np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)
+                            - np.square(z - self.z_cent)) + self.x_cent)
+        inters_2 = -(np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)
+                             - np.square(z - self.z_cent)) + self.x_cent)
+
+        if abs(x - inters_1) < abs(x - inters_2):
+            return inters_1
+        else:
+            return inters_2
+
+    def intersec_y(self, x, y, z):
+        inters_1 = (np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)
+                            - np.square(z - self.z_cent)) + self.y_cent)
+        inters_2 = -(np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)
+                             - np.square(z - self.z_cent)) + self.y_cent)
+        if abs(y - inters_1) < abs(y - inters_2):
+            return inters_1
+        else:
+            return inters_2
+
+    def intersec_z(self, x, y, z):
+        inters_1 = (np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)
+                            - np.square(y - self.y_cent)) + self.z_cent)
+        inters_2 = -(np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)
+                             - np.square(y - self.y_cent)) + self.z_cent)
+        if abs(z - inters_1) < abs(z - inters_2):
+            return inters_1
+        else:
+            return inters_2
