@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import os
 from tqdm import tqdm
-from solver import EMSolver2D
+from solver2D import EMSolver2D
 from grid import Grid
 from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle
 from scipy.special import jv

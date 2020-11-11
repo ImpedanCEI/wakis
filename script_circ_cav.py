@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import os
 from tqdm import tqdm
-from solver import EMSolver2D
+from solver2D import EMSolver2D
 from grid2D import Grid2D
 from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle
 from scipy.special import jv
 
 L = 1.
 # Number of mesh cells
-N = 20
+N = 50
 Nx = N
 Ny = N
 dx = L / Nx
@@ -48,7 +48,10 @@ grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
 i_s = int(1 * Nx / 2.)
 j_s = int(1 * Ny / 2.)
 NCFL = 0.99
-solver = EMSolver2D(grid, sol_type, NCFL, i_s, j_s)
+
+bc_low = ['dirichlet', 'dirichlet', 'dirichlet']
+bc_high = ['dirichlet', 'dirichlet', 'dirichlet']
+solver = EMSolver2D(grid, sol_type, NCFL, i_s, j_s, bc_low, bc_low)
 
 Nt = 5000
 Tf = Nt * dt

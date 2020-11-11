@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import os
 from tqdm import tqdm
-from solver import EMSolver2D
+from solver2D import EMSolver2D
 from grid2D import Grid2D
 from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle
 from scipy.special import jv
@@ -48,7 +48,7 @@ conductors = ConductorsAssembly([plane1, plane2, plane3, plane4])
 
 #theta = 0
 #conductors = ConductorsAssembly([rect])
-sol_type = 'FDTD'
+sol_type = 'ECT'
 
 grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
 i_s = int(1 * Nx / 2.)
@@ -176,8 +176,8 @@ for t in tqdm(range(Nt)):
 # Compute the analytic solution
 sol = np.zeros_like(solver.Hz)
 
-for ii in range(Nx + 1):
-    for jj in range(Ny + 1):
+for ii in range(Nx):
+    for jj in range(Ny):
         x = (ii + 0.5) * dx + xmin
         y = (jj + 0.5) * dy + ymin
         sol[ii, jj] = analytic_sol(x, y, solver.time)
