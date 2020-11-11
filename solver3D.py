@@ -499,7 +499,7 @@ class EMSolver3D:
         Hy = self.Hy
         Hz = self.Hz
         # Compute cell voltages
-        for ii in range(self.Nx):
+        for ii in range(self.Nx + 1):
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
                     if self.grid.flag_int_cell_yz[ii, jj, kk]:
@@ -508,7 +508,7 @@ class EMSolver3D:
                                           self.C7 * (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]))
 
         for ii in range(self.Nx):
-            for jj in range(self.Ny):
+            for jj in range(self.Ny + 1):
                 for kk in range(self.Nz):
                     if self.grid.flag_int_cell_zx[ii, jj, kk]:
                         Hy[ii, jj, kk] = (Hy[ii, jj, kk] -
@@ -517,7 +517,7 @@ class EMSolver3D:
 
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                for kk in range(self.Nz):
+                for kk in range(self.Nz + 1):
                     if self.grid.flag_int_cell_xy[ii, jj, kk]:
                         Hz[ii, jj, kk] = (Hz[ii, jj, kk] -
                                           self.C1 * (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) +

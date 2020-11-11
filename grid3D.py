@@ -43,36 +43,36 @@ class Grid3D:
         self.l_x = np.zeros((nx, ny + 1, nz + 1))
         self.l_y = np.zeros((nx + 1, ny, nz + 1))
         self.l_z = np.zeros((nx + 1, ny + 1, nz))
-        self.Sxy = np.zeros((nx, ny, nz))
-        self.Syz = np.zeros((nx, ny, nz))
-        self.Szx = np.zeros((nx, ny, nz))
-        self.Sxy_stab = np.zeros((nx, ny, nz))
-        self.Sxy_enl = np.zeros((nx, ny, nz))
-        self.Sxy_red = np.zeros((nx, ny, nz))
-        self.Syz_stab = np.zeros((nx, ny, nz))
-        self.Syz_enl = np.zeros((nx, ny, nz))
-        self.Syz_red = np.zeros((nx, ny, nz))
-        self.Szx_stab = np.zeros((nx, ny, nz))
-        self.Szx_enl = np.zeros((nx, ny, nz))
-        self.Szx_red = np.zeros((nx, ny, nz))
-        self.flag_unst_cell_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_int_cell_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_bound_cell_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_avail_cell_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_ext_cell_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_unst_cell_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_int_cell_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_bound_cell_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_avail_cell_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_ext_cell_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_unst_cell_zx = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_int_cell_zx = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_bound_cell_zx = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_avail_cell_zx = np.zeros((nx, ny, nz), dtype=bool)
-        self.flag_ext_cell_zx = np.zeros((nx, ny, nz), dtype=bool)
-        self.broken_xy = np.zeros((nx, ny, nz), dtype=bool)
-        self.broken_yz = np.zeros((nx, ny, nz), dtype=bool)
-        self.broken_zx = np.zeros((nx, ny, nz), dtype=bool)
+        self.Sxy = np.zeros((nx, ny, nz + 1))
+        self.Syz = np.zeros((nx + 1, ny, nz))
+        self.Szx = np.zeros((nx, ny + 1, nz))
+        self.Sxy_stab = np.zeros_like(self.Sxy)
+        self.Sxy_enl = np.zeros_like(self.Sxy)
+        self.Sxy_red = np.zeros_like(self.Sxy)
+        self.Syz_stab = np.zeros_like(self.Syz)
+        self.Syz_enl = np.zeros_like(self.Syz)
+        self.Syz_red = np.zeros_like(self.Syz)
+        self.Szx_stab = np.zeros_like(self.Szx)
+        self.Szx_enl = np.zeros_like(self.Szx)
+        self.Szx_red = np.zeros_like(self.Szx)
+        self.flag_unst_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_int_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_bound_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_avail_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_ext_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_unst_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_int_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_bound_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_avail_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_ext_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_unst_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.flag_int_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.flag_bound_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.flag_avail_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.flag_ext_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.broken_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.broken_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.broken_zx = np.zeros_like(self.Szx, dtype=bool)
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
             raise ValueError("sol_type must be:\n" +
@@ -88,20 +88,26 @@ class Grid3D:
             self.compute_areas()
             self.mark_cells()
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
-            self.borrowing_xy = np.empty((nx, ny, nz), dtype=object)
-            self.borrowing_yz = np.empty((nx, ny, nz), dtype=object)
-            self.borrowing_zx = np.empty((nx, ny, nz), dtype=object)
+            self.borrowing_xy = np.empty((nx, ny, nz + 1), dtype=object)
+            self.borrowing_yz = np.empty((nx + 1, ny, nz), dtype=object)
+            self.borrowing_zx = np.empty((nx, ny + 1, nz), dtype=object)
             # info about intruding cells  (i, j, [(i_lending, j_lending, area_lending)])
-            self.lending_xy = np.empty((nx, ny, nz), dtype=object)
-            self.lending_yz = np.empty((nx, ny, nz), dtype=object)
-            self.lending_zx = np.empty((nx, ny, nz), dtype=object)
+            self.lending_xy = np.empty((nx, ny, nz + 1), dtype=object)
+            self.lending_yz = np.empty((nx + 1, ny, nz), dtype=object)
+            self.lending_zx = np.empty((nx, ny + 1, nz), dtype=object)
             for ii in range(nx):
                 for jj in range(ny):
-                    for kk in range(nz):
+                    for kk in range(nz + 1):
                         self.borrowing_xy[ii, jj, kk] = []
                         self.lending_xy[ii, jj, kk] = []
+            for ii in range(nx + 1):
+                for jj in range(ny):
+                    for kk in range(nz):
                         self.borrowing_yz[ii, jj, kk] = []
                         self.lending_yz[ii, jj, kk] = []
+            for ii in range(nx):
+                for jj in range(ny + 1):
+                    for kk in range(nz):
                         self.borrowing_zx[ii, jj, kk] = []
                         self.lending_zx[ii, jj, kk] = []
 
@@ -245,17 +251,17 @@ class Grid3D:
     """
 
     def compute_areas(self):
-        for kk in range(self.nz):
+        for kk in range(self.nz + 1):
             Grid2D.compute_areas(l_x=self.l_x[:, :, kk], l_y=self.l_y[:, :, kk],
                                  S=self.Sxy[:, :, kk], S_red=self.Sxy_red[:, :, kk], nx=self.nx,
                                  ny=self.ny, dx=self.dx, dy=self.dy)
 
-        for ii in range(self.nx):
+        for ii in range(self.nx + 1):
             Grid2D.compute_areas(l_x=self.l_y[ii, :, :], l_y=self.l_z[ii, :, :],
                                  S=self.Syz[ii, :, :], S_red=self.Syz_red[ii, :, :], nx=self.ny,
                                  ny=self.nz, dx=self.dy, dy=self.dz)
 
-        for jj in range(self.ny):
+        for jj in range(self.ny + 1):
             Grid2D.compute_areas(l_x=self.l_x[:, jj, :], l_y=self.l_z[:, jj, :],
                                  S=self.Szx[:, jj, :], S_red=self.Szx_red[:, jj, :], nx=self.nx,
                                  ny=self.nz, dx=self.dx, dy=self.dz)
@@ -266,7 +272,7 @@ class Grid3D:
     """
 
     def mark_cells(self):
-        for kk in range(self.nz):
+        for kk in range(self.nz + 1):
             Grid2D.mark_cells(l_x=self.l_x[:, :, kk], l_y=self.l_y[:, :, kk], nx=self.nx,
                               ny=self.ny, dx=self.dx, dy=self.dy, S=self.Sxy[:, :, kk],
                               flag_int_cell=self.flag_int_cell_xy[:, :, kk],
@@ -275,7 +281,7 @@ class Grid3D:
                               flag_bound_cell=self.flag_bound_cell_xy[:, :, kk],
                               flag_avail_cell=self.flag_avail_cell_xy[:, :, kk])
 
-        for ii in range(self.nx):
+        for ii in range(self.nx + 1):
             Grid2D.mark_cells(l_x=self.l_y[ii, :, :], l_y=self.l_z[ii, :, :], nx=self.ny,
                               ny=self.nz, dx=self.dy, dy=self.dz, S=self.Syz[ii, :, :],
                               flag_int_cell=self.flag_int_cell_yz[ii, :, :],
@@ -284,7 +290,7 @@ class Grid3D:
                               flag_bound_cell=self.flag_bound_cell_yz[ii, :, :],
                               flag_avail_cell=self.flag_avail_cell_yz[ii, :, :])
 
-        for jj in range(self.ny):
+        for jj in range(self.ny + 1):
             Grid2D.mark_cells(l_x=self.l_x[:, jj, :], l_y=self.l_z[:, jj, :], nx=self.nx,
                               ny=self.nz, dx=self.dx, dy=self.dz, S=self.Szx[:, jj, :],
                               flag_int_cell=self.flag_int_cell_zx[:, jj, :],
@@ -299,7 +305,7 @@ class Grid3D:
 
     def compute_extensions(self):
         #breakpoint()
-        for kk in range(self.nz):
+        for kk in range(self.nz + 1):
             #breakpoint()
             Grid2D.compute_extensions(nx=self.nx, ny=self.ny, S=self.Sxy[:, :, kk],
                                       flag_int_cell=self.flag_int_cell_xy[:, :, kk],
@@ -311,7 +317,7 @@ class Grid3D:
                                       borrowing=self.borrowing_xy[:, :, kk],
                                       lending=self.lending_xy[:, :, kk], kk=kk, l_verbose=False)
 
-        for ii in range(self.nx):
+        for ii in range(self.nx + 1):
             Grid2D.compute_extensions(nx=self.ny, ny=self.nz, S=self.Syz[ii, :, :],
                                       flag_int_cell=self.flag_int_cell_yz[ii, :, :],
                                       S_stab=self.Syz_stab[ii, :, :], S_enl=self.Syz_enl[ii, :, :],
@@ -322,7 +328,7 @@ class Grid3D:
                                       borrowing=self.borrowing_yz[ii, :, :],
                                       lending=self.lending_yz[ii, :, :], kk = ii, l_verbose=False)
             
-        for jj in range(self.ny):
+        for jj in range(self.ny + 1):
             Grid2D.compute_extensions(nx=self.nx, ny=self.nz, S=self.Szx[:, jj, :],
                                       flag_int_cell=self.flag_int_cell_zx[:, jj, :],
                                       S_stab=self.Szx_stab[:, jj, :], S_enl=self.Szx_enl[:, jj, :],
