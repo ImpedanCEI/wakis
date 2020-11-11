@@ -4,20 +4,22 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import os
 from tqdm import tqdm
-from solver import EMSolver2D
+from solver2D import EMSolver2D
 from grid2D import Grid2D
 from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle, noConductor
 from scipy.special import jv
+from matplotlib.patches import Circle
 
 L = 1.
 # Number of mesh cells
-N = 50
+N = 100
 Nx = N
 Ny = N
 dx = L / Nx
 dy = L / Ny
+N_radius = 15
 
-r_circ = 0.4
+r_circ = N_radius*dx
 xmin = -L / 2
 xmax = L / 2
 ymin = -L / 2
@@ -27,34 +29,17 @@ Ly = L*0.75
 x_cent = 0
 y_cent = 0
 
-rect = OutRect(Lx, Ly, x_cent, y_cent)
+circ = InCircle(r_circ, x_cent, y_cent)
 
-theta = np.pi/2*0.25
-m_plane1 = np.tan(theta)
-q_plane1 = Ly/ 2
-m_plane2 = np.tan(theta)
-q_plane2 = -Ly/2
-m_plane3 = -1/np.tan(theta)
-q_plane3 = (Ly / 2)/np.tan(theta)
-m_plane4 = -1/np.tan(theta)
-q_plane4 = -(Ly / 2)/np.tan(theta)
-# -dx/3+2*dx
-plane1 = Plane(m_plane1, q_plane1, tol=0, sign=1)
-plane2 = Plane(m_plane2, q_plane2, tol=0, sign=-1)
-plane3 = Plane(m_plane3, q_plane3, tol=0, sign=1)
-plane4 = Plane(m_plane4, q_plane4, tol=0, sign=-1)
-
-
-
-conductors = ConductorsAssembly([noConductor()])
+conductors = ConductorsAssembly([circ])
 
 #theta = 0
 #conductors = ConductorsAssembly([rect])
-sol_type = 'DM'
+sol_type = 'FDTD'
 
 grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
-i_s = int(1 * Nx / 2.)
-j_s = int(1 * Ny / 2.)
+i_s = int(1 * Nx / 4.)
+j_s = int(1 * Ny / 4.)
 NCFL = 1
 bc_low = ['pml', 'pml', 'pml']
 bc_high = ['pml', 'pml', 'pml']
@@ -122,38 +107,47 @@ for t in tqdm(range(Nt)):
     #        y = (jj + 0.5) * dy + ymin
     #        solver.Hz[ii, jj] = analytic_sol(x, y, t*solver.dt)
 
-    E1 = np.concatenate((solver.pml_lxly.Ex[:,:-1], solver.pml_ly.Ex[:,:-1], solver.pml_rxly.Ex[:,:-1]), axis=0)
-    E2 = np.concatenate((solver.pml_lx.Ex[:,:-1], solver.Ex[:,:-1], solver.pml_rx.Ex[:,:-1]), axis=0)
-    E3 = np.concatenate((solver.pml_lxry.Ex[:,:-1], solver.pml_ry.Ex[:,:-1], solver.pml_rxry.Ex[:,:-1]), axis=0)
-    Ex = np.concatenate((E1, E2, E3), axis=1)
+    #E1 = np.concatenate((solver.pml_lxly.Ex[:,:-1], solver.pml_ly.Ex[:,:-1], solver.pml_rxly.Ex[:,:-1]), axis=0)
+    #E2 = np.concatenate((solver.pml_lx.Ex[:,:-1], solver.Ex[:,:-1], solver.pml_rx.Ex[:,:-1]), axis=0)
+    #E3 = np.concatenate((solver.pml_lxry.Ex[:,:-1], solver.pml_ry.Ex[:,:-1], solver.pml_rxry.Ex[:,:-1]), axis=0)
+    #Ex = np.concatenate((E1, E2, E3), axis=1)
     #Ex = np.concatenate((solver.pml_lx.Ex[:, :-1], solver.Ex[:, :-1]))
 
     fig, axs = plt.subplots(1, 3, figsize=(16, 5))
     fig.subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.94, wspace=0.15)
-    im1 = axs[0].imshow(Ex.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')  # ,extent=[0, L , 0, L ])
+    im1 = axs[0].imshow(solver.Ex.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')  # ,extent=[0, L , 0, L ])
+    circ0 = Circle((Nx/2, Ny/2), N_radius, facecolor='None', edgecolor='r', lw=1)
+    circ1 = Circle((Nx/2, Ny/2), N_radius, facecolor='None', edgecolor='r', lw=1)
+    circ2 = Circle((Nx/2, Ny/2), N_radius, facecolor='None', edgecolor='r', lw=1)
+
+    axs[0].add_patch(circ0)
     axs[0].set_xlabel('x [m]')
     axs[0].set_ylabel('y [m]')
     axs[0].set_title('Ex [V/m]')
     fig.colorbar(im1, ax=axs[0], )
-    E1 = np.concatenate((solver.pml_lxly.Ey[:-1,:], solver.pml_ly.Ey[:-1,:], solver.pml_rxly.Ey[:-1,:]), axis=0)
-    E2 = np.concatenate((solver.pml_lx.Ey[:-1,:], solver.Ey[:-1,:], solver.pml_rx.Ey[:-1,:]), axis=0)
-    E3 = np.concatenate((solver.pml_lxry.Ey[:-1,:], solver.pml_ry.Ey[:-1,:], solver.pml_rxry.Ey[:-1,:]), axis=0)
-    Ey = np.concatenate((E1, E2, E3), axis=1)
+    #E1 = np.concatenate((solver.pml_lxly.Ey[:-1,:], solver.pml_ly.Ey[:-1,:], solver.pml_rxly.Ey[:-1,:]), axis=0)
+    #E2 = np.concatenate((solver.pml_lx.Ey[:-1,:], solver.Ey[:-1,:], solver.pml_rx.Ey[:-1,:]), axis=0)
+    #E3 = np.concatenate((solver.pml_lxry.Ey[:-1,:], solver.pml_ry.Ey[:-1,:], solver.pml_rxry.Ey[:-1,:]), axis=0)
+    #Ey = np.concatenate((E1, E2, E3), axis=1)
     #Ey = np.concatenate((solver.pml_lx.Ey[:-1,:],solver.Ey[:-1,:]))
-    im1 = axs[1].imshow(Ey.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')
+    im1 = axs[1].imshow(solver.Ey.T, cmap='jet', vmax=1000, vmin=-1000, origin = 'lower')
+    axs[1].add_patch(circ1)
+
     axs[1].set_xlabel('x [m]')
     axs[1].set_ylabel('y [m]')
     axs[1].set_title('Ey [V/m]')
     fig.colorbar(im1, ax=axs[1])
-    E1 = np.concatenate((solver.pml_lxly.Hz, solver.pml_ly.Hz, solver.pml_rxly.Hz), axis=0)
-    E2 = np.concatenate((solver.pml_lx.Hz, solver.Hz, solver.pml_rx.Hz), axis=0)
-    E3 = np.concatenate((solver.pml_lxry.Hz, solver.pml_ry.Hz, solver.pml_rxry.Hz), axis=0)
-    Hz = np.concatenate((E1, E2, E3), axis=1)
+    #E1 = np.concatenate((solver.pml_lxly.Hz, solver.pml_ly.Hz, solver.pml_rxly.Hz), axis=0)
+    #E2 = np.concatenate((solver.pml_lx.Hz, solver.Hz, solver.pml_rx.Hz), axis=0)
+    #E3 = np.concatenate((solver.pml_lxry.Hz, solver.pml_ry.Hz, solver.pml_rxry.Hz), axis=0)
+    #Hz = np.concatenate((E1, E2, E3), axis=1)
     #Hz = np.concatenate((solver.pml_lx.Hz,solver.Hz))
-    im1 = axs[2].imshow(Hz.T, cmap='jet', vmax=2, vmin=-2, origin = 'lower')
+    im1 = axs[2].imshow(solver.Hz.T, cmap='jet', vmax=2, vmin=-2, origin = 'lower')
+    axs[2].add_patch(circ2)
     axs[2].set_xlabel('x [m]')
     axs[2].set_ylabel('y [m]')
     axs[2].set_title('Hz [A/m]')
+
     fig.colorbar(im1, ax=axs[2])
     plt.suptitle(str(solver.time))
     # im1 = axs[1,0].imshow(Hx.T,cmap='jet',origin='lower')#,extent=[0, L , 0, L ])
@@ -171,7 +165,7 @@ for t in tqdm(range(Nt)):
     # axs[1,2].set_ylabel('y [m]')
     # axs[1,2].set_title('Ez [V/m]')
     # fig.colorbar(im1, ax=axs[1,2])
-    folder = sol_type + '_images_pml'
+    folder = sol_type + '_scatter_circle'
     if not os.path.exists(folder):
         os.mkdir(folder)
 
