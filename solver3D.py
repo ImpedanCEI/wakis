@@ -554,17 +554,23 @@ class EMSolver3D:
 
         for i in range(self.Nx):
             for j in range(self.Ny):
-                for k in range(self.Nz):
+                for k in range(self.Nz + 1):
                     if self.grid.flag_int_cell_xy[i, j, k]:
                         self.Hz[i, j, k] = (self.Hz[i, j, k] -
                                             self.dt / (mu_0 * self.grid.Sxy[i, j, k]) *
                                             self.Vxy[i, j, k])
 
+        for i in range(self.Nx + 1):
+            for j in range(self.Ny):
+                for k in range(self.Nz):
                     if self.grid.flag_int_cell_yz[i, j, k]:
                         self.Hx[i, j, k] = (self.Hx[i, j, k] -
                                             self.dt / (mu_0 * self.grid.Syz[i, j, k]) *
                                             self.Vyz[i, j, k])
 
+        for i in range(self.Nx):
+            for j in range(self.Ny + 1):
+                for k in range(self.Nz):
                     if self.grid.flag_int_cell_zx[i, j, k]:
                         self.Hy[i, j, k] = (self.Hy[i, j, k] -
                                             self.dt / (mu_0 * self.grid.Szx[i, j, k]) *
@@ -615,7 +621,7 @@ class EMSolver3D:
 
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                for kk in range(self.Nz):
+                for kk in range(self.Nz + 1):
                     if self.grid.flag_int_cell_xy[ii, jj, kk]:
                         self.Vxy[ii, jj, kk] = (self.Ex[ii, jj, kk] * l_x[ii, jj, kk] -
                                                 self.Ex[ii, jj + 1, kk] * l_x[ii, jj + 1, kk] +
@@ -626,6 +632,9 @@ class EMSolver3D:
                             self.rho_xy[ii, jj, kk] = (self.Vxy[ii, jj, kk] /
                                                        self.grid.Sxy[ii, jj, kk])
 
+        for ii in range(self.Nx + 1):
+            for jj in range(self.Ny):
+                for kk in range(self.Nz):
                     if self.grid.flag_int_cell_yz[ii, jj, kk]:
                         self.Vyz[ii, jj, kk] = (self.Ey[ii, jj, kk] * l_y[ii, jj, kk] -
                                                 self.Ey[ii, jj, kk + 1] * l_y[ii, jj, kk + 1] +
@@ -636,6 +645,9 @@ class EMSolver3D:
                             self.rho_yz[ii, jj, kk] = (self.Vyz[ii, jj, kk] /
                                                        self.grid.Syz[ii, jj, kk])
 
+        for ii in range(self.Nx):
+            for jj in range(self.Ny + 1):
+                for kk in range(self.Nz):
                     if self.grid.flag_int_cell_zx[ii, jj, kk]:
                         self.Vzx[ii, jj, kk] = (self.Ez[ii, jj, kk] * l_z[ii, jj, kk] -
                                                 self.Ez[ii + 1, jj, kk] * l_z[ii + 1, jj, kk] +
@@ -654,18 +666,24 @@ class EMSolver3D:
         Hy = self.Hy
         Hz = self.Hz
         for ii in range(self.Nx):
-            for jj in range(self.Ny):
-                for kk in range(self.Nz):
+            for jj in range(1, self.Ny):
+                for kk in range(1, self.Nz):
                     if self.grid.l_x[ii, jj, kk] > 0:
                         Ex[ii, jj, kk] = (Ex[ii, jj, kk] - self.C3 * self.Jx[ii, jj, kk] +
                                           self.C4 * (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) -
                                           self.C8 * (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]))
 
+        for ii in range(1, self.Nx):
+            for jj in range(self.Ny):
+                for kk in range(1, self.Nz):
                     if self.grid.l_y[ii, jj, kk] > 0:
                         Ey[ii, jj, kk] = (Ey[ii, jj, kk] - self.C3 * self.Jy[ii, jj, kk] +
                                           self.C8 * (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) -
                                           self.C5 * (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]))
 
+        for ii in range(1, self.Nx):
+            for jj in range(1, self.Ny):
+                for kk in range(self.Nz):
                     if self.grid.l_z[ii, jj, kk] > 0:
                         Ez[ii, jj, kk] = (Ez[ii, jj, kk] - self.C3 * self.Jz[ii, jj, kk] +
                                           self.C5 * (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) -
