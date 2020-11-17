@@ -29,15 +29,15 @@ class PmlBlock3D:
         self.Eyz = np.zeros((Nx + 1, Ny, Nz + 1))
         self.Ezx = np.zeros((Nx + 1, Ny + 1, Nz))
         self.Ezy = np.zeros((Nx + 1, Ny + 1, Nz))
-        self.Hx = np.zeros((Nx, Ny, Nz))
-        self.Hy = np.zeros((Nx, Ny, Nz))
-        self.Hz = np.zeros((Nx, Ny, Nz))
-        self.Hzx = np.zeros((Nx, Ny, Nz))
-        self.Hzy = np.zeros((Nx, Ny, Nz))
-        self.Hxy = np.zeros((Nx, Ny, Nz))
-        self.Hxz = np.zeros((Nx, Ny, Nz))
-        self.Hyx = np.zeros((Nx, Ny, Nz))
-        self.Hyz = np.zeros((Nx, Ny, Nz))
+        self.Hx = np.zeros((Nx + 1, Ny, Nz))
+        self.Hy = np.zeros((Nx, Ny + 1, Nz))
+        self.Hz = np.zeros((Nx, Ny, Nz + 1))
+        self.Hzx = np.zeros((Nx, Ny, Nz + 1))
+        self.Hzy = np.zeros((Nx, Ny, Nz + 1))
+        self.Hxy = np.zeros((Nx + 1, Ny, Nz))
+        self.Hxz = np.zeros((Nx + 1, Ny, Nz))
+        self.Hyx = np.zeros((Nx, Ny + 1, Nz))
+        self.Hyz = np.zeros((Nx, Ny + 1, Nz))
         self.Jx = np.zeros((self.Nx, self.Ny + 1, self.Nz + 1))
         self.Jy = np.zeros((self.Nx + 1, self.Ny, self.Nz + 1))
         self.Jz = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz))
@@ -99,13 +99,13 @@ class PmlBlock3D:
 
         for ii in range(self.Nx):
             for jj in range(self.Ny):
-                for kk in range(self.Nz):
+                for kk in range(self.Nz + 1):
                     self.Hzx[ii, jj, kk] = self.Cx[ii, jj, kk] * self.Hzx[ii, jj, kk] - self.Dx[ii, jj, kk] / self.dx * (self.Ey[ii + 1, jj, kk]
                                                                                                         - self.Ey[ii, jj, kk])
                     self.Hzy[ii, jj, kk] = self.Cy[ii, jj, kk] * self.Hzy[ii, jj, kk] + self.Dy[ii, jj, kk] / self.dy * (self.Ex[ii, jj + 1, kk]
                                                                                                         - self.Ex[ii, jj, kk])
 
-        for ii in range(self.Nx):
+        for ii in range(self.Nx + 1):
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
                     self.Hxy[ii, jj, kk] = self.Cy[ii, jj, kk] * self.Hxy[ii, jj, kk] - self.Dy[ii, jj, kk] / self.dy * (self.Ez[ii, jj + 1, kk]
@@ -114,7 +114,7 @@ class PmlBlock3D:
                                                                                                         - self.Ey[ii, jj, kk])
 
         for ii in range(self.Nx):
-            for jj in range(self.Ny):
+            for jj in range(self.Ny + 1):
                 for kk in range(self.Nz):
                     self.Hyx[ii, jj, kk] = self.Cx[ii, jj, kk] * self.Hyx[ii, jj, kk] + self.Dx[ii, jj, kk] / self.dx * (self.Ez[ii + 1, jj, kk]
                                                                                                         - self.Ez[ii, jj, kk])
