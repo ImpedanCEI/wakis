@@ -424,6 +424,10 @@ class EMSolver3D:
         Hy = self.Hy
         Hz = self.Hz
 
+        Nx = self.Nx
+        Ny = self.Ny
+        Nz = self.Nz
+
         # Update E on "lower" faces
         if self.blocks_mat[0, 1, 1] is not None:
             for jj in range(self.Ny):
@@ -435,7 +439,7 @@ class EMSolver3D:
             for jj in range(1, self.Ny):
                 for kk in range(self.Nz):
                     Ez[0, jj, kk] = (Ez[0, jj, kk] - self.C3 * self.Jz[0, jj, kk] +
-                                     self.C5 * (Hy[0, jj, kk] - self.blocks_mat[0, 1, 1].Hy[- 1, jj, kk]) -
+                                     self.C5 * (Hy[0, jj, kk] - self.blocks_mat[0, 1, 1].Hy[-1, jj, kk]) -
                                      self.C4 * (Hx[0, jj, kk] - Hx[0, jj - 1, kk]))
 
         if self.blocks_mat[1, 0, 1] is not None:
@@ -462,16 +466,106 @@ class EMSolver3D:
                                      self.C8 * (Hx[ii, jj, 0] - self.blocks_mat[1, 1, 0].Hx[ii, jj, -1]) -
                                      self.C5 * (Hz[ii, jj, 0] - Hz[ii - 1, jj, 0]))
 
-        Nx = self.Nx
-        Ny = self.Ny
-        Nz = self.Nz
         # Update E on "upper" faces
         if self.blocks_mat[2, 1, 1] is not None:
             for jj in range(self.Ny):
                 for kk in range(1, self.Nz):
                     Ey[Nx, jj, kk] = (Ey[Nx, jj, kk] - self.C3 * self.Jy[Nx, jj, kk] +
                                       self.C8 * (Hx[Nx, jj, kk] - Hx[Nx, jj, kk - 1]) -
-                                      self.C5 * (Hz[Nx, jj, kk] - Hz[Nx - 1, jj, kk]))
+                                      self.C5 * (self.blocks_mat[2, 1, 1].Hz[0, jj, kk] - Hz[Nx - 1, jj, kk]))
+            for jj in range(1, self.Ny):
+                for kk in range(self.Nz):
+                    Ez[Nx, jj, kk] = (Ez[Nx, jj, kk] - self.C3 * self.Jz[Nx, jj, kk] +
+                                      self.C5 * (self.blocks_mat[2, 1, 1].Hy[0, jj, kk] - Hy[Nx - 1, jj, kk]) -
+                                      self.C4 * (Hx[Nx, jj, kk] - Hx[Nx, jj - 1, kk]))
+
+        if self.blocks_mat[1, 2, 1] is not None:
+            for ii in range(self.Nx):
+                for kk in range(1, self.Nz):
+                    Ex[ii, Ny, kk] = (Ex[ii, Ny, kk] - self.C3 * self.Jx[ii, Ny, kk] +
+                                      self.C4 * (self.blocks_mat[1, 2, 1].Hz[ii, Ny, kk] - Hz[ii, Ny - 1, kk]) -
+                                      self.C8 * (Hy[ii, Ny, kk] - Hy[ii, Ny, kk - 1]))
+            for ii in range(1, self.Nx):
+                for kk in range(self.Nz):
+                    Ez[ii, Ny, kk] = (Ez[ii, Ny, kk] - self.C3 * self.Jz[ii, Ny, kk] +
+                                      self.C5 * (Hy[ii, Ny, kk] - Hy[ii - 1, Ny, kk]) -
+                                      self.C4 * (self.blocks_mat[1, 2, 1].Hx[ii, 0, kk] - Hx[ii, Ny - 1, kk]))
+
+        if self.blocks_mat[1, 1, 2] is not None:
+            for ii in range(self.Nx):
+                for jj in range(1, self.Ny):
+                    Ex[ii, jj, Nz] = (Ex[ii, jj, Nz] - self.C3 * self.Jx[ii, jj, Nz] +
+                                      self.C4 * (Hz[ii, jj, Nz] - Hz[ii, jj - 1, Nz]) -
+                                      self.C8 * (self.blocks_mat[1, 1, 2].Hy[ii, jj, 0] - Hy[ii, jj, Nz - 1]))
+            for ii in range(1, self.Nx):
+                for jj in range(self.Ny):
+                    Ey[ii, jj, Nz] = (Ey[ii, jj, Nz] - self.C3 * self.Jy[ii, jj, Nz] +
+                                      self.C8 * (self.blocks_mat[1, 1, 2].Hx[ii, jj, 0] - Hx[ii, jj, Nz - 1]) -
+                                      self.C5 * (Hz[ii, jj, Nz] - Hz[ii - 1, jj, Nz]))
+        # Update Ez on edges (xy)
+        if self.blocks_mat[0, 1, 1] is not None and self.blocks_mat[1, 0, 1] is not None:
+            for kk in range(Nz):
+                Ez[0, 0, kk] = (Ez[0, 0, kk] - self.C3 * self.Jz[0, 0, kk] +
+                                 self.C5 * (Hy[0, 0, kk] - self.blocks_mat[0, 1, 1].Hy[-1, 0, kk]) -
+                                 self.C4 * (Hx[0, 0, kk] - self.blocks_mat[1, 0, 1].Hx[0, -1, kk]))
+        if self.blocks_mat[0, 1, 1] is not None and self.blocks_mat[1, 2, 1] is not None:
+            for kk in range(Nz):
+                Ez[0, Ny, kk] = (Ez[0, Ny, kk] - self.C3 * self.Jz[0, Ny, kk] +
+                                  self.C5 * (Hy[0, Ny, kk] - self.blocks_mat[0, 1, 1].Hy[-1, Ny, kk]) -
+                                  self.C4 * (self.blocks_mat[1, 2, 1].Hx[0, 0, kk] - Hx[0, Ny - 1, kk]))
+        if self.blocks_mat[2, 1, 1] is not None and self.blocks_mat[1, 0, 1] is not None:
+            for kk in range(Nz):
+                Ez[Nx, 0, kk] = (Ez[Nx, 0, kk] - self.C3 * self.Jz[Nx, 0, kk] +
+                                  self.C5 * (self.blocks_mat[2, 1, 1].Hy[0, 0, kk] - Hy[Nx - 1, 0, kk]) -
+                                  self.C4 * (Hx[Nx, 0, kk] - self.blocks_mat[1, 0, 1].Hx[Nx, -1, kk]))
+        if self.blocks_mat[2, 1, 1] is not None and self.blocks_mat[1, 2, 1] is not None:
+            for kk in range(Nz):
+                Ez[Nx, Ny, kk] = (Ez[Nx, Ny, kk] - self.C3 * self.Jz[Nx, Ny, kk] +
+                                  self.C5 * (self.blocks_mat[2, 1, 1].Hy[0, Ny, kk] - Hy[Nx - 1, Ny, kk]) -
+                                  self.C4 * (self.blocks_mat[1, 2, 1].Hx[Nx, 0, kk] - Hx[Nx, Ny - 1, kk]))
+        # Update Ex on edges (yz)
+        if self.blocks_mat[1, 0, 1] is not None and self.blocks_mat[1, 1, 0] is not None:
+            for ii in range(Nx):
+                Ex[ii, 0, 0] = (Ex[ii, 0, 0] - self.C3 * self.Jx[ii, 0, 0] +
+                                  self.C4 * (Hz[ii, 0, 0] - self.blocks_mat[1, 1, 0].Hz[ii, -1, 0]) -
+                                  self.C8 * (Hy[ii, 0, 0] - self.blocks_mat[1, 0, 1].Hy[ii, 0, -1]))
+        if self.blocks_mat[1, 0, 1] is not None and self.blocks_mat[1, 1, 2] is not None:
+            for ii in range(Nx):
+                Ex[ii, 0, Nz] = (Ex[ii, 0, Nz] - self.C3 * self.Jx[ii, 0, Nz] +
+                                  self.C4 * (Hz[ii, 0, Nz] - self.blocks_mat[1, 0, 1].Hz[ii, -1, Nz]) -
+                                  self.C8 * (self.blocks_mat[1, 1, 2].Hy[ii, 0, 0] - Hy[ii, 0, Nz - 1]))
+        if self.blocks_mat[1, 2, 1] is not None and self.blocks_mat[1, 1, 0] is not None:
+            for ii in range(Nx):
+                Ex[ii, Ny, 0] = (Ex[ii, Ny, 0] - self.C3 * self.Jx[ii, Ny, 0] +
+                                  self.C4 * (self.blocks_mat[1, 2, 1].Hz[ii, 0, 0] - Hz[ii, Ny - 1, 0]) -
+                                  self.C8 * (Hy[ii, Ny, 0] - self.blocks_mat[1, 1, 0].Hy[ii, Ny, -1]))
+        if self.blocks_mat[1, 2, 1] is not None and self.blocks_mat[1, 1, 2] is not None:
+            for ii in range(Nx):
+                Ex[ii, Ny, Nz] = (Ex[ii, Ny, Nz] - self.C3 * self.Jx[ii, Ny, Nz] +
+                                  self.C4 * (self.blocks_mat[1, 2, 1].Hz[ii, 0, Nz] - Hz[ii, Ny - 1, Nz]) -
+                                  self.C8 * (self.blocks_mat[1, 1, 2].Hy[ii, Ny, 0] - Hy[ii, Ny, Nz - 1]))
+
+        # Update Ey on edges (xz)
+        if self.blocks_mat[0, 1, 1] is not None and self.blocks_mat[1, 1, 0] is not None:
+            for jj in range(Ny):
+                Ey[0, jj, 0] = (Ey[0, jj, 0] - self.C3 * self.Jy[0, jj, 0] +
+                                  self.C8 * (Hx[0, jj, 0] - self.blocks_mat[1, 1, 0].Hx[0, jj, -1]) -
+                                  self.C5 * (Hz[0, jj, 0] - self.blocks_mat[0, 1, 1].Hz[-1, jj, 0]))
+        if self.blocks_mat[0, 1, 1] is not None and self.blocks_mat[1, 1, 2] is not None:
+            for jj in range(Ny):
+                Ey[0, jj, Nz] = (Ey[0, jj, Nz] - self.C3 * self.Jy[0, jj, Nz] +
+                                  self.C8 * (self.blocks_mat[1, 1, 2].Hx[0, jj, 0] - Hx[0, jj, Nz - 1]) -
+                                  self.C5 * (Hz[0, jj, Nz] - self.blocks_mat[0, 1, 1].Hz[-1, jj, Nz]))
+        if self.blocks_mat[2, 1, 1] is not None and self.blocks_mat[1, 1, 0] is not None:
+            for jj in range(Ny):
+                Ey[Nx, jj, 0] = (Ey[Nx, jj, 0] - self.C3 * self.Jy[Nx, jj, 0] +
+                                  self.C8 * (Hx[Nx, jj, 0] - self.blocks_mat[1, 1, 0].Hx[Nx, jj, -1]) -
+                                  self.C5 * (self.blocks_mat[2, 1, 1].Hz[0, jj, 0] - Hz[Nx - 1, jj, 0]))
+        if self.blocks_mat[2, 1, 1] is not None and self.blocks_mat[1, 1, 2] is not None:
+            for jj in range(Ny):
+                Ey[Nx, jj, Nz] = (Ey[Nx, jj, Nz] - self.C3 * self.Jy[Nx, jj, Nz] +
+                                  self.C8 * (self.blocks_mat[1, 1, 2].Hx[Nx, jj, 0] - Hx[Nx, jj, Nz - 1]) -
+                                  self.C5 * (self.blocks_mat[2, 1, 1].Hz[0, jj, Nz] - Hz[Nx - 1, jj, Nz]))
 
     def gauss(self, t):
         tau = 20 * self.dt
