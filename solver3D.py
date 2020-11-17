@@ -579,35 +579,7 @@ class EMSolver3D:
             for n in range((self.N_pml_high[2])):
                 self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                         n / (self.N_pml_high[2])) ** self.alpha_pml
-                
-'''
-        if self.bc_high[0] is 'pml':
-            for n in range(self.N_pml_high[0]):
-                self.blocks_mat[2, 1, 1].sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
-            if self.bc_high[1] is 'pml':
-                for n in range(self.N_pml_high[0]):
-                    self.blocks_mat[2, 2, 1].sigma_x[n, :] = sigma_m_high_x * (
-                            n / (self.N_pml_high[0])) ** self.alpha_pml
-                for n in range(self.N_pml_high[1]):
-                    self.blocks_mat[2, 2, 1].sigma_y[:, n] = sigma_m_high_y * (
-                            n / (self.N_pml_high[1])) ** self.alpha_pml
-            if self.bc_low[1] == 'pml':
-                for n in range(self.N_pml_low[1]):
-                    self.blocks_mat[2, 0, 1].sigma_y[:, -(n + 1)] = sigma_m_low_y * (
-                            n / (self.N_pml_low[1])) ** self.alpha_pml
-                for n in range(self.N_pml_high[0]):
-                    self.blocks_mat[2, 0, 1].sigma_x[n, :] = sigma_m_high_x * (
-                            n / (self.N_pml_high[0])) ** self.alpha_pml
 
-        if self.bc_low[1] is 'pml':
-            for n in range(self.N_pml_low[1]):
-                self.blocks_mat[1, 0, 1].sigma_y[:, -(n + 1)] = sigma_m_low_y * (
-                        n / (self.N_pml_low[1])) ** self.alpha_pml
-
-        if self.bc_high[1] is 'pml':
-            for n in range(self.N_pml_high[1]):
-                self.blocks_mat[1, 2, 1].sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
-'''
         for i_block in range(3):
             for j_block in range(3):
                 for k_block in range(3):
