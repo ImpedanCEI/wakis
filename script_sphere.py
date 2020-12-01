@@ -8,7 +8,7 @@ import os
 from tqdm import tqdm
 from solver3D import EMSolver3D
 from grid3D import Grid3D
-from conductors3d import InCube, ConductorsAssembly, OutSphere, Plane
+from conductors3d import InCube, ConductorsAssembly, OutSphere, Plane, noConductor
 from scipy.special import spherical_jn
 
 Z0 = np.sqrt(mu_0 / eps_0)
@@ -43,13 +43,16 @@ z_cent = 0
 sphere = OutSphere(r_sphere, x_cent, y_cent, z_cent)
 conductors = ConductorsAssembly([sphere])
 
+#sphere = noConductor()
+#conductors = ConductorsAssembly([sphere])
+
 # conductors = cube
-sol_type = 'ECT'
+sol_type = 'FDTD'
 
 grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, sol_type)
 i_s = int(Nx / 2)
 j_s = int(Ny / 2)
-k_s = int(Nz / 2)+10
+k_s = int(Nz / 2) + 10
 NCFL = 1
 
 flag_in_conductor = np.zeros((Nx, Ny, Nz), dtype=bool)
