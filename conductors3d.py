@@ -91,11 +91,11 @@ class InSphere:
         self.y_cent = y_cent
         self.z_cent = z_cent
 
-    def out_conductor(self, x, y, z):
+    def in_conductor(self, x, y, z):
         return (np.square(x - self.x_cent) + np.square(y - self.y_cent) + np.square(z - self.z_cent)
                 <= np.square(self.radius))
 
-    def in_conductor(self, x, y, z):
+    def out_conductor(self, x, y, z):
         return not self.out_conductor(x, y, z)
 
     def intersec_x(self, x, y, z):
