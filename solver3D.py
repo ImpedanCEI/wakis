@@ -34,6 +34,17 @@ class EMSolver3D:
         self.bc_low = bc_low
         self.bc_high = bc_high
 
+        Nx = self.Nx
+        Ny = self.Ny
+        Nz = self.Nz
+
+        self.sigma_x = np.zeros((Nx + 1, Ny + 1, Nz + 1))
+        self.sigma_y = np.zeros((Nx + 1, Ny + 1, Nz + 1))
+        self.sigma_z = np.zeros((Nx + 1, Ny + 1, Nz + 1))
+        self.sigma_star_x = np.zeros((Nx, Ny + 1, Nz + 1))
+        self.sigma_star_y = np.zeros((Nx + 1, Ny, Nz + 1))
+        self.sigma_star_z = np.zeros((Nx + 1, Ny + 1, Nz))
+
         if bc_low[0] == 'pml':
             self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
         if bc_low[1] == 'pml':
@@ -84,9 +95,9 @@ class EMSolver3D:
             self.Vyz = np.zeros((self.Nx + 1, self.Ny, self.Nz))
             self.Vzx = np.zeros((self.Nx, self.Ny + 1, self.Nz))
         if sol_type is 'ECT':
-            self.Vxy_enl = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1))
-            self.Vyz_enl = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1))
-            self.Vzx_enl = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1))
+            self.Vxy_enl = np.zeros((self.Nx, self.Ny, self.Nz + 1))
+            self.Vyz_enl = np.zeros((self.Nx + 1, self.Ny, self.Nz))
+            self.Vzx_enl = np.zeros((self.Nx, self.Ny + 1, self.Nz))
 
         self.C1 = self.dt / (self.dx * mu_0)
         self.C2 = self.dt / (self.dy * mu_0)
@@ -125,7 +136,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2]:
+                if bc_low[2] is 'pml':
                     i_block = 0
                     j_block = 0
                     k_block = 0
@@ -134,7 +145,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2]:
+                if bc_high[2] is 'pml':
                     i_block = 0
                     j_block = 0
                     k_block = 2
@@ -151,7 +162,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2]:
+                if bc_low[2] is 'pml':
                     i_block = 0
                     j_block = 2
                     k_block = 0
@@ -160,7 +171,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2]:
+                if bc_high[2] is 'pml':
                     i_block = 0
                     j_block = 2
                     k_block = 2
@@ -202,7 +213,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2]:
+                if bc_low[2] is 'pml':
                     i_block = 2
                     j_block = 0
                     k_block = 0
@@ -211,7 +222,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2]:
+                if bc_high[2] is 'pml':
                     i_block = 2
                     j_block = 0
                     k_block = 2
@@ -228,7 +239,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2]:
+                if bc_low[2] is 'pml':
                     i_block = 2
                     j_block = 2
                     k_block = 0
@@ -237,7 +248,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2]:
+                if bc_high[2] is 'pml':
                     i_block = 2
                     j_block = 2
                     k_block = 2
@@ -327,13 +338,12 @@ class EMSolver3D:
             j_block = 1
             k_block = 2
             self.blocks_mat[i_block, j_block, k_block] = PmlBlock3D(self.Nx, self.Ny, self.N_pml_high[2], self.dt,
-                                                                    self.dx, self.dy, self.Nz, i_block, j_block,
+                                                                    self.dx, self.dy, self.dz, i_block, j_block,
                                                                     k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
         for block in self.blocks:
             block.blocks_mat = self.blocks_mat
-
 
     def assemble_conductivities_pmls(self):
         sigma_m_low_x = 0
@@ -342,260 +352,367 @@ class EMSolver3D:
         sigma_m_high_y = 0
         sigma_m_low_z = 0
         sigma_m_high_z = 0
+        Z_0_2 = mu_0 / eps_0
+
         if self.bc_low[0] is 'pml':
-            sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[0] - 1) * self.dx) * np.log(
-                self.R0_pml)
+            sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[0] - 1) * self.dx) * np.log(self.R0_pml)
         if self.bc_low[1] is 'pml':
-            sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[1] - 1) * self.dy) * np.log(
-                self.R0_pml)
+            sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[1] - 1) * self.dy) * np.log(self.R0_pml)
         if self.bc_low[2] is 'pml':
-            sigma_m_low_z = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[2] - 1) * self.dy) * np.log(
-                self.R0_pml)
+            sigma_m_low_z = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[2] - 1) * self.dy) * np.log(self.R0_pml)
         if self.bc_high[0] is 'pml':
-            sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (
-                    2 * (self.N_pml_high[0] - 1) * self.dy) * np.log(self.R0_pml)
+            sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[0] - 1) * self.dy) * np.log(self.R0_pml)
         if self.bc_high[1] is 'pml':
-            sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (
-                    2 * (self.N_pml_high[1] - 1) * self.dy) * np.log(self.R0_pml)
+            sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[1] - 1) * self.dy) * np.log(self.R0_pml)
         if self.bc_high[2] is 'pml':
-            sigma_m_high_z = -(self.alpha_pml + 1) * eps_0 * c_light / (
-                    2 * (self.N_pml_high[2] - 1) * self.dy) * np.log(self.R0_pml)
+            sigma_m_high_z = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[2] - 1) * self.dy) * np.log(self.R0_pml)
+
 
         if self.bc_low[0] is 'pml':
             (i_block, j_block, k_block) = (0, 1, 1)
             for n in range(self.N_pml_low[0]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                         n / (self.N_pml_low[0])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                        n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
             if self.bc_low[1] is 'pml':
                 (i_block, j_block, k_block) = (0, 0, 1)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                             n / (self.N_pml_low[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                            n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[1])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                            n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (0, 0, 0)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                                 n / (self.N_pml_low[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                                n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                                 n / (self.N_pml_low[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                                n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                                n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (0, 0, 2)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                                 n / (self.N_pml_low[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                                n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                                 n / (self.N_pml_low[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                                n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                                n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
             if self.bc_high[1] is 'pml':
                 (i_block, j_block, k_block) = (0, 2, 1)
                 for n in range(self.N_pml_low[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                             n / (self.N_pml_low[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                            n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                            n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
+
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (0, 2, 0)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                                 n / (self.N_pml_low[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                                n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                                 n / (self.N_pml_high[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                                n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                                n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (0, 2, 2)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                                 n / (self.N_pml_low[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                                n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                                 n / (self.N_pml_high[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                                n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                                n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
             if self.bc_low[2] is 'pml':
                 (i_block, j_block, k_block) = (0, 1, 0)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                             n / (self.N_pml_low[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                            n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                            n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
             if self.bc_high[2] is 'pml':
                 (i_block, j_block, k_block) = (0, 1, 2)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                             n / (self.N_pml_low[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
+                            n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_high[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                            n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
         if self.bc_high[0] is 'pml':
             (i_block, j_block, k_block) = (2, 1, 1)
             for n in range(self.N_pml_high[0]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                         n / (self.N_pml_high[0])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                        n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
             if self.bc_low[1] is 'pml':
                 (i_block, j_block, k_block) = (2, 0, 1)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                             n / (self.N_pml_high[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                            n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[1])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                            n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (2, 0, 0)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                                 n / (self.N_pml_high[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                                n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                                 n / (self.N_pml_low[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                                n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                                n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (2, 0, 2)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                                 n / (self.N_pml_high[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                                n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                                 n / (self.N_pml_low[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                                n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                                n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
             if self.bc_high[1] is 'pml':
                 (i_block, j_block, k_block) = (2, 2, 1)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                             n / (self.N_pml_high[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                            n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                            n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (2, 2, 0)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                                 n / (self.N_pml_high[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                                n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                                 n / (self.N_pml_high[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                                n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_low[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                                n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
                 if self.bc_low[2] is 'pml':
                     (i_block, j_block, k_block) = (2, 2, 2)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                                 n / (self.N_pml_high[0])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                                n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[1])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                                 n / (self.N_pml_high[1])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                                n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                     for n in range((self.N_pml_high[2])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
+                        self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                                n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
             if self.bc_low[2] is 'pml':
                 (i_block, j_block, k_block) = (2, 1, 0)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                             n / (self.N_pml_high[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                            n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                            n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
             if self.bc_high[2] is 'pml':
                 (i_block, j_block, k_block) = (2, 1, 2)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                             n / (self.N_pml_high[0])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
+                            n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_high[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                            n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
         if self.bc_low[1] is 'pml':
             (i_block, j_block, k_block) = (1, 0, 1)
             for n in range(self.N_pml_low[1]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                         n / (self.N_pml_low[1])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                        n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
             if self.bc_low[2] is 'pml':
                 (i_block, j_block, k_block) = (1, 0, 0)
                 for n in range(self.N_pml_low[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                            n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml
-            if self.bc_low[2] is 'pml':
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                            n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
+            if self.bc_high[2] is 'pml':
                 (i_block, j_block, k_block) = (1, 0, 2)
                 for n in range(self.N_pml_low[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
+                            n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_high[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                            n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
         if self.bc_high[1] is 'pml':
             (i_block, j_block, k_block) = (1, 2, 1)
             for n in range(self.N_pml_high[1]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                         n / (self.N_pml_high[1])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                        n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
             if self.bc_low[2] is 'pml':
                 (i_block, j_block, k_block) = (1, 2, 0)
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                            n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_low[2])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                            n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
             if self.bc_high[2] is 'pml':
                 (i_block, j_block, k_block) = (1, 2, 2)
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
+                            n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
                 for n in range((self.N_pml_high[2])):
-                    self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
+                    self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] =  sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml
+                    self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] =  sigma_m_high_z * (
+                            n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
         if self.bc_low[2] is 'pml':
             (i_block, j_block, k_block) = (1, 1, 0)
             for n in range((self.N_pml_low[2])):
                 self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
                         n / (self.N_pml_low[2])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
+                        n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
+
         if self.bc_high[2] is 'pml':
-            (i_block, j_block, k_block) = (1, 2, 2)
+            (i_block, j_block, k_block) = (1, 1, 2)
             for n in range((self.N_pml_high[2])):
                 self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
                         n / (self.N_pml_high[2])) ** self.alpha_pml
+                self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
+                        n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
+        #for i_block in range(3):
+        #    for j_block in range(3):
+        #        for k_block in range(3):
+        #            block = self.blocks_mat[i_block, j_block, k_block]
+        #            if block is not None:
+        #                if not (i_block == 1 and j_block == 1 and k_block == 1):
+        #                    block.sigma_star_x = block.sigma_x * mu_0 / eps_0
+        #                    block.sigma_star_y = block.sigma_y * mu_0 / eps_0
+        #                    block.sigma_star_z = block.sigma_z * mu_0 / eps_0
+
+    def assemble_coeffs_pmls(self):
         for i_block in range(3):
             for j_block in range(3):
                 for k_block in range(3):
-                    block = self.blocks_mat[i_block, j_block, k_block]
-                    if block is not None:
-                        if not (i_block == 1 and j_block == 1 and k_block == 1):
-                            block.sigma_star_x = block.sigma_x * mu_0 / eps_0
-                            block.sigma_star_y = block.sigma_y * mu_0 / eps_0
-                            block.sigma_star_z = block.sigma_z * mu_0 / eps_0
-
-    def assemble_coeffs_pmls(self):
-        for i_block in range(2):
-            for j_block in range(2):
-                for k_block in range(2):
                     if self.blocks_mat[i_block, j_block, k_block] is not None:
-                        if not (i_block == 1 and j_block == 1, k_block == 1):
+                        if not (i_block == 1 and j_block == 1 and k_block == 1):
                             self.blocks_mat[i_block, j_block, k_block].assemble_coeffs()
 
     def update_e_boundary(self):
@@ -709,8 +826,8 @@ class EMSolver3D:
         if self.blocks_mat[1, 0, 1] is not None and self.blocks_mat[1, 1, 0] is not None:
             for ii in range(Nx):
                 Ex[ii, 0, 0] = (Ex[ii, 0, 0] - self.C3 * self.Jx[ii, 0, 0] +
-                                  self.C4 * (Hz[ii, 0, 0] - self.blocks_mat[1, 1, 0].Hz[ii, -1, 0]) -
-                                  self.C8 * (Hy[ii, 0, 0] - self.blocks_mat[1, 0, 1].Hy[ii, 0, -1]))
+                                  self.C4 * (Hz[ii, 0, 0] - self.blocks_mat[1, 0, 1].Hz[ii, -1, 0]) -
+                                  self.C8 * (Hy[ii, 0, 0] - self.blocks_mat[1, 1, 0].Hy[ii, 0, -1]))
         if self.blocks_mat[1, 0, 1] is not None and self.blocks_mat[1, 1, 2] is not None:
             for ii in range(Nx):
                 Ex[ii, 0, Nz] = (Ex[ii, 0, Nz] - self.C3 * self.Jx[ii, 0, Nz] +
@@ -750,7 +867,7 @@ class EMSolver3D:
                                   self.C5 * (self.blocks_mat[2, 1, 1].Hz[0, jj, Nz] - Hz[Nx - 1, jj, Nz]))
 
     def gauss(self, t):
-        tau = 20 * self.dt
+        tau = 10 * self.dt
         if t < 6 * tau:
             return 100 * np.exp(-(t - 3 * tau) ** 2 / tau ** 2)
         else:
@@ -760,23 +877,33 @@ class EMSolver3D:
         if self.sol_type == 'ECT':
             self.compute_v_and_rho()
             self.one_step_ect()
+            for block in self.blocks:
+                block.advance_h_fdtd()
+                block.sum_h_fields()
             self.advance_e_dm()
-            self.time += self.dt
+            self.update_e_boundary()
+            for block in self.blocks:
+                block.advance_e_fdtd()
+                block.update_e_boundary()
+                block.sum_e_fields()
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
             self.one_step_dm()
 
+        self.time += self.dt
+
     def one_step_fdtd(self):
         self.advance_h_fdtd()
         for block in self.blocks:
             block.advance_h_fdtd()
+            block.sum_h_fields()
         self.advance_e_fdtd()
+        self.update_e_boundary()
         for block in self.blocks:
             block.advance_e_fdtd()
-        self.update_e_boundary()
-
-        self.time += self.dt
+            block.update_e_boundary()
+            block.sum_e_fields()
 
     def advance_h_fdtd(self):
         Ex = self.Ex
@@ -841,8 +968,6 @@ class EMSolver3D:
                                           self.C5 * (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) -
                                           self.C4 * (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]))
 
-        self.time += self.dt
-
     def one_step_dm(self):
         self.compute_v_and_rho()
 
@@ -871,8 +996,6 @@ class EMSolver3D:
                                             self.Vzx[i, j, k])
 
         self.advance_e_dm()
-
-        self.time += self.dt
 
     def one_step_ect(self):
         for kk in range(self.Nz + 1):
