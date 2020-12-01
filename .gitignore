@@ -1,4 +1,7 @@
 __pycache__
+.DS_store
+venv
+.idea
 DM_*
 FDTD_*
 ECT_*
