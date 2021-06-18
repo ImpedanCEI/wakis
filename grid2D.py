@@ -46,6 +46,7 @@ class Grid2D:
         self.flag_bound_cell = np.zeros((nx, ny), dtype=bool)
         self.flag_avail_cell = np.zeros((nx, ny), dtype=bool)
         self.flag_ext_cell = np.zeros((nx, ny), dtype=bool)
+        self.flag_intr_cell = np.zeros((nx, ny), dtype=bool)
         self.broken = np.zeros((self.nx, self.ny), dtype=bool)
 
         if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
@@ -82,19 +83,18 @@ class Grid2D:
                             flag_avail_cell=self.flag_avail_cell)
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
             self.borrowing = np.empty((nx, ny), dtype=object)
-            # info about intruding cells  (i, j, [(i_lending, j_lending, area_lending)])
-            self.lending = np.empty((nx, ny), dtype=object)
+
             for i in range(nx):
                 for j in range(ny):
                     self.borrowing[i, j] = []
-                    self.lending[i, j] = []
             self.flag_ext_cell = self.flag_unst_cell.copy()
             self.compute_extensions(nx=nx, ny=ny, S=self.S, flag_int_cell=self.flag_int_cell,
                                     S_stab=self.S_stab, S_enl=self.S_enl, S_red=self.S_red,
                                     flag_unst_cell=self.flag_unst_cell,
                                     flag_avail_cell=self.flag_avail_cell,
-                                    flag_ext_cell=self.flag_ext_cell, borrowing=self.borrowing,
-                                    lending=self.lending)
+                                    flag_ext_cell=self.flag_ext_cell,
+                                    flag_intr_cell=self.flag_intr_cell,
+                                    borrowing=self.borrowing)
 
     """
   Function to compute the length of the edges of the conformal grid.
@@ -276,8 +276,10 @@ class Grid2D:
                            S_stab=None, S_enl=None, S_red=None,
                            flag_unst_cell=None,
                            flag_avail_cell=None,
-                           flag_ext_cell=None, borrowing=None, l_verbose=True,
-                           lending=None, kk=0):
+                           flag_ext_cell=None,
+                           flag_intr_cell = None,
+                           borrowing=None, l_verbose=True,
+                           kk=0):
 
         N = np.sum(flag_ext_cell)
 
@@ -287,8 +289,9 @@ class Grid2D:
         # Do the simple one-cell extension
         Grid2D._compute_extensions_one_cell(nx=nx, ny=ny, S=S, S_stab=S_stab, S_enl=S_enl,
                                             S_red=S_red, flag_avail_cell=flag_avail_cell,
-                                            flag_ext_cell=flag_ext_cell, borrowing=borrowing,
-                                            lending=lending)
+                                            flag_ext_cell=flag_ext_cell,
+                                            flag_intr_cell=flag_intr_cell,
+                                            borrowing=borrowing)
 
         N_one_cell = (N - np.sum(flag_ext_cell))
         if l_verbose:
@@ -300,10 +303,11 @@ class Grid2D:
                                                   S_stab=S_stab, S_enl=S_enl, S_red=S_red,
                                                   flag_unst_cell=flag_unst_cell,
                                                   flag_avail_cell=flag_avail_cell,
-                                                  flag_ext_cell=flag_ext_cell, borrowing=borrowing,
-                                                  lending=lending)
+                                                  flag_ext_cell=flag_ext_cell,
+                                                  flag_intr_cell = flag_intr_cell,
+                                                  borrowing=borrowing)
             N_four_cells = (N - np.sum(flag_ext_cell))
-            if l_verbose:
+            if 1: #l_verbose:
                 print('four cell exts: %d' % N_four_cells)
         # If any cell could not be extended do the eight-cell extension
         if np.sum(flag_ext_cell) > 0:
@@ -312,10 +316,11 @@ class Grid2D:
                                                    S_stab=S_stab, S_enl=S_enl, S_red=S_red,
                                                    flag_unst_cell=flag_unst_cell,
                                                    flag_avail_cell=flag_avail_cell,
-                                                   flag_ext_cell=flag_ext_cell, borrowing=borrowing,
-                                                   lending=lending)
+                                                   flag_ext_cell=flag_ext_cell,
+                                                   flag_intr_cell=flag_intr_cell,
+                                                   borrowing=borrowing)
             N_eight_cells = (N - np.sum(flag_ext_cell))
-            if l_verbose:
+            if 1: #l_verbose:
                 print('eight cell exts: %d' % N_eight_cells)
         # If any cell could not be extended the algorithm failed
         if np.sum(flag_ext_cell) > 0:
@@ -330,7 +335,7 @@ class Grid2D:
     @staticmethod
     def _compute_extensions_one_cell(nx=None, ny=None, S=None,
                                      S_stab=None, S_enl=None, S_red=None, flag_avail_cell=None,
-                                     flag_ext_cell=None, borrowing=None, lending=None):
+                                     flag_ext_cell=None, flag_intr_cell=None, borrowing=None):
 
         for ii in range(0, nx):
             for jj in range(0, ny):
@@ -342,7 +347,7 @@ class Grid2D:
                         if S_red[ii, jj - 1] - patch > 0:
                             S_red[ii, jj - 1] -= patch
                             borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj-1] = True
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
                     if (S[ii + 1, jj] > S_ext and flag_avail_cell[ii + 1, jj]
@@ -352,7 +357,7 @@ class Grid2D:
                         if S_red[ii + 1, jj] - patch > 0:
                             S_red[ii + 1, jj] -= patch
                             borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii+1, jj] = True
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
 
@@ -363,7 +368,7 @@ class Grid2D:
                         if S_red[ii - 1, jj] - patch > 0:
                             S_red[ii - 1, jj] -= patch
                             borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii-1, jj] = True
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
                     if (S[ii, jj + 1] > S_ext and flag_avail_cell[ii, jj + 1]
@@ -373,7 +378,7 @@ class Grid2D:
                         if S_red[ii, jj + 1] - patch > 0:
                             S_red[ii, jj + 1] -= patch
                             borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj+1] = True
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
 
@@ -384,8 +389,8 @@ class Grid2D:
     @staticmethod
     def _compute_extensions_four_cells(nx=None, ny=None, S=None, flag_int_cell=None,
                                        S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
-                                       flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
-                                       lending=None):
+                                       flag_avail_cell=None, flag_ext_cell=None,
+                                        flag_intr_cell=None, borrowing=None):
         for ii in range(0, nx):
             for jj in range(0, ny):
                 local_avail = flag_avail_cell.copy()
@@ -433,25 +438,25 @@ class Grid2D:
                         if local_avail[ii - 1, jj]:
                             patch = S_ext * S[ii - 1, jj] / denom
                             borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii-1, jj] = True
                             S_enl[ii, jj] += patch
                             S_red[ii - 1, jj] -= patch
                         if local_avail[ii + 1, jj]:
                             patch = S_ext * S[ii + 1, jj] / denom
                             borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii+1, jj] = True
                             S_enl[ii, jj] += patch
                             S_red[ii + 1, jj] -= patch
                         if local_avail[ii, jj - 1]:
                             patch = S_ext * S[ii, jj - 1] / denom
                             borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj-1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii, jj - 1] -= patch
                         if local_avail[ii, jj + 1]:
                             patch = S_ext * S[ii, jj + 1] / denom
                             borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj+1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii, jj + 1] -= patch
 
@@ -464,8 +469,8 @@ class Grid2D:
     @staticmethod
     def _compute_extensions_eight_cells(nx=None, ny=None, S=None, flag_int_cell=None,
                                         S_stab=None, S_enl=None, S_red=None, flag_unst_cell=None,
-                                        flag_avail_cell=None, flag_ext_cell=None, borrowing=None,
-                                        lending=None):
+                                        flag_avail_cell=None, flag_ext_cell=None,
+                                        flag_intr_cell=None, borrowing=None):
         for ii in range(0, nx):
             for jj in range(0, ny):
                 local_avail = flag_avail_cell.copy()
@@ -541,49 +546,49 @@ class Grid2D:
                         if local_avail[ii - 1, jj]:
                             patch = S_ext * S[ii - 1, jj] / denom
                             borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            lending[ii - 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii-1, jj] = True
                             S_enl[ii, jj] += patch
                             S_red[ii - 1, jj] -= patch
                         if local_avail[ii + 1, jj]:
                             patch = S_ext * S[ii + 1, jj] / denom
                             borrowing[ii, jj].append([ii + 1, jj, patch, None])
-                            lending[ii + 1, jj].append([ii, jj, patch, None])
+                            flag_intr_cell[ii+1, jj] = True
                             S_enl[ii, jj] += patch
                             S_red[ii + 1, jj] -= patch
                         if local_avail[ii, jj - 1]:
                             patch = S_ext * S[ii, jj - 1] / denom
                             borrowing[ii, jj].append([ii, jj - 1, patch, None])
-                            lending[ii, jj - 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj-1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii, jj - 1] -= patch
                         if local_avail[ii, jj + 1]:
                             patch = S_ext * S[ii, jj + 1] / denom
                             borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            lending[ii, jj + 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii, jj+1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii, jj + 1] -= patch
                         if local_avail[ii - 1, jj - 1]:
                             patch = S_ext * S[ii - 1, jj - 1] / denom
                             borrowing[ii, jj].append([ii - 1, jj - 1, patch, None])
-                            lending[ii - 1, jj - 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii-1, jj-1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii - 1, jj - 1] -= patch
                         if local_avail[ii + 1, jj - 1]:
                             patch = S_ext * S[ii + 1, jj - 1] / denom
                             borrowing[ii, jj].append([ii + 1, jj - 1, patch, None])
-                            lending[ii + 1, jj - 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii+1, jj-1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii + 1, jj - 1] -= patch
                         if local_avail[ii - 1, jj + 1]:
                             patch = S_ext * S[ii - 1, jj + 1] / denom
                             borrowing[ii, jj].append([ii - 1, jj + 1, patch, None])
-                            lending[ii - 1, jj + 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii-1, jj+1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii - 1, jj + 1] -= patch
                         if local_avail[ii + 1, jj + 1]:
                             patch = S_ext * S[ii + 1, jj + 1] / denom
                             borrowing[ii, jj].append([ii + 1, jj + 1, patch, None])
-                            lending[ii + 1, jj + 1].append([ii, jj, patch, None])
+                            flag_intr_cell[ii+1, jj+1] = True
                             S_enl[ii, jj] += patch
                             S_red[ii + 1, jj + 1] -= patch
 

@@ -1003,10 +1003,10 @@ class EMSolver3D:
                                     rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_xy[:, :, kk],
                                     flag_unst_cell=self.grid.flag_unst_cell_xy[:, :, kk],
+                                    flag_intr_cell=self.grid.flag_intr_cell_xy[:,:,kk],
                                     S=self.grid.Sxy[:, :, kk],
                                     borrowing=self.grid.borrowing_xy[:, :, kk],
                                     S_enl=self.grid.Sxy_enl[:, :, kk],
-                                    lending=self.grid.lending_xy[:, :, kk],
                                     S_red=self.grid.Sxy_red[:, :, kk])
 
         for ii in range(self.Nx + 1):
@@ -1014,10 +1014,10 @@ class EMSolver3D:
                                     rho=self.rho_yz[ii, :, :], Hz=self.Hx[ii, :, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_yz[ii, :, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_yz[ii, :, :],
+                                    flag_intr_cell=self.grid.flag_intr_cell_yz[ii,:,:],
                                     S=self.grid.Syz[ii, :, :],
                                     borrowing=self.grid.borrowing_yz[ii, :, :],
                                     S_enl=self.grid.Syz_enl[ii, :, :],
-                                    lending=self.grid.lending_yz[ii, :, :],
                                     S_red=self.grid.Syz_red[ii, :, :])
 
         for jj in range(self.Ny + 1):
@@ -1025,10 +1025,10 @@ class EMSolver3D:
                                     rho=self.rho_zx[:, jj, :], Hz=self.Hy[:, jj, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_zx[:, jj, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_zx[:, jj, :],
+                                    flag_intr_cell=self.grid.flag_intr_cell_zx[:,jj,:],
                                     S=self.grid.Szx[:, jj, :],
                                     borrowing=self.grid.borrowing_zx[:, jj, :],
                                     S_enl=self.grid.Szx_enl[:, jj, :],
-                                    lending=self.grid.lending_zx[:, jj, :],
                                     S_red=self.grid.Szx_red[:, jj, :])
 
     def compute_v_and_rho(self):
