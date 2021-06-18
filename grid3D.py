@@ -56,16 +56,19 @@ class Grid3D:
         self.Szx_enl = np.zeros_like(self.Szx)
         self.Szx_red = np.zeros_like(self.Szx)
         self.flag_unst_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
+        self.flag_intr_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
         self.flag_int_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
         self.flag_bound_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
         self.flag_avail_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
         self.flag_ext_cell_xy = np.zeros_like(self.Sxy, dtype=bool)
         self.flag_unst_cell_yz = np.zeros_like(self.Syz, dtype=bool)
+        self.flag_intr_cell_yz = np.zeros_like(self.Syz, dtype=bool)
         self.flag_int_cell_yz = np.zeros_like(self.Syz, dtype=bool)
         self.flag_bound_cell_yz = np.zeros_like(self.Syz, dtype=bool)
         self.flag_avail_cell_yz = np.zeros_like(self.Syz, dtype=bool)
         self.flag_ext_cell_yz = np.zeros_like(self.Syz, dtype=bool)
         self.flag_unst_cell_zx = np.zeros_like(self.Szx, dtype=bool)
+        self.flag_intr_cell_zx = np.zeros_like(self.Szx, dtype=bool)
         self.flag_int_cell_zx = np.zeros_like(self.Szx, dtype=bool)
         self.flag_bound_cell_zx = np.zeros_like(self.Szx, dtype=bool)
         self.flag_avail_cell_zx = np.zeros_like(self.Szx, dtype=bool)
@@ -91,25 +94,19 @@ class Grid3D:
             self.borrowing_xy = np.empty((nx, ny, nz + 1), dtype=object)
             self.borrowing_yz = np.empty((nx + 1, ny, nz), dtype=object)
             self.borrowing_zx = np.empty((nx, ny + 1, nz), dtype=object)
-            # info about intruding cells  (i, j, [(i_lending, j_lending, area_lending)])
-            self.lending_xy = np.empty((nx, ny, nz + 1), dtype=object)
-            self.lending_yz = np.empty((nx + 1, ny, nz), dtype=object)
-            self.lending_zx = np.empty((nx, ny + 1, nz), dtype=object)
+
             for ii in range(nx):
                 for jj in range(ny):
                     for kk in range(nz + 1):
                         self.borrowing_xy[ii, jj, kk] = []
-                        self.lending_xy[ii, jj, kk] = []
             for ii in range(nx + 1):
                 for jj in range(ny):
                     for kk in range(nz):
                         self.borrowing_yz[ii, jj, kk] = []
-                        self.lending_yz[ii, jj, kk] = []
             for ii in range(nx):
                 for jj in range(ny + 1):
                     for kk in range(nz):
                         self.borrowing_zx[ii, jj, kk] = []
-                        self.lending_zx[ii, jj, kk] = []
 
             self.flag_ext_cell_xy = self.flag_unst_cell_xy.copy()
             self.flag_ext_cell_yz = self.flag_unst_cell_yz.copy()
@@ -314,8 +311,9 @@ class Grid3D:
                                       flag_unst_cell=self.flag_unst_cell_xy[:, :, kk],
                                       flag_avail_cell=self.flag_avail_cell_xy[:, :, kk],
                                       flag_ext_cell=self.flag_ext_cell_xy[:, :, kk],
+                                      flag_intr_cell=self.flag_intr_cell_xy[:,:,kk],
                                       borrowing=self.borrowing_xy[:, :, kk],
-                                      lending=self.lending_xy[:, :, kk], kk=kk, l_verbose=False)
+                                      kk=kk, l_verbose=False)
 
         for ii in range(self.nx + 1):
             Grid2D.compute_extensions(nx=self.ny, ny=self.nz, S=self.Syz[ii, :, :],
@@ -326,7 +324,8 @@ class Grid3D:
                                       flag_avail_cell=self.flag_avail_cell_yz[ii, :, :],
                                       flag_ext_cell=self.flag_ext_cell_yz[ii, :, :],
                                       borrowing=self.borrowing_yz[ii, :, :],
-                                      lending=self.lending_yz[ii, :, :], kk = ii, l_verbose=False)
+                                      flag_intr_cell=self.flag_intr_cell_yz[ii,:,:],
+                                      kk = ii, l_verbose=False)
             
         for jj in range(self.ny + 1):
             Grid2D.compute_extensions(nx=self.nx, ny=self.nz, S=self.Szx[:, jj, :],
@@ -336,5 +335,6 @@ class Grid3D:
                                       flag_unst_cell=self.flag_unst_cell_zx[:, jj, :],
                                       flag_avail_cell=self.flag_avail_cell_zx[:, jj, :],
                                       flag_ext_cell=self.flag_ext_cell_zx[:, jj, :],
+                                      flag_intr_cell=self.flag_intr_cell_zx[:,jj,:],
                                       borrowing=self.borrowing_zx[:, jj, :],
-                                      lending=self.lending_zx[:, jj, :], l_verbose=False)
+                                      kk = jj, l_verbose=False)

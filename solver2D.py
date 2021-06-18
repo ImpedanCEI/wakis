@@ -92,6 +92,7 @@ class EMSolver2D:
         self.Ex = np.zeros((self.Nx, self.Ny + 1))
         self.Ey = np.zeros((self.Nx + 1, self.Ny))
         self.Hz = np.zeros((self.Nx, self.Ny))
+        self.V_new = np.zeros((self.Nx, self.Ny))
         self.Jx = np.zeros((self.Nx, self.Ny + 1))
         self.Jy = np.zeros((self.Nx + 1, self.Ny))
 
@@ -301,9 +302,11 @@ class EMSolver2D:
             self.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.V_enl,
                               rho=self.rho, Hz=self.Hz, C1=self.C1,
                               flag_int_cell=self.grid.flag_int_cell,
-                              flag_unst_cell=self.grid.flag_unst_cell, S=self.grid.S,
+                              flag_unst_cell=self.grid.flag_unst_cell,
+                              flag_intr_cell=self.grid.flag_intr_cell,
+                              S=self.grid.S,
                               borrowing=self.grid.borrowing, S_enl=self.grid.S_enl,
-                              lending=self.grid.lending, S_red=self.grid.S_red)
+                              S_red=self.grid.S_red, V_new = self.V_new)
             for block in self.blocks:
                 block.advance_h_fdtd()
 
@@ -388,8 +391,10 @@ class EMSolver2D:
 
     @staticmethod
     def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
-                     flag_unst_cell=None, S=None, borrowing=None, S_enl=None, lending=None,
-                     S_red=None):
+                     flag_unst_cell=None, flag_intr_cell=None, S=None, borrowing=None, S_enl=None,
+                     S_red=None, V_new=None):
+        V_enl = np.zeros((Nx, Ny))
+
         # take care of unstable cells
         for ii in range(Nx):
             for jj in range(Ny):
@@ -402,10 +407,11 @@ class EMSolver2D:
                     rho_enl = V_enl[ii, jj] / S_enl[ii, jj]
                     # communicate to the intruded cell the intruding rho
                     for (ip, jp, patch, _) in borrowing[ii, jj]:
-                        for num, (iii, jjj, _, _) in enumerate(lending[ip, jp]):
-                            if iii == ii and jjj == jj:
-                                lending[ip, jp][num][3] = rho_enl
-
+                        #for num, (iii, jjj, patch2, _) in enumerate(lending[ip, jp]):
+                        #    if iii == ii and jjj == jj:
+                        #        lending[ip, jp][num][3] = rho_enl
+                        #        breakpoint()
+                        V_enl[ip, jp] += rho_enl * patch
                     Hz[ii, jj] = Hz[ii, jj] - C1 * rho_enl
 
         # take care of stable cells
@@ -413,20 +419,19 @@ class EMSolver2D:
             for jj in range(Ny):
                 if flag_int_cell[ii, jj] and not flag_unst_cell[ii, jj]:
                     # stable cell which hasn't been intruded
-                    if len(lending[ii, jj]) == 0:
+                    if not flag_intr_cell[ii, jj]:
                         Hz[ii, jj] = Hz[ii, jj] - C1 * rho[ii, jj]
                     # stable cell which has been intruded
-                    elif len(lending[ii, jj]) != 0:
+                    else:
                         Vnew = 0
                         red_area = S[ii, jj]
-                        for (ip, jp, patch, rho_enl) in lending[ii, jj]:
-                            if rho_enl is None:
-                                print('big mistake')
+                            #if rho_enl is None:
+                            #    print('big mistake')
 
-                            Vnew += rho_enl * patch
+                            #Vnew += rho_enl * patch
 
-                        Vnew += rho[ii, jj] * S_red[ii, jj]
-                        Hz[ii, jj] = Hz[ii, jj] - C1 * Vnew / S[ii, jj]
+                        V_enl[ii, jj] += rho[ii, jj] * S_red[ii, jj]
+                        Hz[ii, jj] = Hz[ii, jj] - C1 * V_enl[ii, jj] / S[ii, jj]
 
     def compute_v_and_rho(self):
         l_y = self.grid.l_y
