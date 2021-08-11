@@ -297,6 +297,7 @@ class Grid2D:
         if l_verbose:
             print('one cell exts: %d' % N_one_cell)
         # If any cell could not be extended do the four-cell extension
+        '''
         if np.sum(flag_ext_cell) > 0:
             N = np.sum(flag_ext_cell)
             Grid2D._compute_extensions_four_cells(nx=nx, ny=ny, S=S, flag_int_cell=flag_int_cell,
@@ -309,6 +310,7 @@ class Grid2D:
             N_four_cells = (N - np.sum(flag_ext_cell))
             if 1: #l_verbose:
                 print('four cell exts: %d' % N_four_cells)
+        '''
         # If any cell could not be extended do the eight-cell extension
         if np.sum(flag_ext_cell) > 0:
             N = np.sum(flag_ext_cell)
@@ -341,13 +343,32 @@ class Grid2D:
             for jj in range(0, ny):
                 if flag_ext_cell[ii, jj]:
                     S_ext = S_stab[ii, jj] - S[ii, jj]
-                    if S[ii, jj - 1] > S_ext and flag_avail_cell[ii, jj - 1]:
+                    if (S[ii - 1, jj] > S_ext and flag_avail_cell[ii - 1, jj]):
+                        denom = S[ii - 1, jj]
+                        patch = S_ext * S[ii - 1, jj] / denom
+                        if S_red[ii - 1, jj] - patch > 0:
+                            S_red[ii - 1, jj] -= patch
+                            borrowing[ii, jj].append([ii - 1, jj, patch, None])
+                            flag_intr_cell[ii-1, jj] = True
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
+                    if (S[ii, jj - 1] > S_ext and flag_avail_cell[ii, jj - 1] and flag_ext_cell[ii, jj]):
                         denom = S[ii, jj - 1]
                         patch = S_ext * S[ii, jj - 1] / denom
                         if S_red[ii, jj - 1] - patch > 0:
                             S_red[ii, jj - 1] -= patch
                             borrowing[ii, jj].append([ii, jj - 1, patch, None])
                             flag_intr_cell[ii, jj-1] = True
+                            S_enl[ii, jj] = S[ii, jj] + patch
+                            flag_ext_cell[ii, jj] = False
+                    if (S[ii, jj + 1] > S_ext and flag_avail_cell[ii, jj + 1]
+                            and flag_ext_cell[ii, jj]):
+                        denom = S[ii, jj + 1]
+                        patch = S_ext * S[ii, jj + 1] / denom
+                        if S_red[ii, jj + 1] - patch > 0:
+                            S_red[ii, jj + 1] -= patch
+                            borrowing[ii, jj].append([ii, jj + 1, patch, None])
+                            flag_intr_cell[ii, jj+1] = True
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
                     if (S[ii + 1, jj] > S_ext and flag_avail_cell[ii + 1, jj]
@@ -361,26 +382,6 @@ class Grid2D:
                             S_enl[ii, jj] = S[ii, jj] + patch
                             flag_ext_cell[ii, jj] = False
 
-                    if (S[ii - 1, jj] > S_ext and flag_avail_cell[ii - 1, jj]
-                            and flag_ext_cell[ii, jj]):
-                        denom = S[ii - 1, jj]
-                        patch = S_ext * S[ii - 1, jj] / denom
-                        if S_red[ii - 1, jj] - patch > 0:
-                            S_red[ii - 1, jj] -= patch
-                            borrowing[ii, jj].append([ii - 1, jj, patch, None])
-                            flag_intr_cell[ii-1, jj] = True
-                            S_enl[ii, jj] = S[ii, jj] + patch
-                            flag_ext_cell[ii, jj] = False
-                    if (S[ii, jj + 1] > S_ext and flag_avail_cell[ii, jj + 1]
-                            and flag_ext_cell[ii, jj]):
-                        denom = S[ii, jj + 1]
-                        patch = S_ext * S[ii, jj + 1] / denom
-                        if S_red[ii, jj + 1] - patch > 0:
-                            S_red[ii, jj + 1] -= patch
-                            borrowing[ii, jj].append([ii, jj + 1, patch, None])
-                            flag_intr_cell[ii, jj+1] = True
-                            S_enl[ii, jj] = S[ii, jj] + patch
-                            flag_ext_cell[ii, jj] = False
 
     """
   Function to compute the four-cell extension of the unstable cells 
@@ -593,3 +594,4 @@ class Grid2D:
                             S_red[ii + 1, jj + 1] -= patch
 
                         flag_ext_cell[ii, jj] = False
+ 
