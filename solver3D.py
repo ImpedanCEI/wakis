@@ -3,6 +3,7 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from solver2D import EMSolver2D
 from pmlBlock3D import PmlBlock3D
 
+from numba import jit
 
 def eq(a, b, tol=1e-8):
     return abs(a - b) < tol
@@ -875,17 +876,18 @@ class EMSolver3D:
 
     def one_step(self):
         if self.sol_type == 'ECT':
+            self.one_step_ect(dt=0.5*self.dt)
+            #for block in self.blocks:
+            #    block.advance_h_fdtd()
+            #    block.sum_h_fields()
+            self.advance_e_dm(dt=self.dt)
             self.compute_v_and_rho()
-            self.one_step_ect()
-            for block in self.blocks:
-                block.advance_h_fdtd()
-                block.sum_h_fields()
-            self.advance_e_dm()
-            self.update_e_boundary()
-            for block in self.blocks:
-                block.advance_e_fdtd()
-                block.update_e_boundary()
-                block.sum_e_fields()
+            self.one_step_ect(dt=0.5*self.dt)
+            #self.update_e_boundary()
+            #for block in self.blocks:
+            #    block.advance_e_fdtd()
+            #    block.update_e_boundary()
+            #    block.sum_e_fields()
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
@@ -894,79 +896,78 @@ class EMSolver3D:
         self.time += self.dt
 
     def one_step_fdtd(self):
-        self.advance_h_fdtd()
+        self.advance_h_fdtd(self.grid.Sxy, self.grid.Syz, self.grid.Szx, self.Ex, self.Ey,                             self.Ez, self.Hx, self.Hy, self.Hz, self.Nx, self.Ny, self.Nz,
+                            self.C1, self.C2, self.C7)
+
         for block in self.blocks:
             block.advance_h_fdtd()
+
             block.sum_h_fields()
-        self.advance_e_fdtd()
+        self.advance_e_fdtd(self.grid.l_x, self.grid.l_y, self.grid.l_z, self.Ex, self.Ey, self.Ez,
+                            self.Hx, self.Hy, self.Hz, self.Jx, self.Jy, self.Jz, self.Nx, self.Ny,
+                            self.Nz, self.C3, self.C4, self.C5, self.C8)
         self.update_e_boundary()
         for block in self.blocks:
             block.advance_e_fdtd()
             block.update_e_boundary()
             block.sum_e_fields()
 
-    def advance_h_fdtd(self):
-        Ex = self.Ex
-        Ey = self.Ey
-        Ez = self.Ez
-        Hx = self.Hx
-        Hy = self.Hy
-        Hz = self.Hz
+    @staticmethod
+    @jit(nopython=True)
+    def advance_h_fdtd(Sxy, Syz, Szx, Ex, Ey, Ez, Hx, Hy, Hz, Nx, Ny, Nz, C1, C2, C7):
+
         # Compute cell voltages
-        for ii in range(self.Nx + 1):
-            for jj in range(self.Ny):
-                for kk in range(self.Nz):
-                    if self.grid.flag_int_cell_yz[ii, jj, kk]:
+        for ii in range(Nx + 1):
+            for jj in range(Ny):
+                for kk in range(Nz):
+                    if Syz[ii, jj, kk] > 0:
                         Hx[ii, jj, kk] = (Hx[ii, jj, kk] -
-                                          self.C2 * (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) +
-                                          self.C7 * (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]))
+                                          C2 * (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) +
+                                          C7 * (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]))
 
-        for ii in range(self.Nx):
-            for jj in range(self.Ny + 1):
-                for kk in range(self.Nz):
-                    if self.grid.flag_int_cell_zx[ii, jj, kk]:
+        for ii in range(Nx):
+            for jj in range(Ny + 1):
+                for kk in range(Nz):
+                    if Szx[ii, jj, kk] > 0:
                         Hy[ii, jj, kk] = (Hy[ii, jj, kk] -
-                                          self.C7 * (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) +
-                                          self.C1 * (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]))
+                                          C7 * (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) +
+                                          C1 * (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]))
 
-        for ii in range(self.Nx):
-            for jj in range(self.Ny):
-                for kk in range(self.Nz + 1):
-                    if self.grid.flag_int_cell_xy[ii, jj, kk]:
+        for ii in range(Nx):
+            for jj in range(Ny):
+                for kk in range(Nz + 1):
+                    if Sxy[ii, jj, kk] > 0:
                         Hz[ii, jj, kk] = (Hz[ii, jj, kk] -
-                                          self.C1 * (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) +
-                                          self.C2 * (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]))
+                                          C1 * (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) +
+                                          C2 * (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]))
 
-    def advance_e_fdtd(self):
-        Ex = self.Ex
-        Ey = self.Ey
-        Ez = self.Ez
-        Hx = self.Hx
-        Hy = self.Hy
-        Hz = self.Hz
-        for ii in range(self.Nx):
-            for jj in range(1, self.Ny):
-                for kk in range(1, self.Nz):
-                    if self.grid.l_x[ii, jj, kk] > 0:
-                        Ex[ii, jj, kk] = (Ex[ii, jj, kk] - self.C3 * self.Jx[ii, jj, kk] +
-                                          self.C4 * (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) -
-                                          self.C8 * (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]))
+    @staticmethod
+    @jit(nopython=True)
+    def advance_e_fdtd(l_x, l_y, l_z, Ex, Ey, Ez, Hx, Hy, Hz, Jx, Jy, Jz, Nx, Ny, Nz, C3, C4, C5, C8):
 
-        for ii in range(1, self.Nx):
-            for jj in range(self.Ny):
-                for kk in range(1, self.Nz):
-                    if self.grid.l_y[ii, jj, kk] > 0:
-                        Ey[ii, jj, kk] = (Ey[ii, jj, kk] - self.C3 * self.Jy[ii, jj, kk] +
-                                          self.C8 * (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) -
-                                          self.C5 * (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]))
+        for ii in range(Nx):
+            for jj in range(1, Ny):
+                for kk in range(1, Nz):
+                    if l_x[ii, jj, kk] > 0:
+                        Ex[ii, jj, kk] = (Ex[ii, jj, kk] - C3 * Jx[ii, jj, kk] +
+                                          C4 * (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) -
+                                          C8 * (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]))
 
-        for ii in range(1, self.Nx):
-            for jj in range(1, self.Ny):
-                for kk in range(self.Nz):
-                    if self.grid.l_z[ii, jj, kk] > 0:
-                        Ez[ii, jj, kk] = (Ez[ii, jj, kk] - self.C3 * self.Jz[ii, jj, kk] +
-                                          self.C5 * (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) -
-                                          self.C4 * (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]))
+        for ii in range(1, Nx):
+            for jj in range(Ny):
+                for kk in range(1, Nz):
+                    if l_y[ii, jj, kk] > 0:
+                        Ey[ii, jj, kk] = (Ey[ii, jj, kk] - C3 * Jy[ii, jj, kk] +
+                                          C8 * (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) -
+                                          C5 * (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]))
+
+        for ii in range(1, Nx):
+            for jj in range(1, Ny):
+                for kk in range(Nz):
+                    if l_z[ii, jj, kk] > 0:
+                        Ez[ii, jj, kk] = (Ez[ii, jj, kk] - C3 * Jz[ii, jj, kk] +
+                                          C5 * (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) -
+                                          C4 * (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]))
 
     def one_step_dm(self):
         self.compute_v_and_rho()
@@ -997,17 +998,7 @@ class EMSolver3D:
 
         self.advance_e_dm()
 
-    def one_step_ect(self):
-        for kk in range(self.Nz + 1):
-            EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.Vxy_enl[:, :, kk],
-                                    rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.CN,
-                                    flag_int_cell=self.grid.flag_int_cell_xy[:, :, kk],
-                                    flag_unst_cell=self.grid.flag_unst_cell_xy[:, :, kk],
-                                    flag_intr_cell=self.grid.flag_intr_cell_xy[:,:,kk],
-                                    S=self.grid.Sxy[:, :, kk],
-                                    borrowing=self.grid.borrowing_xy[:, :, kk],
-                                    S_enl=self.grid.Sxy_enl[:, :, kk],
-                                    S_red=self.grid.Sxy_red[:, :, kk])
+    def one_step_ect(self, dt=None):
 
         for ii in range(self.Nx + 1):
             EMSolver2D.one_step_ect(Nx=self.Ny, Ny=self.Nz, V_enl=self.Vyz_enl[ii, :, :],
@@ -1018,7 +1009,7 @@ class EMSolver3D:
                                     S=self.grid.Syz[ii, :, :],
                                     borrowing=self.grid.borrowing_yz[ii, :, :],
                                     S_enl=self.grid.Syz_enl[ii, :, :],
-                                    S_red=self.grid.Syz_red[ii, :, :])
+                                    S_red=self.grid.Syz_red[ii, :, :], dt=dt, comp='x', kk=ii)
 
         for jj in range(self.Ny + 1):
             EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Nz, V_enl=self.Vzx_enl[:, jj, :],
@@ -1029,7 +1020,18 @@ class EMSolver3D:
                                     S=self.grid.Szx[:, jj, :],
                                     borrowing=self.grid.borrowing_zx[:, jj, :],
                                     S_enl=self.grid.Szx_enl[:, jj, :],
-                                    S_red=self.grid.Szx_red[:, jj, :])
+                                    S_red=self.grid.Szx_red[:, jj, :], dt=dt, comp='y', kk=jj)
+
+        for kk in range(self.Nz + 1):
+            EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.Vxy_enl[:, :, kk],
+                                    rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.CN,
+                                    flag_int_cell=self.grid.flag_int_cell_xy[:, :, kk],
+                                    flag_unst_cell=self.grid.flag_unst_cell_xy[:, :, kk],
+                                    flag_intr_cell=self.grid.flag_intr_cell_xy[:,:,kk],
+                                    S=self.grid.Sxy[:, :, kk],
+                                    borrowing=self.grid.borrowing_xy[:, :, kk],
+                                    S_enl=self.grid.Sxy_enl[:, :, kk],
+                                    S_red=self.grid.Sxy_red[:, :, kk], dt=dt, comp='z', kk=kk)
 
     def compute_v_and_rho(self):
         l_x = self.grid.l_x
@@ -1049,6 +1051,7 @@ class EMSolver3D:
                             self.rho_xy[ii, jj, kk] = (self.Vxy[ii, jj, kk] /
                                                        self.grid.Sxy[ii, jj, kk])
 
+
         for ii in range(self.Nx + 1):
             for jj in range(self.Ny):
                 for kk in range(self.Nz):
@@ -1061,6 +1064,7 @@ class EMSolver3D:
                         if self.sol_type != 'DM':
                             self.rho_yz[ii, jj, kk] = (self.Vyz[ii, jj, kk] /
                                                        self.grid.Syz[ii, jj, kk])
+
 
         for ii in range(self.Nx):
             for jj in range(self.Ny + 1):
@@ -1075,13 +1079,22 @@ class EMSolver3D:
                             self.rho_zx[ii, jj, kk] = (self.Vzx[ii, jj, kk] /
                                                        self.grid.Szx[ii, jj, kk])
 
-    def advance_e_dm(self):
+    def advance_e_dm(self, dt=None):
+
+        if dt==None: dt = self.dt
+
         Ex = self.Ex
         Ey = self.Ey
         Ez = self.Ez
         Hx = self.Hx
         Hy = self.Hy
         Hz = self.Hz
+
+        C4 = dt / (self.dy * eps_0)
+        C5 = dt / (self.dx * eps_0)
+        C8 = dt / (self.dz * eps_0)
+        C3 = dt / eps_0
+
         for ii in range(self.Nx):
             for jj in range(1, self.Ny):
                 for kk in range(1, self.Nz):
