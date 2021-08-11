@@ -392,27 +392,33 @@ class EMSolver2D:
     @staticmethod
     def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
                      flag_unst_cell=None, flag_intr_cell=None, S=None, borrowing=None, S_enl=None,
-                     S_red=None, V_new=None):
+                     S_red=None, V_new=None, dt = None, comp=None, kk=None):
+
+        if dt==None: dt = self.dt
+
         V_enl = np.zeros((Nx, Ny))
 
         # take care of unstable cells
         for ii in range(Nx):
             for jj in range(Ny):
                 if flag_int_cell[ii, jj] and flag_unst_cell[ii, jj]:
+
                     V_enl[ii, jj] = rho[ii, jj] * S[ii, jj]
+
                     if len(borrowing[ii, jj]) == 0:
                         print('error in one_step_ect')
                     for (ip, jp, patch, _) in borrowing[ii, jj]:
+
                         V_enl[ii, jj] += rho[ip, jp] * patch
+
                     rho_enl = V_enl[ii, jj] / S_enl[ii, jj]
+
                     # communicate to the intruded cell the intruding rho
                     for (ip, jp, patch, _) in borrowing[ii, jj]:
-                        #for num, (iii, jjj, patch2, _) in enumerate(lending[ip, jp]):
-                        #    if iii == ii and jjj == jj:
-                        #        lending[ip, jp][num][3] = rho_enl
-                        #        breakpoint()
                         V_enl[ip, jp] += rho_enl * patch
-                    Hz[ii, jj] = Hz[ii, jj] - C1 * rho_enl
+
+                    Hz[ii, jj] = Hz[ii, jj] - dt/mu_0 * rho_enl
+
 
         # take care of stable cells
         for ii in range(Nx):
@@ -420,18 +426,12 @@ class EMSolver2D:
                 if flag_int_cell[ii, jj] and not flag_unst_cell[ii, jj]:
                     # stable cell which hasn't been intruded
                     if not flag_intr_cell[ii, jj]:
-                        Hz[ii, jj] = Hz[ii, jj] - C1 * rho[ii, jj]
+                        Hz[ii, jj] = Hz[ii, jj] - dt/mu_0 * rho[ii, jj]
                     # stable cell which has been intruded
                     else:
-                        Vnew = 0
-                        red_area = S[ii, jj]
-                            #if rho_enl is None:
-                            #    print('big mistake')
-
-                            #Vnew += rho_enl * patch
-
                         V_enl[ii, jj] += rho[ii, jj] * S_red[ii, jj]
-                        Hz[ii, jj] = Hz[ii, jj] - C1 * V_enl[ii, jj] / S[ii, jj]
+                        Hz[ii, jj] = Hz[ii, jj] - dt/mu_0 * V_enl[ii, jj] / S[ii, jj]
+
 
     def compute_v_and_rho(self):
         l_y = self.grid.l_y
