@@ -1,19 +1,23 @@
 import numpy as np
-
+from numba import jit
+import numba
 
 def seg_length(x_1, y_1, x_2, y_2):
     return np.linalg.norm(np.array([x_1 - x_2, y_1 - y_2]))
 
-
-def eq(a, b, tol=1e-8):
+@jit('b1(f8, f8)', nopython=True)
+def eq(a, b):
+    tol = 1e-8
     return abs(a - b) < tol
 
-
-def neq(a, b, tol=1e-8):
-    return not eq(a, b, tol)
+@jit('b1(f8, f8)', nopython=True)
+def neq(a, b):
+    tol = 1e-8
+    return not eq(a, b)
 
 
 class Grid2D:
+
     """
   Class holding the grid info and the routines for cell extensions.
     Constructor arguments:
@@ -180,92 +184,6 @@ class Grid2D:
 
             l_x *= dx
             l_y *= dy
-
-    """
-  Function to compute the area of the cells of the conformal grid.
-    """
-
-    @staticmethod
-    def compute_areas(l_x=None, l_y=None, S=None, S_red=None, nx=None, ny=None, dx=None,
-                      dy=None):
-        # Normalize the grid lengths for robustness
-        l_x /= dx
-        l_y /= dy
-
-        # Loop over the cells
-        for ii in range(nx):
-            for jj in range(ny):
-                # If at least 3 edges have full length consider the area as full
-                # (this also takes care of the case in which an edge lies exactly on the boundary)
-                if np.sum([eq(l_x[ii, jj], 1.0), eq(l_y[ii, jj], 1.0),
-                           eq(l_x[ii, jj + 1], 1.0), eq(l_y[ii + 1, jj], 1.0)]) >= 3:
-                    S[ii, jj] = 1.0
-                elif (eq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
-                      and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0)):
-                    S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj + 1]
-                elif (eq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)
-                      and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj]
-                elif (eq(l_y[ii, jj], 0.) and neq(l_x[ii, jj], 0.)
-                      and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii + 1, jj]
-                elif (eq(l_y[ii + 1, jj], 0.) and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
-                      and neq(l_x[ii, jj + 1], 0.)):
-                    S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii, jj]
-                elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii, jj], 0.)
-                      and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii + 1, jj]
-                elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii + 1, jj], 0.)
-                      and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)):
-                    S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii, jj]
-                elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii + 1, jj], 0.)
-                      and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)):
-                    S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii, jj]
-                elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii, jj], 0.)
-                      and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
-                    S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii + 1, jj]
-                elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii, jj] <= 1.
-                      and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii + 1, jj], 1.)):
-                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii, jj])
-                elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
-                      and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii, jj], 1.)):
-                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii + 1, jj])
-                elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
-                      and eq(l_x[ii, jj], 1.) and eq(l_y[ii, jj], 1.)):
-                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii + 1, jj])
-                elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii, jj] <= 1.
-                      and eq(l_x[ii, jj], 1.) and eq(l_y[ii + 1, jj], 1.)):
-                    S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii, jj])
-
-        # Undo the normalization
-        S *= dx * dy
-        l_x *= dx
-        l_y *= dy
-        S_red[:] = S.copy()[:]
-
-    """
-  Function to mark wich cells are interior (int), require extension (unst), 
-  are on the boundary(bound), are available for intrusion (avail)
-    """
-
-    @staticmethod
-    def mark_cells(l_x=None, l_y=None, nx=None, ny=None, dx=None, dy=None, S=None,
-                   flag_int_cell=None, S_stab=None, flag_unst_cell=None, flag_bound_cell=None,
-                   flag_avail_cell=None):
-        for ii in range(nx):
-            for jj in range(ny):
-                flag_int_cell[ii, jj] = S[ii, jj] > 0
-                if flag_int_cell[ii, jj]:
-                    S_stab[ii, jj] = 0.5 * np.max(
-                        [l_x[ii, jj] * dy, l_x[ii, jj + 1] * dy,
-                        l_y[ii, jj] * dx,
-                        l_y[ii + 1, jj] * dx])
-                flag_unst_cell[ii, jj] = S[ii, jj] < S_stab[ii, jj]
-                flag_bound_cell[ii, jj] = ((0 < l_x[ii, jj] < dx) or
-                                           (0 < l_y[ii, jj] < dy) or
-                                           (0 < l_x[ii, jj + 1] < dx) or
-                                           (0 < l_y[ii + 1, jj] < dy))
-                flag_avail_cell[ii, jj] = flag_int_cell[ii, jj] and (not flag_unst_cell[ii, jj])
 
     """
   Function to compute the extension of the unstable cells
@@ -594,4 +512,84 @@ class Grid2D:
                             S_red[ii + 1, jj + 1] -= patch
 
                         flag_ext_cell[ii, jj] = False
- 
+
+"""
+Function to compute the area of the cells of the conformal grid.
+"""
+@jit('(f8[:,:], f8[:,:], f8[:,:], f8[:,:], i4, i4, f8, f8)', nopython=True)
+def compute_areas(l_x, l_y, S, S_red, nx, ny, dx, dy):
+    # Normalize the grid lengths for robustness
+    l_x /= dx
+    l_y /= dy
+
+    # Loop over the cells
+    for ii in range(nx):
+        for jj in range(ny):
+            # If at least 3 edges have full length consider the area as full
+            # (this also takes care of the case in which an edge lies exactly on the boundary)
+            #count_cane = eq(l_x[ii, jj], 1.0) + eq(l_y[ii, jj], 1.0) + eq(l_x[ii, jj + 1], 1.0) + eq(l_y[ii + 1, jj], 1.0)
+            if (np.sum(np.array([eq(l_x[ii, jj], 1.0), eq(l_y[ii, jj], 1.0),
+                       eq(l_x[ii, jj + 1], 1.0), eq(l_y[ii + 1, jj], 1.0)])) >= 3):
+            #if count_cane >=3:
+                S[ii, jj] = 1.0
+            elif (eq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
+                  and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0)):
+                S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj + 1]
+            elif (eq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)
+                  and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
+                S[ii, jj] = 0.5 * (l_y[ii, jj] + l_y[ii + 1, jj]) * l_x[ii, jj]
+            elif (eq(l_y[ii, jj], 0.) and neq(l_x[ii, jj], 0.)
+                  and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
+                S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii + 1, jj]
+            elif (eq(l_y[ii + 1, jj], 0.) and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)
+                  and neq(l_x[ii, jj + 1], 0.)):
+                S[ii, jj] = 0.5 * (l_x[ii, jj] + l_x[ii, jj + 1]) * l_y[ii, jj]
+            elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii, jj], 0.)
+                  and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii + 1, jj], 0.)):
+                S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii + 1, jj]
+            elif (eq(l_x[ii, jj], 0.) and eq(l_y[ii + 1, jj], 0.)
+                  and neq(l_x[ii, jj + 1], 0.) and neq(l_y[ii, jj], 0.)):
+                S[ii, jj] = 0.5 * l_x[ii, jj + 1] * l_y[ii, jj]
+            elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii + 1, jj], 0.)
+                  and neq(l_x[ii, jj], 0.) and neq(l_y[ii, jj], 0.)):
+                S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii, jj]
+            elif (eq(l_x[ii, jj + 1], 0.) and eq(l_y[ii, jj], 0.)
+                  and neq(l_x[ii, jj], 0.) and neq(l_y[ii + 1, jj], 0.)):
+                S[ii, jj] = 0.5 * l_x[ii, jj] * l_y[ii + 1, jj]
+            elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii, jj] <= 1.
+                  and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii + 1, jj], 1.)):
+                S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii, jj])
+            elif (0. < l_x[ii, jj] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
+                  and eq(l_x[ii, jj + 1], 1.) and eq(l_y[ii, jj], 1.)):
+                S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj]) * (1. - l_y[ii + 1, jj])
+            elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii + 1, jj] <= 1.
+                  and eq(l_x[ii, jj], 1.) and eq(l_y[ii, jj], 1.)):
+                S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii + 1, jj])
+            elif (0. < l_x[ii, jj + 1] <= 1. and 0. < l_y[ii, jj] <= 1.
+                  and eq(l_x[ii, jj], 1.) and eq(l_y[ii + 1, jj], 1.)):
+                S[ii, jj] = 1. - 0.5 * (1. - l_x[ii, jj + 1]) * (1. - l_y[ii, jj])
+
+    l_x *= dx
+    l_y *= dy
+
+"""
+Function to mark wich cells are interior (int), require extension (unst),
+are on the boundary(bound), are available for intrusion (avail)
+"""
+@jit('(f8[:,:], f8[:,:], i4, i4, f8, f8, f8[:,:], b1[:,:], f8[:,:], b1[:,:], b1[:,:], b1[:,:])', nopython=True)
+def mark_cells(l_x, l_y, nx, ny, dx, dy, S, flag_int_cell, S_stab,
+               flag_unst_cell, flag_bound_cell, flag_avail_cell):
+    for ii in range(nx):
+        for jj in range(ny):
+            flag_int_cell[ii, jj] = S[ii, jj] > 0
+            if flag_int_cell[ii, jj]:
+                S_stab[ii, jj] = 0.5 * np.max(
+                    np.array([l_x[ii, jj] * dy, l_x[ii, jj + 1] * dy,
+                    l_y[ii, jj] * dx,
+                    l_y[ii + 1, jj] * dx]))
+            flag_unst_cell[ii, jj] = S[ii, jj] < S_stab[ii, jj]
+            flag_bound_cell[ii, jj] = ((0 < l_x[ii, jj] < dx) or
+                                       (0 < l_y[ii, jj] < dy) or
+                                       (0 < l_x[ii, jj + 1] < dx) or
+                                       (0 < l_y[ii + 1, jj] < dy))
+            flag_avail_cell[ii, jj] = flag_int_cell[ii, jj] and (not flag_unst_cell[ii, jj])

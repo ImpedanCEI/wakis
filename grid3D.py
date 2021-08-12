@@ -1,6 +1,7 @@
 import numpy as np
 from grid2D import Grid2D
-
+from grid2D import compute_areas as compute_areas_2D, mark_cells as mark_cells_2D
+from numba import jit
 
 def seg_length(x_1, y_1, z_1, x_2, y_2, z_2):
     return np.linalg.norm(np.array([x_1 - x_2, y_1 - y_2, z_1 - z_2]))
@@ -13,6 +14,11 @@ def eq(a, b, tol=1e-8):
 def neq(a, b, tol=1e-8):
     return not eq(a, b, tol)
 
+    # Undo the normalization
+    S *= dx * dy
+    l_x *= dx
+    l_y *= dy
+    S_red[:] = S.copy()[:]
 
 class Grid3D:
     """
@@ -85,11 +91,23 @@ class Grid3D:
 
         self.compute_edges()
         if sol_type is 'DM' or sol_type is 'FDTD':
-            self.compute_areas()
-            self.mark_cells()
+            self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
+                               self.Sxy_red, self.Syz_red, self.Szx_red,
+                               self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
+            self.mark_cells(self.l_x, self.l_y, self.l_z, self.nx, self.ny, self.nz, self.dx, self.dy, self.dz,
+                            self.Sxy, self.Syz, self.Szx, self.flag_int_cell_xy, self.flag_int_cell_yz, self.flag_int_cell_zx,
+                            self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
+                            self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
+                            self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
         elif sol_type is 'ECT':
-            self.compute_areas()
-            self.mark_cells()
+            self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
+                               self.Sxy_red, self.Syz_red, self.Szx_red,
+                               self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
+            self.mark_cells(self.l_x, self.l_y, self.l_z, self.nx, self.ny, self.nz, self.dx, self.dy, self.dz,
+                            self.Sxy, self.Syz, self.Szx, self.flag_int_cell_xy, self.flag_int_cell_yz, self.flag_int_cell_zx,
+                            self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
+                            self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
+                            self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
             self.borrowing_xy = np.empty((nx, ny, nz + 1), dtype=object)
             self.borrowing_yz = np.empty((nx + 1, ny, nz), dtype=object)
@@ -111,7 +129,11 @@ class Grid3D:
             self.flag_ext_cell_xy = self.flag_unst_cell_xy.copy()
             self.flag_ext_cell_yz = self.flag_unst_cell_yz.copy()
             self.flag_ext_cell_zx = self.flag_unst_cell_zx.copy()
-            self.mark_cells()
+            self.mark_cells(self.l_x, self.l_y, self.l_z, self.nx, self.ny, self.nz, self.dx, self.dy, self.dz,
+                            self.Sxy, self.Syz, self.Szx, self.flag_int_cell_xy, self.flag_int_cell_yz, self.flag_int_cell_zx,
+                            self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
+                            self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
+                            self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
             self.compute_extensions()
 
     """
@@ -243,58 +265,50 @@ class Grid3D:
             self.l_y *= self.dy
             self.l_z *= self.dz
 
+
     """
   Function to compute the area of the cells of the conformal grid.
     """
+    @staticmethod
+    @jit('(f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], i4, i4, i4, f8, f8, f8)', nopython=True)
+    def compute_areas(l_x, l_y, l_z, Sxy, Syz, Szx, Sxy_red, Syz_red, Szx_red, nx, ny, nz, dx, dy, dz):
 
-    def compute_areas(self):
-        for kk in range(self.nz + 1):
-            Grid2D.compute_areas(l_x=self.l_x[:, :, kk], l_y=self.l_y[:, :, kk],
-                                 S=self.Sxy[:, :, kk], S_red=self.Sxy_red[:, :, kk], nx=self.nx,
-                                 ny=self.ny, dx=self.dx, dy=self.dy)
+        for kk in range(nz + 1):
+            compute_areas_2D(l_x[:, :, kk], l_y[:, :, kk], Sxy[:, :, kk], Sxy_red[:, :, kk],
+                                 nx, ny, dx, dy)
 
-        for ii in range(self.nx + 1):
-            Grid2D.compute_areas(l_x=self.l_y[ii, :, :], l_y=self.l_z[ii, :, :],
-                                 S=self.Syz[ii, :, :], S_red=self.Syz_red[ii, :, :], nx=self.ny,
-                                 ny=self.nz, dx=self.dy, dy=self.dz)
+        for ii in range(nx + 1):
+            compute_areas_2D(l_y[ii, :, :], l_z[ii, :, :], Syz[ii, :, :], Syz_red[ii, :, :],
+                                 ny, nz, dy, dz)
 
-        for jj in range(self.ny + 1):
-            Grid2D.compute_areas(l_x=self.l_x[:, jj, :], l_y=self.l_z[:, jj, :],
-                                 S=self.Szx[:, jj, :], S_red=self.Szx_red[:, jj, :], nx=self.nx,
-                                 ny=self.nz, dx=self.dx, dy=self.dz)
+        for jj in range(ny + 1):
+            compute_areas_2D(l_x[:, jj, :], l_z[:, jj, :], Szx[:, jj, :], Szx_red[:, jj, :],
+                                 nx, nz, dx, dz)
 
     """
   Function to mark wich cells are interior (int), require extension (unst), 
   are on the boundary(bound), are available for intrusion (avail)
     """
+    @staticmethod
+    @jit('(f8[:,:,:], f8[:,:,:], f8[:,:,:], i4, i4, i4, f8, f8, f8, f8[:,:,:], f8[:,:,:], f8[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], f8[:,:,:], f8[:,:,:], f8[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:], b1[:,:,:])', nopython=True)
+    def mark_cells(l_x, l_y, l_z, nx, ny, nz, dx, dy, dz, Sxy, Syz, Szx, flag_int_cell_xy, flag_int_cell_yz, flag_int_cell_zx,
+                   Sxy_stab, Syz_stab, Szx_stab, flag_unst_cell_xy, flag_unst_cell_yz, flag_unst_cell_zx, flag_bound_cell_xy,
+                   flag_bound_cell_yz, flag_bound_cell_zx, flag_avail_cell_xy, flag_avail_cell_yz, flag_avail_cell_zx):
 
-    def mark_cells(self):
-        for kk in range(self.nz + 1):
-            Grid2D.mark_cells(l_x=self.l_x[:, :, kk], l_y=self.l_y[:, :, kk], nx=self.nx,
-                              ny=self.ny, dx=self.dx, dy=self.dy, S=self.Sxy[:, :, kk],
-                              flag_int_cell=self.flag_int_cell_xy[:, :, kk],
-                              S_stab=self.Sxy_stab[:, :, kk],
-                              flag_unst_cell=self.flag_unst_cell_xy[:, :, kk],
-                              flag_bound_cell=self.flag_bound_cell_xy[:, :, kk],
-                              flag_avail_cell=self.flag_avail_cell_xy[:, :, kk])
+        for kk in range(nz + 1):
+            mark_cells_2D(l_x[:, :, kk], l_y[:, :, kk], nx, ny, dx, dy, Sxy[:, :, kk],
+                          flag_int_cell_xy[:, :, kk], Sxy_stab[:, :, kk], flag_unst_cell_xy[:, :, kk],
+                          flag_bound_cell_xy[:, :, kk], flag_avail_cell_xy[:, :, kk])
 
-        for ii in range(self.nx + 1):
-            Grid2D.mark_cells(l_x=self.l_y[ii, :, :], l_y=self.l_z[ii, :, :], nx=self.ny,
-                              ny=self.nz, dx=self.dy, dy=self.dz, S=self.Syz[ii, :, :],
-                              flag_int_cell=self.flag_int_cell_yz[ii, :, :],
-                              S_stab=self.Syz_stab[ii, :, :],
-                              flag_unst_cell=self.flag_unst_cell_yz[ii, :, :],
-                              flag_bound_cell=self.flag_bound_cell_yz[ii, :, :],
-                              flag_avail_cell=self.flag_avail_cell_yz[ii, :, :])
+        for ii in range(nx + 1):
+            mark_cells_2D(l_y[ii, :, :], l_z[ii, :, :], ny, nz, dy, dz, Syz[ii, :, :],
+                          flag_int_cell_yz[ii, :, :], Syz_stab[ii, :, :], flag_unst_cell_yz[ii, :, :],
+                          flag_bound_cell_yz[ii, :, :], flag_avail_cell_yz[ii, :, :])
 
-        for jj in range(self.ny + 1):
-            Grid2D.mark_cells(l_x=self.l_x[:, jj, :], l_y=self.l_z[:, jj, :], nx=self.nx,
-                              ny=self.nz, dx=self.dx, dy=self.dz, S=self.Szx[:, jj, :],
-                              flag_int_cell=self.flag_int_cell_zx[:, jj, :],
-                              S_stab=self.Szx_stab[:, jj, :],
-                              flag_unst_cell=self.flag_unst_cell_zx[:, jj, :],
-                              flag_bound_cell=self.flag_bound_cell_zx[:, jj, :],
-                              flag_avail_cell=self.flag_avail_cell_zx[:, jj, :])
+        for jj in range(ny + 1):
+            mark_cells_2D(l_x[:, jj, :], l_z[:, jj, :], nx, nz, dx, dz, Szx[:, jj, :],
+                          flag_int_cell_zx[:, jj, :], Szx_stab[:, jj, :], flag_unst_cell_zx[:, jj, :],
+                          flag_bound_cell_zx[:, jj, :], flag_avail_cell_zx[:, jj, :])
 
     """
   Function to compute the extension of the unstable cells
