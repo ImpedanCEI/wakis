@@ -65,9 +65,9 @@ class Grid2D:
                                intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,
                                dx=self.dx, dy=self.dy, nx=self.nx, ny=self.ny, xmin=self.xmin,
                                ymin=self.ymin)
-            self.compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
+            compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
                                ny=self.ny, dx=self.dx, dy=self.dy)
-            self.mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
+            mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
                             dy=self.dy, S=self.S, flag_int_cell=self.flag_int_cell,
                             S_stab=self.S_stab, flag_unst_cell=self.flag_unst_cell,
                             flag_bound_cell=self.flag_bound_cell,
@@ -78,9 +78,9 @@ class Grid2D:
                                intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,
                                dx=self.dx, dy=self.dy, nx=self.nx, ny=self.ny, xmin=self.xmin,
                                ymin=self.ymin)
-            self.compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
+            compute_areas(l_x=self.l_x, l_y=self.l_y, S=self.S, S_red=self.S_red, nx=self.nx,
                                ny=self.ny, dx=self.dx, dy=self.dy)
-            self.mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
+            mark_cells(l_x=self.l_x, l_y=self.l_y, nx=self.nx, ny=self.ny, dx=self.dx,
                             dy=self.dy, S=self.S, flag_int_cell=self.flag_int_cell,
                             S_stab=self.S_stab, flag_unst_cell=self.flag_unst_cell,
                             flag_bound_cell=self.flag_bound_cell,
