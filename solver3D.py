@@ -876,24 +876,26 @@ class EMSolver3D:
 
     def one_step(self):
         if self.sol_type == 'ECT':
-            self.one_step_ect(dt=0.5*self.dt)
-            #for block in self.blocks:
-            #    block.advance_h_fdtd()
-            #    block.sum_h_fields()
-            self.advance_e_dm(dt=self.dt)
-            self.compute_v_and_rho()
-            self.one_step_ect(dt=0.5*self.dt)
-            #self.update_e_boundary()
-            #for block in self.blocks:
-            #    block.advance_e_fdtd()
-            #    block.update_e_boundary()
-            #    block.sum_e_fields()
+            self.one_step_ect()
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
             self.one_step_dm()
 
         self.time += self.dt
+
+    def one_step_ect(self):
+        self.compute_v_and_rho()
+        self.advance_h_ect()
+        for block in self.blocks:
+            block.advance_h_fdtd()
+            block.sum_h_fields()
+        self.advance_e_dm()
+        self.update_e_boundary()
+        for block in self.blocks:
+            block.advance_e_fdtd()
+            block.update_e_boundary()
+            block.sum_e_fields()
 
     def one_step_fdtd(self):
         self.advance_h_fdtd(self.grid.Sxy, self.grid.Syz, self.grid.Szx, self.Ex, self.Ey,                             self.Ez, self.Hx, self.Hy, self.Hz, self.Nx, self.Ny, self.Nz,
@@ -998,10 +1000,10 @@ class EMSolver3D:
 
         self.advance_e_dm()
 
-    def one_step_ect(self, dt=None):
+    def advance_h_ect(self, dt=None):
 
         for ii in range(self.Nx + 1):
-            EMSolver2D.one_step_ect(Nx=self.Ny, Ny=self.Nz, V_enl=self.Vyz_enl[ii, :, :],
+            EMSolver2D.advance_h_ect(Nx=self.Ny, Ny=self.Nz, V_enl=self.Vyz_enl[ii, :, :],
                                     rho=self.rho_yz[ii, :, :], Hz=self.Hx[ii, :, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_yz[ii, :, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_yz[ii, :, :],
@@ -1012,7 +1014,7 @@ class EMSolver3D:
                                     S_red=self.grid.Syz_red[ii, :, :], dt=dt, comp='x', kk=ii)
 
         for jj in range(self.Ny + 1):
-            EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Nz, V_enl=self.Vzx_enl[:, jj, :],
+            EMSolver2D.advance_h_ect(Nx=self.Nx, Ny=self.Nz, V_enl=self.Vzx_enl[:, jj, :],
                                     rho=self.rho_zx[:, jj, :], Hz=self.Hy[:, jj, :], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_zx[:, jj, :],
                                     flag_unst_cell=self.grid.flag_unst_cell_zx[:, jj, :],
@@ -1023,7 +1025,7 @@ class EMSolver3D:
                                     S_red=self.grid.Szx_red[:, jj, :], dt=dt, comp='y', kk=jj)
 
         for kk in range(self.Nz + 1):
-            EMSolver2D.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.Vxy_enl[:, :, kk],
+            EMSolver2D.advance_h_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.Vxy_enl[:, :, kk],
                                     rho=self.rho_xy[:, :, kk], Hz=self.Hz[:, :, kk], C1=self.CN,
                                     flag_int_cell=self.grid.flag_int_cell_xy[:, :, kk],
                                     flag_unst_cell=self.grid.flag_unst_cell_xy[:, :, kk],
