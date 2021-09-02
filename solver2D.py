@@ -1,4 +1,4 @@
-git adimport numpy as np
+import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from pmlBlock2D import PmlBlock2D
 
