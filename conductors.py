@@ -1,5 +1,5 @@
 import numpy as np
-
+import scipy.optimize
 
 class OutRect:
     def __init__(self, Lx, Ly, x_cent, y_cent):
@@ -43,7 +43,26 @@ class OutRect:
         # [_, yyy] = np.dot(self.R, np.array([xx, inters]))
         # return yyy
 
+class ImpFunc:
+    def __init__(self, func):
+        self.func = func
 
+    def out_conductor(self, x, y):
+        return self.func(x, y) < 0
+
+    def in_conductor(self, x, y):
+        return self.func(x, y) > 0
+
+    def intersec_x(self, x, y):
+        func_x = lambda t : self.func(t, y)
+
+        return scipy.optimize.newton_krylov(func_x, x)
+
+    def intersec_y(self, x, y):
+        func_y = lambda t : self.func(x, t)
+
+        return scipy.optimize.newton_krylov(func_y, y)
+        
 class Plane:
     def __init__(self, m_plane, q_plane, tol=0, sign=1):
         self.tol = tol  # 1e-16
