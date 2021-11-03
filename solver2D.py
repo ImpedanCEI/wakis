@@ -298,7 +298,27 @@ class EMSolver2D:
 
     def one_step(self):
         if self.sol_type == 'ECT':
-            self.one_step_ect()
+            self.compute_v_and_rho()
+            self.one_step_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.V_enl,
+                              rho=self.rho, Hz=self.Hz, C1=self.C1,
+                              flag_int_cell=self.grid.flag_int_cell,
+                              flag_unst_cell=self.grid.flag_unst_cell,
+                              flag_intr_cell=self.grid.flag_intr_cell,
+                              S=self.grid.S,
+                              borrowing=self.grid.borrowing, S_enl=self.grid.S_enl,
+                              S_red=self.grid.S_red, V_new = self.V_new, dt=self.dt)
+            for block in self.blocks:
+                block.advance_h_fdtd()
+
+            self.advance_e_dm()
+
+            for block in self.blocks:
+                block.advance_e_fdtd()
+
+            self.update_e_boundary()
+
+            self.time += self.dt
+
         if self.sol_type == 'FDTD':
             self.one_step_fdtd()
         if self.sol_type == 'DM':
@@ -316,28 +336,6 @@ class EMSolver2D:
         self.advance_e_fdtd()
         for block in self.blocks:
             block.advance_e_fdtd()
-        self.update_e_boundary()
-
-        self.time += self.dt
-
-    def one_step_ect():
-        self.compute_v_and_rho()
-        self.advance_h_ect(Nx=self.Nx, Ny=self.Ny, V_enl=self.V_enl,
-                           rho=self.rho, Hz=self.Hz, C1=self.C1,
-                           flag_int_cell=self.grid.flag_int_cell,
-                           flag_unst_cell=self.grid.flag_unst_cell,
-                           flag_intr_cell=self.grid.flag_intr_cell,
-                           S=self.grid.S,
-                           borrowing=self.grid.borrowing, S_enl=self.grid.S_enl,
-                           S_red=self.grid.S_red, V_new = self.V_new)
-        for block in self.blocks:
-            block.advance_h_fdtd()
-
-        self.advance_e_dm()
-
-        for block in self.blocks:
-            block.advance_e_fdtd()
-
         self.update_e_boundary()
 
         self.time += self.dt
@@ -392,11 +390,11 @@ class EMSolver2D:
                                 Hz[ii, jj] - Hz[ii - 1, jj])
 
     @staticmethod
-    def advance_h_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
+    def one_step_ect(Nx=None, Ny=None, V_enl=None, rho=None, Hz=None, C1=None, flag_int_cell=None,
                      flag_unst_cell=None, flag_intr_cell=None, S=None, borrowing=None, S_enl=None,
                      S_red=None, V_new=None, dt = None, comp=None, kk=None):
 
-        if dt==None: dt = self.dt
+        #if dt==None: dt = self.dt
 
         V_enl = np.zeros((Nx, Ny))
 
@@ -408,7 +406,7 @@ class EMSolver2D:
                     V_enl[ii, jj] = rho[ii, jj] * S[ii, jj]
 
                     if len(borrowing[ii, jj]) == 0:
-                        print('error in advance_h_ect')
+                        print('error in one_step_ect')
                     for (ip, jp, patch, _) in borrowing[ii, jj]:
 
                         V_enl[ii, jj] += rho[ip, jp] * patch
