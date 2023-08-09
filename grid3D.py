@@ -83,7 +83,7 @@ class Grid3D:
         self.broken_yz = np.zeros_like(self.Syz, dtype=bool)
         self.broken_zx = np.zeros_like(self.Szx, dtype=bool)
 
-        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT') and (sol_type is not 'FIT'):
             raise ValueError("sol_type must be:\n" +
                              "\t'FDTD' for standard staircased FDTD\n" +
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
