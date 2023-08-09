@@ -6,13 +6,16 @@ from matplotlib import pyplot as plt
 from matplotlib import patches
 import os, sys
 from tqdm import tqdm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 sys.path.append('../')
 
 from solverFIT3D import SolverFIT3D
+from solver3D import EMSolver3D
 from grid3D import Grid3D
 from conductors3d import noConductor
 from scipy.special import jv
+from field import Field 
 
 Z0 = np.sqrt(mu_0 / eps_0)
 
@@ -46,19 +49,41 @@ NCFL = 1
 
 solver = SolverFIT3D(grid, sol_type, NCFL)
 
-solver.J[int(Nx/2), int(Ny/2), int(Nz/2), 'x'] = 1.0
+gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
+gridFDTD.Sxy = np.ones_like(gridFDTD.Sxy)*dx*dy
+gridFDTD.Szx = np.ones_like(gridFDTD.Szx)*dx*dz
+gridFDTD.Syz = np.ones_like(gridFDTD.Syz)*dz*dy
+solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
-Nt = 100
+solver.E[int(Nx/2), int(Ny/2), int(Nz/2), 'z'] = 1.0*c_light
+solverFDTD.Ez[int(Nx/2), int(Ny/2), int(Nz/2)] = 1.0*c_light
+
+Nt = 1
 
 for n in tqdm(range(Nt)):
     solver.one_step()
+    solverFDTD.one_step()
+    fig, (ax1, ax2) = plt.subplots(1,2, tight_layout=True)
 
-    if n == 0:
-        solver.J[int(Nx/2), int(Ny/2), int(Nz/2), 'x'] = 0.0
+    #solver.H[int(Nx/2), int(Ny/2), :, 'z'] = solver.H[int(Nx/2), int(Ny/2), :, 'z']+c_light
+    #solverFDTD.Hz[int(Nx/2), int(Ny/2), :] += c_light
 
-    plt.imshow(solver.E[:,:,int(Nz/2), 'x'], cmap='rainbow')
-    plt.figtitle(f'Ex[x,y,0], timestep={n}')
-    plt.savefig('img/'+str(n).zfill(4)+'.png')
+    plot_field = solver.E #Field(Nx, Ny, Nz)
+    #plot_field.fromarray(solver.dt*(solver.C0.transpose()*solver.H.toarray()-solver.J.toarray()))
+
+    im1 = ax1.imshow(plot_field[:,:,int(Nz/2), 'z'], cmap='rainbow')
+    im2 = ax2.imshow(solverFDTD.Ez[:,:,int(Nz/2)], cmap='rainbow')
+    divider = make_axes_locatable(ax1)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im1, cax=cax)
+    divider = make_axes_locatable(ax2)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im2, cax=cax)
+    ax1.set_title('FIT')
+    ax2.set_title('FDTD')
+    fig.suptitle(f'Ex[x,y,0], timestep={n}')
+    fig.savefig('img/'+str(n).zfill(4)+'.png')
+    plt.close()
 
 # Analytic solution
 '''

@@ -85,15 +85,34 @@ class Field:
         else:
             raise IndexError('key must be a 3-tuple or an integer')
 
+    def __mul__(self, other):
+        return Field()
+
     def __repr__(self):
-        return ['x:\n' + self.field_x.__repr__() + '\n'+  
-                'y:\n' + self.field_y.__repr__() + '\n'+
-                'z:\n' + self.field_z.__repr__()]
+        return 'x:\n' + self.field_x.__repr__() + '\n'+  \
+                'y:\n' + self.field_y.__repr__() + '\n'+ \
+                'z:\n' + self.field_z.__repr__()
 
     def __str__(self):
-        return ['x:\n' + self.field_x.__str__() + '\n'+  
-                'y:\n' + self.field_y.__str__() + '\n'+
-                'z:\n' + self.field_z.__str__()]
+        return 'x:\n' + self.field_x.__str__() + '\n'+  \
+                'y:\n' + self.field_y.__str__() + '\n'+ \
+                'z:\n' + self.field_z.__str__()
+
+    def toarray(self):
+        return np.concatenate((
+                np.reshape(self.field_x, self.N),
+                np.reshape(self.field_y, self.N),
+                np.reshape(self.field_z, self.N)
+            ))
+
+    def fromarray(self, arr):
+        if len(arr.shape) > 1:
+            raise ValueError('Can only assign 1d array to a Field')
+        if len(arr) != 3*self.N:
+            raise ValueError('Can only assign to a field an array of size 3*Nx*Ny*Nz')
+        self.field_x = np.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz))
+        self.field_y = np.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz))
+        self.field_z = np.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz))
 
     def compute_ijk(self, n):
         if n > (self.N):

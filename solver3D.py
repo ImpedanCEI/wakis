@@ -14,8 +14,11 @@ def neq(a, b, tol=1e-8):
 
 
 class EMSolver3D:
-    def __init__(self, grid, sol_type, cfln, i_s, j_s, k_s, bc_low, bc_high,
-                 N_pml_low=None, N_pml_high=None):
+    def __init__(self, grid, sol_type, cfln,
+                 bc_low=['Dirichlet', 'Dirichlet', 'Dirichlet'], 
+                 bc_high=['Dirichlet', 'Dirichlet', 'Dirichlet'], 
+                 i_s=0, j_s=0, k_s=0, N_pml_low=None, N_pml_high=None):
+    
         self.grid = grid
         self.type = type
         self.cfln = cfln

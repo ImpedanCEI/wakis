@@ -2,6 +2,7 @@ import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import lil_matrix as sparse_mat
 from scipy.sparse import diags, block_diag, hstack, vstack
+from scipy.sparse.linalg import inv
 from field import Field
 
 class SolverFIT3D:
@@ -41,6 +42,7 @@ class SolverFIT3D:
         Nz = self.Nz
         N = self.N
 
+
         # Fields
         self.E = Field(self.Nx, self.Ny, self.Nz)
         self.H = Field(self.Nx, self.Ny, self.Nz)
@@ -63,8 +65,23 @@ class SolverFIT3D:
                              diags([self.Sz], shape=(N, N), dtype=float)
                              ))
 
+        self.iDs = block_diag((
+                             diags([1/self.dx], shape=(N, N), dtype=float),
+                             diags([1/self.dy], shape=(N, N), dtype=float),
+                             diags([1/self.dz], shape=(N, N), dtype=float) 
+                             ))
+
+        self.iDa = block_diag((
+                             diags([1/self.Sx], shape=(N, N), dtype=float),
+                             diags([1/self.Sy], shape=(N, N), dtype=float),
+                             diags([1/self.Sz], shape=(N, N), dtype=float)
+                             ))
+
         self.tDs = self.Ds
         self.tDa = self.Da
+
+        self.itDs = self.iDs
+        self.itDa = self.iDa
 
         self.iMeps = block_diag((
                                diags([1/self.epsx], shape=(N, N), dtype=float),
@@ -83,8 +100,6 @@ class SolverFIT3D:
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ])
-
-        self.C0 = (1/c_light)*np.sqrt(self.iMmu)*self.C*np.sqrt(self.iMeps)
 
         # Boundaries
         self.N_pml_low = np.zeros(3, dtype=int)
@@ -113,11 +128,15 @@ class SolverFIT3D:
             self.N_pml_high[2] = 10 if N_pml_high is None else N_pml_high[2]
 
     def one_step(self):
-        aux = np.vstack((self.E.field_x, self.E.field_y, self.E.field_z))
-        print(len(aux))
-        aux += self.dt*(self.C0.transpose()*np.vstack((self.H.field_x, self.H.field_y, self.H.field_z))-np.vstack([self.J.field_x, self.J.field_y, self.J.field_z]))
-        self.E.field_x, self.E.field_y, self.E.field_z = aux[0:self.N], aux[self.N:2*self.N], aux[2*self.N:3*self.N]
-        aux = np.vstack((self.H.field_x, self.H.field_y, self.H.field_z))
-        aux -= self.dt*self.C0*self.np.vstack((self.E.field_x, self.E.field_y, self.E.field_z))
-        self.H.field_x, self.H.field_y, self.H.field_z = aux[0:self.N], aux[self.N:2*self.N], aux[2*self.N:3*self.N]
+
+        self.H.fromarray(self.H.toarray() - 
+                         self.dt*self.iMmu*self.iDa*self.C*self.Ds*self.E.toarray()
+                         )
+
+        self.E.fromarray(self.E.toarray() + 
+                         self.dt*(self.iMeps*self.itDa*self.C.transpose()*self.tDs*self.H.toarray() -
+                         self.iMeps*self.J.toarray())
+                         )
+
+
         
