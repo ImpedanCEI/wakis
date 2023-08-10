@@ -1,15 +1,15 @@
 import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-from scipy.sparse import lil_matrix as sparse_mat
+from scipy.sparse import csc_matrix as sparse_mat
 from scipy.sparse import diags, block_diag, hstack, vstack
 from scipy.sparse.linalg import inv
 from field import Field
 
 class SolverFIT3D:
 
-    def __init__(self, grid, sol_type, cfln, 
-                 bc_low=['Dirichlet', 'Dirichlet', 'Dirichlet'], 
-                 bc_high=['Dirichlet', 'Dirichlet', 'Dirichlet'], 
+    def __init__(self, grid, sol_type, cfln,
+                 bc_low=['Dirichlet', 'Dirichlet', 'Dirichlet'],
+                 bc_high=['Dirichlet', 'Dirichlet', 'Dirichlet'],
                  i_s=0, j_s=0, k_s=0, N_pml_low=None, N_pml_high=None):
 
         # Grid 
@@ -56,7 +56,7 @@ class SolverFIT3D:
         self.Ds = block_diag((
                              diags([self.dx], shape=(N, N), dtype=float),
                              diags([self.dy], shape=(N, N), dtype=float),
-                             diags([self.dz], shape=(N, N), dtype=float) 
+                             diags([self.dz], shape=(N, N), dtype=float)
                              ))
 
         self.Da = block_diag((
@@ -68,7 +68,7 @@ class SolverFIT3D:
         self.iDs = block_diag((
                              diags([1/self.dx], shape=(N, N), dtype=float),
                              diags([1/self.dy], shape=(N, N), dtype=float),
-                             diags([1/self.dz], shape=(N, N), dtype=float) 
+                             diags([1/self.dz], shape=(N, N), dtype=float)
                              ))
 
         self.iDa = block_diag((
@@ -86,7 +86,7 @@ class SolverFIT3D:
         self.iMeps = block_diag((
                                diags([1/self.epsx], shape=(N, N), dtype=float),
                                diags([1/self.epsy], shape=(N, N), dtype=float),
-                               diags([1/self.epsz], shape=(N, N), dtype=float) 
+                               diags([1/self.epsz], shape=(N, N), dtype=float)
                                ))
 
         self.iMmu = block_diag((
@@ -96,10 +96,11 @@ class SolverFIT3D:
                              ))
 
         self.C = vstack([
-                            hstack([sparse_mat((N,N)), -self.Pz, self.Py]), 
+                            hstack([sparse_mat((N,N)), -self.Pz, self.Py]),
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ])
+
 
         # Boundaries
         self.N_pml_low = np.zeros(3, dtype=int)
@@ -127,16 +128,18 @@ class SolverFIT3D:
         if bc_high[2] == 'pml':
             self.N_pml_high[2] = 10 if N_pml_high is None else N_pml_high[2]
 
+        self.iMuiDaCDs = self.iMmu * self.iDa * self.C * self.Ds
+
+        self.iMepsitDaCttDs = self.iMeps * self.itDa * self.C.transpose() * self.tDs
+
     def one_step(self):
 
-        self.H.fromarray(self.H.toarray() - 
-                         self.dt*self.iMmu*self.iDa*self.C*self.Ds*self.E.toarray()
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*self.iMuiDaCDs*self.E.toarray()
                          )
 
-        self.E.fromarray(self.E.toarray() + 
-                         self.dt*(self.iMeps*self.itDa*self.C.transpose()*self.tDs*self.H.toarray() -
-                         self.iMeps*self.J.toarray())
+        self.E.fromarray(self.E.toarray() +
+                         self.dt*(self.iMepsitDaCttDs * self.H.toarray() - self.iMeps*self.J.toarray())
                          )
 
 
-        
