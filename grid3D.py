@@ -90,7 +90,7 @@ class Grid3D:
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         self.compute_edges()
-        if sol_type is 'DM' or sol_type is 'FDTD':
+        if sol_type is 'DM' or sol_type is 'FDTD' or sol_type is 'FIT':
             self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
                                self.Sxy_red, self.Syz_red, self.Szx_red,
                                self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
