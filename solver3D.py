@@ -901,7 +901,8 @@ class EMSolver3D:
             block.sum_e_fields()
 
     def one_step_fdtd(self):
-        self.advance_h_fdtd(self.grid.Sxy, self.grid.Syz, self.grid.Szx, self.Ex, self.Ey,                             self.Ez, self.Hx, self.Hy, self.Hz, self.Nx, self.Ny, self.Nz,
+        self.advance_h_fdtd(self.grid.Sxy, self.grid.Syz, self.grid.Szx, self.Ex, self.Ey,
+                            self.Ez, self.Hx, self.Hy, self.Hz, self.Nx, self.Ny, self.Nz,
                             self.C1, self.C2, self.C7)
 
         for block in self.blocks:
