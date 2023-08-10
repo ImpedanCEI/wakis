@@ -43,47 +43,96 @@ conductors = noConductor()
 
 # conductors = cube
 sol_type = 'FIT'
-
-grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, sol_type)
 NCFL = 1
 
-solver = SolverFIT3D(grid, sol_type, NCFL)
+grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, sol_type)
+solverFIT = SolverFIT3D(grid, sol_type, NCFL)
 
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
-gridFDTD.Sxy = np.ones_like(gridFDTD.Sxy)*dx*dy
-gridFDTD.Szx = np.ones_like(gridFDTD.Szx)*dx*dz
-gridFDTD.Syz = np.ones_like(gridFDTD.Syz)*dz*dy
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
-solver.E[int(Nx/2), int(Ny/2), int(Nz/2), 'z'] = 1.0*c_light
-solverFDTD.Ez[int(Nx/2), int(Ny/2), int(Nz/2)] = 1.0*c_light
+solverFIT.J[int(Nx/2), int(Ny/2), int(Nz/2), 'z'] = 1.0*c_light
+solverFDTD.Jz[int(Nx/2)+1, int(Ny/2)+1,  int(Nz/2)] = 1.0*c_light
 
-Nt = 1
+Nt = 50
+
+def plot_E_field(solverFIT, solverFDTD, n):
+
+    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
+    dims = {0:'x', 1:'y', 2:'z'}
+
+    #FIT
+    for i, ax in enumerate(axs[0,:]):
+        im = ax.imshow(solverFIT.E[:,:,int(Nz/2), dims[i]], cmap='rainbow')
+        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+        ax.set_title(f'FIT E{dims[i]}(x,y,Nz/2)')
+
+    #FDTD
+    ax = axs[1,0]
+    im = ax.imshow(solverFDTD.Ex[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ex(x,y,Nz/2)')
+
+    ax = axs[1,1]
+    im = ax.imshow(solverFDTD.Ey[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ey(x,y,Nz/2)')
+
+    ax = axs[1,2]
+    im = ax.imshow(solverFDTD.Ez[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ez(x,y,Nz/2)')
+
+    fig.suptitle(f'E field, timestep={n}')
+    fig.savefig('imgE/'+str(n).zfill(4)+'.png')
+    plt.clf()
+    plt.close(fig)
+
+def plot_H_field(solverFIT, solverFDTD, n):
+
+    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
+    dims = {0:'x', 1:'y', 2:'z'}
+
+    #FIT
+    for i, ax in enumerate(axs[0,:]):
+        im = ax.imshow(solverFIT.H[:,:,int(Nz/2), dims[i]], cmap='rainbow')
+        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+        ax.set_title(f'FIT H{dims[i]}(x,y,Nz/2)')
+
+    #FDTD
+    ax = axs[1,0]
+    im = ax.imshow(solverFDTD.Hx[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hx(x,y,Nz/2)')
+
+    ax = axs[1,1]
+    im = ax.imshow(solverFDTD.Hy[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hy(x,y,Nz/2)')
+
+    ax = axs[1,2]
+    im = ax.imshow(solverFDTD.Hz[:,:,int(Nz/2)], cmap='rainbow')
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hz(x,y,Nz/2)')
+
+    fig.suptitle(f'H field, timestep={n}')
+    fig.savefig('imgH/'+str(n).zfill(4)+'.png')
+    plt.clf()
+    plt.close(fig)
 
 for n in tqdm(range(Nt)):
-    solver.one_step()
+    solverFIT.one_step()
     solverFDTD.one_step()
     fig, (ax1, ax2) = plt.subplots(1,2, tight_layout=True)
 
-    #solver.H[int(Nx/2), int(Ny/2), :, 'z'] = solver.H[int(Nx/2), int(Ny/2), :, 'z']+c_light
+    #solverFIT.H[int(Nx/2), int(Ny/2), :, 'z'] = solverFIT.H[int(Nx/2), int(Ny/2), :, 'z']+c_light
     #solverFDTD.Hz[int(Nx/2), int(Ny/2), :] += c_light
 
-    plot_field = solver.E #Field(Nx, Ny, Nz)
-    #plot_field.fromarray(solver.dt*(solver.C0.transpose()*solver.H.toarray()-solver.J.toarray()))
+    #plot_field = Field(Nx, Ny, Nz)
+    #plot_field.fromarray(solverFIT.dt*(solverFIT.C0.transpose()*solverFIT.H.toarray()-solverFIT.J.toarray()))
 
-    im1 = ax1.imshow(plot_field[:,:,int(Nz/2), 'z'], cmap='rainbow')
-    im2 = ax2.imshow(solverFDTD.Ez[:,:,int(Nz/2)], cmap='rainbow')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(im1, cax=cax)
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(im2, cax=cax)
-    ax1.set_title('FIT')
-    ax2.set_title('FDTD')
-    fig.suptitle(f'Ex[x,y,0], timestep={n}')
-    fig.savefig('img/'+str(n).zfill(4)+'.png')
-    plt.close()
+    plot_E_field(solverFIT, solverFDTD, n)
+    plot_H_field(solverFIT, solverFDTD, n)
 
 # Analytic solution
 '''

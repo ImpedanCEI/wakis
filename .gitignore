@@ -5,3 +5,6 @@ venv
 DM_*
 FDTD_*
 ECT_*
+*/img*
+*.png
+
