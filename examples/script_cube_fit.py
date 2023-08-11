@@ -51,11 +51,11 @@ solverFIT = SolverFIT3D(grid, sol_type, NCFL)
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
-solverFIT.E[int(Nx/2), int(Ny/2), int(Nz/2), 'y'] = 1.0*c_light
-solverFDTD.Ey[int(Nx/2), int(Ny/2),  int(Nz/2)] = 1.0*c_light
+solverFIT.E[int(1*Nx/4), int(3*Ny/4), int(Nz/2), 'z'] = 1.0*c_light
+solverFDTD.Ez[int(1*Nx/4), int(3*Ny/4),  int(Nz/2)] = 1.0*c_light
 
 Nt = 50
-x, y, z = slice(0,Nx), slice(0,Ny), int(Nz//3)
+x, y, z = slice(0,Nx), slice(0,Ny), int(Nz//2)+1
 title = '(x,y,Nz/3)'
 
 def plot_E_field(solverFIT, solverFDTD, n):
@@ -69,7 +69,7 @@ def plot_E_field(solverFIT, solverFDTD, n):
         vmin, vmax = -np.max(np.abs(solverFIT.E[x, y, z, dims[i]])), np.max(np.abs(solverFIT.E[x, y, z, dims[i]]))
         im = ax.imshow(solverFIT.E[x, y, z, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT E{dims[i]}title')
+        ax.set_title(f'FIT E{dims[i]}{title}')
 
     #FDTD
     ax = axs[1,0]
@@ -102,30 +102,31 @@ def plot_H_field(solverFIT, solverFDTD, n):
 
     fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
     dims = {0:'x', 1:'y', 2:'z'}
+    extent = (0, N, 0, N)
 
     #FIT
     for i, ax in enumerate(axs[0,:]):
         vmin, vmax = -np.max(np.abs(solverFIT.H[x, y, z, dims[i]])), np.max(np.abs(solverFIT.H[x, y, z, dims[i]]))
-        im = ax.imshow(solverFIT.H[x, y, z, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
+        im = ax.imshow(solverFIT.H[x, y, z, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT H{dims[i]}title')
+        ax.set_title(f'FIT H{dims[i]}{title}')
 
     #FDTD
     ax = axs[1,0]
     vmin, vmax = -np.max(np.abs(solverFDTD.Hx[x, y, z])), np.max(np.abs(solverFDTD.Hx[x, y, z]))
-    im = ax.imshow(solverFDTD.Hx[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax)
+    im = ax.imshow(solverFDTD.Hx[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Hx{title}')
 
     ax = axs[1,1]
     vmin, vmax = -np.max(np.abs(solverFDTD.Hy[x, y, z])), np.max(np.abs(solverFDTD.Hy[x, y, z]))
-    im = ax.imshow(solverFDTD.Hy[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax)
+    im = ax.imshow(solverFDTD.Hy[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Hy{title}')
 
     ax = axs[1,2]
     vmin, vmax = -np.max(np.abs(solverFDTD.Hz[x, y, z])), np.max(np.abs(solverFDTD.Hz[x, y, z]))
-    im = ax.imshow(solverFDTD.Hz[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax)
+    im = ax.imshow(solverFDTD.Hz[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Hz{title}')
 
