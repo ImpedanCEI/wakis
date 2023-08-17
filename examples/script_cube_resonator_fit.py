@@ -13,7 +13,7 @@ sys.path.append('../')
 from solverFIT3D import SolverFIT3D
 from solver3D import EMSolver3D
 from grid3D import Grid3D
-from conductors3d import noConductor
+from conductors3d import noConductor, InCube, ConductorsAssembly
 from scipy.special import jv
 from field import Field 
 
@@ -52,12 +52,12 @@ def analytic_sol_Hx(x, y, z, t):
         np.sqrt(2) * np.pi / Lx * c_light * t)
 
 # Plotting functions
-
+folder ='imgRes'
 def plot_E_field(solverFIT, solverFDTD, n):
 
     fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
     dims = {0:'x', 1:'y', 2:'z'}
-    vmin, vmax = -1., 1.
+    vmin, vmax = -500., 500.
 
     #FIT
     for i, ax in enumerate(axs[0,:]):
@@ -86,7 +86,7 @@ def plot_E_field(solverFIT, solverFDTD, n):
     ax.set_title(f'FDTD Ez(x,y,Nz/2)')
 
     fig.suptitle(f'E field, timestep={n}')
-    fig.savefig('imgE/'+str(n).zfill(4)+'.png')
+    fig.savefig(f'{folder}E/'+str(n).zfill(4)+'.png')
     plt.clf()
     plt.close(fig)
 
@@ -122,7 +122,7 @@ def plot_H_field(solverFIT, solverFDTD, n):
     ax.set_title(f'FDTD Hz(x,y,Nz/2)')
 
     fig.suptitle(f'H field, timestep={n}')
-    fig.savefig('imgH/'+str(n).zfill(4)+'.png')
+    fig.savefig(f'{folder}H/'+str(n).zfill(4)+'.png')
     plt.clf()
     plt.close(fig)
 
@@ -150,7 +150,17 @@ ymax = Ly/2 + dx / 2
 zmin = - Lz/2 + dx / 2
 zmax = Lz/2 + dx / 2
 
-conductors = noConductor()
+#Embedded cube 
+lx = Lx*0.8
+ly = Ly*0.8
+lz = Lz*0.8
+x_cent = 0
+y_cent = 0
+z_cent = 0
+cube = InCube(lx, ly, lz, x_cent, y_cent, z_cent) #noConductor() 
+conductors = ConductorsAssembly([cube])
+#conductors = noConductor()
+
 NCFL = 1
 
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
@@ -163,32 +173,42 @@ solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 for ii in range(Nx):
     for jj in range(Ny):
         for kk in range(Nz):
-            x = (ii + 0.5) * dx + xmin
-            y = (jj + 0.5) * dy + ymin
-            z = kk * dz + zmin
-            solverFDTD.Hz[ii, jj, kk] = analytic_sol_Hz(x, y, z, -0.5 * solverFDTD.dt)
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, -0.5 * solverFDTD.dt)
 
-            x = (ii + 0.5) * dx + xmin
-            y = jj * dy + ymin
-            z = (kk + 0.5) * dz + zmin
-            solverFDTD.Hy[ii, jj, kk] = analytic_sol_Hy(x, y, z, -0.5 * solverFDTD.dt)
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solverFIT.dt)
+            if gridFDTD.flag_int_cell_xy[ii, jj, kk]:
+                x = (ii + 0.5) * dx + xmin
+                y = (jj + 0.5) * dy + ymin
+                z = kk * dz + zmin
+                solverFDTD.Hz[ii, jj, kk] = analytic_sol_Hz(x, y, z, -0.5 * solverFDTD.dt)
 
-            x = ii*dx + xmin
-            y = (jj + 0.5)*dy + ymin
-            z = (kk + 0.5)*dz + zmin
-            solverFDTD.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, -0.5 * solverFDTD.dt)
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solverFIT.dt)
+            if solverFIT.A[ii, jj, kk, 'z']:
+                x = ii * dx + xmin
+                y = jj * dy + ymin
+                z = kk * dz + zmin
+                solverFIT.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, -0.5 * solverFDTD.dt)
+
+            if gridFDTD.flag_int_cell_zx[ii, jj, kk]:
+                x = (ii + 0.5) * dx + xmin
+                y = jj * dy + ymin
+                z = (kk + 0.5) * dz + zmin
+                solverFDTD.Hy[ii, jj, kk] = analytic_sol_Hy(x, y, z, -0.5 * solverFDTD.dt)
+
+            if solverFIT.A[ii, jj, kk, 'y']:
+                x = ii * dx + xmin
+                y = jj * dy + ymin
+                z = kk * dz + zmin
+                solverFIT.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solverFIT.dt)
+
+            if gridFDTD.flag_int_cell_yz[ii, jj, kk]:
+                x = ii*dx + xmin
+                y = (jj + 0.5)*dy + ymin
+                z = (kk + 0.5)*dz + zmin
+                solverFDTD.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, -0.5 * solverFDTD.dt)
+
+            if solverFIT.A[ii, jj, kk, 'x']:
+                x = ii * dx + xmin
+                y = jj * dy + ymin
+                z = kk * dz + zmin
+                solverFIT.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solverFIT.dt)
 
 #----- Time loop -----#
 

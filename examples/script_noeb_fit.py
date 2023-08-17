@@ -13,7 +13,7 @@ sys.path.append('../')
 from solverFIT3D import SolverFIT3D
 from solver3D import EMSolver3D
 from grid3D import Grid3D
-from conductors3d import noConductor, InCube, ConductorsAssembly
+from conductors3d import noConductor
 from scipy.special import jv
 from field import Field 
 
@@ -39,15 +39,7 @@ ymax = Ly/2 + dx / 2
 zmin = - Lz/2 + dx / 2
 zmax = Lz/2 + dx / 2
 
-#Embedded cube 
-lx = Lx*0.4
-ly = Ly*0.4
-lz = Lz*0.4
-x_cent = 0
-y_cent = 0
-z_cent = 0
-cube = InCube(lx, ly, lz, x_cent, y_cent, z_cent) #noConductor() 
-conductors = ConductorsAssembly([cube])
+conductors = noConductor()
 
 # conductors = cube
 sol_type = 'FIT'
@@ -64,7 +56,7 @@ solverFDTD.Ez[int(Nx/2), int(Ny/2),  int(Nz/2)] = 1.0*c_light
 
 Nt = 50
 x, y, z = slice(0,Nx), slice(0,Ny), int(Nz//2)
-title = '(x,y,Nz/3)'
+title = '(x,y,Nz/2)'
 
 def plot_E_field(solverFIT, solverFDTD, n):
 
