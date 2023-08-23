@@ -9,7 +9,7 @@ class Field:
     n = 1 + (i-1) + (j-1)*Nx + (k-1)*Nx*Ny
     len(n) = Nx*Ny*Nz
     '''
-    def __init__(self, Nx, Ny, Nz, dtype=float):
+    def __init__(self, Nx, Ny, Nz, dtype=float, use_ones=False):
 
         self.Nx = Nx
         self.Ny = Ny
@@ -17,9 +17,15 @@ class Field:
         self.N = Nx*Ny*Nz
         self.dtype = dtype
 
-        self.field_x = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
-        self.field_y = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
-        self.field_z = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
+        if use_ones:
+            self.field_x = np.ones((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_y = np.ones((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_z = np.ones((Nx, Ny, Nz), dtype=self.dtype)
+
+        else:
+            self.field_x = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_y = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_z = np.zeros((Nx, Ny, Nz), dtype=self.dtype)
 
     def __getitem__(self, key):
 
@@ -100,9 +106,9 @@ class Field:
 
     def toarray(self):
         return np.concatenate((
-                np.reshape(self.field_x, self.N),
-                np.reshape(self.field_y, self.N),
-                np.reshape(self.field_z, self.N)
+                np.reshape(self.field_x, self.N, order='F'),
+                np.reshape(self.field_y, self.N, order='F'),
+                np.reshape(self.field_z, self.N, order='F')
             ))
 
     def fromarray(self, arr):
@@ -110,9 +116,9 @@ class Field:
             raise ValueError('Can only assign 1d array to a Field')
         if len(arr) != 3*self.N:
             raise ValueError('Can only assign to a field an array of size 3*Nx*Ny*Nz')
-        self.field_x = np.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz))
-        self.field_y = np.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz))
-        self.field_z = np.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz))
+        self.field_x = np.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        self.field_y = np.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        self.field_z = np.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
 
     def compute_ijk(self, n):
         if n > (self.N):

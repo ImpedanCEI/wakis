@@ -157,14 +157,15 @@ lz = Lz*0.8
 x_cent = 0
 y_cent = 0
 z_cent = 0
+
 cube = InCube(lx, ly, lz, x_cent, y_cent, z_cent) #noConductor() 
 conductors = ConductorsAssembly([cube])
 #conductors = noConductor()
 
-NCFL = 1
-
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
-solverFIT = SolverFIT3D(gridFIT, 'FIT', NCFL)
+tgridFIT = Grid3D(xmin + dx/2, xmax + dx/2, ymin + dy/2, ymax + dy/2, zmin + dz/2, zmax + dz/2, Nx, Ny, Nz, conductors, 'FIT')
+#solverFIT = SolverFIT3D(gridFIT, 'FIT', NCFL)
+solverFIT = SolverFIT3D(gridFIT, tgridFIT)
 
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
