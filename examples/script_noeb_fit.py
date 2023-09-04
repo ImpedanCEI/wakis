@@ -43,21 +43,33 @@ conductors = noConductor()
 
 NCFL = 1
 
+# set FIT solver
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
 tgridFIT = Grid3D(xmin + dx/2, xmax + dx/2, ymin + dy/2, ymax + dy/2, zmin + dz/2, zmax + dz/2, Nx, Ny, Nz, conductors, 'FIT')
-#solverFIT = SolverFIT3D(gridFIT)
-solverFIT = SolverFIT3D(gridFIT, tgridFIT)
+solverFIT = SolverFIT3D(gridFIT)
+#solverFIT = SolverFIT3D(gridFIT, tgridFIT)
 
+# set FDTD solver
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
-solverFIT.E[int(Nx//2), int(1*Ny/4),  int(1*Nz/4), 'z'] = 1.0*c_light
-solverFDTD.Ez[int(Nx//2), int(1*Ny/4),  int(1*Nz/4)] = 1.0*c_light
+# set source
+xs, ys, zs = int(2*Nx/4), int(1*Ny/4),  int(Nz//2)
+solverFIT.E[xs, ys, zs, 'z'] = 1.0*c_light
+solverFDTD.Ez[xs, ys, zs] = 1.0*c_light
 
 Nt = 50
-#x, y, z = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
-x, y, z = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
-title = '(x,y,Nz/2)'
+plane = 'XY'
+
+if plane == 'XY':
+    x, y, z = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
+    title = '(x,y,Nz/2)'
+    xax, yax = 'y', 'x'
+
+if plane == 'YZ':
+    x, y, z = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
+    title = '(Nx/2,y,z)'
+    xax, yax = 'z', 'y'
 
 def plot_E_field(solverFIT, solverFDTD, n):
 
@@ -71,6 +83,8 @@ def plot_E_field(solverFIT, solverFDTD, n):
         im = ax.imshow(solverFIT.E[x, y, z, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
         ax.set_title(f'FIT E{dims[i]}{title}')
+        ax.set_xlabel(xax)
+        ax.set_ylabel(yax)
 
     #FDTD
     ax = axs[1,0]
@@ -79,6 +93,8 @@ def plot_E_field(solverFIT, solverFDTD, n):
     im = ax.imshow(solverFDTD.Ex[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Ex{title}')
+    ax.set_xlabel(xax)
+    ax.set_ylabel(yax)
 
     ax = axs[1,1]
     extent = (0, N, 0, N)
@@ -86,6 +102,8 @@ def plot_E_field(solverFIT, solverFDTD, n):
     im = ax.imshow(solverFDTD.Ey[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Ey{title}')
+    ax.set_xlabel(xax)
+    ax.set_ylabel(yax)
 
     ax = axs[1,2]
     extent = (0, N, 0, N)
@@ -93,6 +111,9 @@ def plot_E_field(solverFIT, solverFDTD, n):
     im = ax.imshow(solverFDTD.Ez[x, y, z], cmap='rainbow', vmin=vmin, vmax=vmax, extent=extent)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FDTD Ez{title}')
+    ax.set_xlabel(xax)
+    ax.set_ylabel(yax)
+
 
     fig.suptitle(f'E field, timestep={n}')
     fig.savefig('imgE/'+str(n).zfill(4)+'.png')

@@ -246,6 +246,22 @@ class SolverFIT3D:
         if self.bc_high[2] == 'Dirichlet' or self.bc_high[2] == 'pec':
             zhi = 0
 
+        # Magnetic [TODO] #For magnetic, Dbc in front of C C
+        '''
+        if self.bc_low[0] == 'Dirichlet' or self.bc_low[0] == 'pec':
+            xlo = 0
+        if self.bc_low[1] == 'Dirichlet' or self.bc_low[1] == 'pec':
+            ylo = 0    
+        if self.bc_low[2] == 'Dirichlet' or self.bc_low[2] == 'pec':
+            zlo = 0   
+        if self.bc_high[0] == 'Dirichlet' or self.bc_high[0] == 'pec':
+            xhi = 0
+        if self.bc_high[1] == 'Dirichlet' or self.bc_high[1] == 'pec':
+            yhi = 0
+        if self.bc_high[2] == 'Dirichlet' or self.bc_high[2] == 'pec':
+            zhi = 0
+        '''
+
         # Open; pml [TODO]
         '''
         if self.bc_low[0] == 'pml':
