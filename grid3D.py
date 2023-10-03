@@ -108,6 +108,8 @@ class Grid3D:
                             self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
                             self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
                             self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
+
+
             # info about intruded cells (i,j,[(i_borrowing,j_borrowing,area_borrowing, )])
             self.borrowing_xy = np.empty((nx, ny, nz + 1), dtype=object)
             self.borrowing_yz = np.empty((nx + 1, ny, nz), dtype=object)
@@ -135,7 +137,16 @@ class Grid3D:
                             self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
                             self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
             self.compute_extensions()
+        '''
+        elif sol_type is 'FIT':
 
+            # lengths
+            self.l_x = np.ones((nx, ny, nz))*self.dx
+            self.l_y = np.ones((nx, ny, nz))*self.dy
+            self.l_z = np.ones((nx, ny, nz))*self.dz
+
+            # Areas
+        '''
     """
   Function to compute the length of the edges of the conformal grid.
     Inputs:

@@ -18,7 +18,7 @@ from scipy.special import jv
 from field import Field 
 
 #----- TE Funtions -----#
-m = 1
+m = 0
 n = 1
 p = 1
 theta = 0 #np.pi/8
@@ -150,7 +150,7 @@ def plot_H_field(solverFIT, solverFDTD, n):
         #vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
         im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT H{dims[i]}(x,y,Nz/2)')
+        ax.set_title(f'FIT H{dims[i]}{title}')
         ax.set_xlabel(xax)
         ax.set_ylabel(yax)
 
@@ -159,7 +159,7 @@ def plot_H_field(solverFIT, solverFDTD, n):
     #vmin, vmax = -np.max(np.abs(solverFDTD.Hx[xx, yy, zz])), np.max(np.abs(solverFDTD.Hx[xx, yy, zz]))
     im = ax.imshow(solverFDTD.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hx(x,y,Nz/2)')
+    ax.set_title(f'FDTD Hx{title}')
     ax.set_xlabel(xax)
     ax.set_ylabel(yax)
 
@@ -167,7 +167,7 @@ def plot_H_field(solverFIT, solverFDTD, n):
     #vmin, vmax = -np.max(np.abs(solverFDTD.Hy[xx, yy, zz])), np.max(np.abs(solverFDTD.Hy[xx, yy, zz]))
     im = ax.imshow(solverFDTD.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hy(x,y,Nz/2)')
+    ax.set_title(f'FDTD Hy{title}')
     ax.set_xlabel(xax)
     ax.set_ylabel(yax)
 
@@ -175,7 +175,7 @@ def plot_H_field(solverFIT, solverFDTD, n):
     #vmin, vmax = -np.max(np.abs(solverFDTD.Hz[xx, yy, zz])), np.max(np.abs(solverFDTD.Hz[xx, yy, zz]))
     im = ax.imshow(solverFDTD.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hz(x,y,Nz/2)')
+    ax.set_title(f'FDTD Hz{title}')
     ax.set_xlabel(xax)
     ax.set_ylabel(yax)
 
@@ -270,11 +270,75 @@ for ii in range(Nx):
             analytic.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, (Nt-0.5) * analytic.dt)
 
 # Plot fields
+plane = 'XY'
 if plane == 'XY':
     xx, yy, zz = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
     title = '(x,y,Nz/2)'
     xax, yax = 'y', 'x'
 
+fig, axs = plt.subplots(3,3, tight_layout=True, figsize=[8,6])
+dims = {0:'x', 1:'y', 2:'z'}
+lims = {0: np.max(np.abs(analytic.Hx[xx, yy, zz])), 1: np.max(np.abs(analytic.Hy[xx, yy, zz])), 2: np.max(np.abs(analytic.Hz[xx, yy, zz]))}
+#FIT
+for i, ax in enumerate(axs[0,:]):
+    vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
+    im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=-lims[i], vmax=lims[i])
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FIT H{dims[i]}{title}')
+    
+
+#FDTD
+ax = axs[1,0]
+vmin, vmax = -lims[0], lims[0]
+im = ax.imshow(solverFDTD.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'FDTD Hx{title}')
+
+ax = axs[1,1]
+vmin, vmax = -lims[1], lims[1]
+im = ax.imshow(solverFDTD.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'FDTD Hy{title}')
+
+ax = axs[1,2]
+vmin, vmax = -lims[2], lims[2]
+im = ax.imshow(solverFDTD.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'FDTD Hz{title}')
+ax.set_xlabel(xax)
+ax.set_ylabel(yax)
+
+#Analytic
+ax = axs[2,0]
+vmin, vmax = -np.max(np.abs(analytic.Hx[xx, yy, zz])), np.max(np.abs(analytic.Hx[xx, yy, zz]))
+im = ax.imshow(analytic.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'Analytic Hx{title}')
+ax.set_xlabel(xax)
+ax.set_ylabel(yax)
+
+ax = axs[2,1]
+vmin, vmax = -np.max(np.abs(analytic.Hy[xx, yy, zz])), np.max(np.abs(analytic.Hy[xx, yy, zz]))
+im = ax.imshow(analytic.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'Analytic Hy{title}')
+ax.set_xlabel(xax)
+ax.set_ylabel(yax)
+
+ax = axs[2,2]
+vmin, vmax = -np.max(np.abs(analytic.Hz[xx, yy, zz])), np.max(np.abs(analytic.Hz[xx, yy, zz]))
+im = ax.imshow(analytic.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+ax.set_title(f'Analytic Hz{title}')
+ax.set_xlabel(xax)
+ax.set_ylabel(yax)
+
+fig.suptitle(f'H field, timestep={Nt}')
+fig.savefig(f'imgResH/analytic{plane}.png')
+plt.clf()
+plt.close(fig)
+
+plane = 'YZ'
 if plane == 'YZ':
     xx, yy, zz = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
     title = '(Nx/2,y,z)'
@@ -288,26 +352,26 @@ for i, ax in enumerate(axs[0,:]):
     vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
     im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=-lims[i], vmax=lims[i])
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FIT H{dims[i]}(x,y,Nz/2)')
+    ax.set_title(f'FIT H{dims[i]}{title}')
 
 #FDTD
 ax = axs[1,0]
 vmin, vmax = -lims[0], lims[0]
 im = ax.imshow(solverFDTD.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'FDTD Hx(x,y,Nz/2)')
+ax.set_title(f'FDTD Hx{title}')
 
 ax = axs[1,1]
 vmin, vmax = -lims[1], lims[1]
 im = ax.imshow(solverFDTD.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'FDTD Hy(x,y,Nz/2)')
+ax.set_title(f'FDTD Hy{title}')
 
 ax = axs[1,2]
 vmin, vmax = -lims[2], lims[2]
 im = ax.imshow(solverFDTD.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'FDTD Hz(x,y,Nz/2)')
+ax.set_title(f'FDTD Hz{title}')
 ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
@@ -316,7 +380,7 @@ ax = axs[2,0]
 vmin, vmax = -np.max(np.abs(analytic.Hx[xx, yy, zz])), np.max(np.abs(analytic.Hx[xx, yy, zz]))
 im = ax.imshow(analytic.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'Analytic Hx(x,y,Nz/2)')
+ax.set_title(f'Analytic Hx{title}')
 ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
@@ -324,7 +388,7 @@ ax = axs[2,1]
 vmin, vmax = -np.max(np.abs(analytic.Hy[xx, yy, zz])), np.max(np.abs(analytic.Hy[xx, yy, zz]))
 im = ax.imshow(analytic.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'Analytic Hy(x,y,Nz/2)')
+ax.set_title(f'Analytic Hy{title}')
 ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
@@ -332,11 +396,11 @@ ax = axs[2,2]
 vmin, vmax = -np.max(np.abs(analytic.Hz[xx, yy, zz])), np.max(np.abs(analytic.Hz[xx, yy, zz]))
 im = ax.imshow(analytic.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-ax.set_title(f'Analytic Hz(x,y,Nz/2)')
+ax.set_title(f'Analytic Hz{title}')
 ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
 fig.suptitle(f'H field, timestep={Nt}')
-fig.savefig('imgResH/analytic.png')
+fig.savefig(f'imgResH/analytic{plane}.png')
 plt.clf()
 plt.close(fig)
