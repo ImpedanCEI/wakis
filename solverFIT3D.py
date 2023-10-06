@@ -35,33 +35,22 @@ class SolverFIT3D:
         else: 
             self.tgrid = tgrid
 
+        self.L = self.grid.L
+        self.iA = self.grid.iA
+        self.tL = self.grid.tL
+        self.itA = self.grid.itA
+
+        # Lengths and Areas using grid flags
+        '''
         self.L = Field(self.Nx, self.Ny, self.Nz)
         self.tL = Field(self.Nx, self.Ny, self.Nz)
         #self.A = Field(self.Nx, self.Ny, self.Nz)
         self.iA = Field(self.Nx, self.Ny, self.Nz)
         self.itA = Field(self.Nx, self.Ny, self.Nz)
 
-        # Lengths and Areas
-        '''
-        self.L.field_x = self.grid.l_x[:,:-1, :-1]
-        self.L.field_y = self.grid.l_y[:-1,:, :-1]
-        self.L.field_z = self.grid.l_z[:-1,:-1, :]
-
-        self.L.field_x = self.grid.l_x[:,:-1, :-1]
-        self.L.field_y = self.grid.l_y[:-1,:, :-1]
-        self.L.field_z = self.grid.l_z[:-1,:-1, :]
-        '''
-
-        
         self.L.field_x = self.grid.flag_int_cell_yz[:-1,:, :]*self.dx
         self.L.field_y = self.grid.flag_int_cell_zx[:,:-1, :]*self.dy
         self.L.field_z = self.grid.flag_int_cell_xy[:,:, :-1]*self.dz
-
-        '''
-        self.A.field_x = self.grid.flag_int_cell_yz[:-1,:, :]*self.dy*self.dz
-        self.A.field_y = self.grid.flag_int_cell_zx[:,:-1, :]*self.dz*self.dx
-        self.A.field_z = self.grid.flag_int_cell_xy[:,:, :-1]*self.dx*self.dy
-        '''
 
         self.iA.field_x = self.grid.flag_int_cell_yz[:-1,:, :]/self.dy/self.dz
         self.iA.field_y = self.grid.flag_int_cell_zx[:,:-1, :]/self.dz/self.dx
@@ -74,24 +63,6 @@ class SolverFIT3D:
         self.tL.field_x = self.tgrid.flag_int_cell_yz[:-1,:, :]*self.dx
         self.tL.field_y = self.tgrid.flag_int_cell_zx[:,:-1, :]*self.dy
         self.tL.field_z = self.tgrid.flag_int_cell_xy[:,:, :-1]*self.dz
-
-        '''
-        self.L.field_x = self.grid.flag_int_cell_yz[1:,:, :]*self.dx
-        self.L.field_y = self.grid.flag_int_cell_zx[:,1:, :]*self.dy
-        self.L.field_z = self.grid.flag_int_cell_xy[:,:, 1:]*self.dz
-
-        self.A.field_x = self.grid.flag_int_cell_yz[1:,:, :]*self.dy*self.dz
-        self.A.field_y = self.grid.flag_int_cell_zx[:,1:, :]*self.dz*self.dx
-        self.A.field_z = self.grid.flag_int_cell_xy[:,:, 1:]*self.dx*self.dy
-
-        self.iA.field_x = self.grid.flag_int_cell_yz[1:,:, :]/self.dy/self.dz
-        self.iA.field_y = self.grid.flag_int_cell_zx[:,1:, :]/self.dz/self.dx
-        self.iA.field_z = self.grid.flag_int_cell_xy[:,:, 1:]/self.dx/self.dy
-        
-        
-        self.itA.field_x = self.grid.Syz[1:,:, :].astype(int)/self.dy/self.dz
-        self.itA.field_y = self.grid.Szx[:,1:, :].astype(int)/self.dz/self.dx
-        self.itA.field_z = self.grid.Sxy[:,:, 1:].astype(int)/self.dx/self.dy
         '''
 
         # Fields
@@ -110,6 +81,8 @@ class SolverFIT3D:
         self.Pz = diags([-1, 1], [0, Nx*Ny], shape=(N, N), dtype=np.int8)
 
         '''
+        # Construct diagonal matrices from grid data [OLD]
+
         self.Ds = block_diag((
                              diags([self.dx], shape=(N, N), dtype=float),
                              diags([self.dy], shape=(N, N), dtype=float),
@@ -139,28 +112,11 @@ class SolverFIT3D:
 
         self.itDs = self.iDs
         self.itDa = self.iDa
-
         '''
+
         # original grid
         self.Ds = diags(self.L.toarray(), shape=(3*N, 3*N), dtype=float)
         self.iDa = diags(self.iA.toarray(), shape=(3*N, 3*N), dtype=float)
-
-        '''
-        self.Da = diags(self.A.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDs = diags(
-                        np.divide(1, self.L.toarray(), 
-                                  out=np.zeros_like(self.L.toarray()), 
-                                  where=self.L.toarray()!=0 ), 
-                        shape=(3*N, 3*N), dtype=float
-                        )
-
-        self.iDa = diags(
-                        np.divide(1, self.A.toarray(), 
-                                  out=np.zeros_like(self.A.toarray()),  also 
-                                  where=self.A.toarray()!=0 ), 
-                        shape=(3*N, 3*N), dtype=float
-                        )
-        '''
 
         # tilde grid
         self.tDs = diags(self.tL.toarray(), shape=(3*N, 3*N), dtype=float)

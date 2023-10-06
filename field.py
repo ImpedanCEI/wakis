@@ -140,14 +140,18 @@ class Field:
             key=[slice(0,self.Nx), slice(0,self.Ny), int(self.Nz//2)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Ny)
+            xax, yax = 'ny', 'nx'
+
         elif plane == 'XZ':
             key=[slice(0,self.Nx), int(self.Ny//2), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Nz)
+            xax, yax = 'nz', 'nx'
         elif plane == 'YZ':
             key=[int(self.Nx//2), slice(0,self.Ny), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Ny, 0, self.Nz)
+            xax, yax = 'nz', 'ny'
 
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6])
         dims = {0:'x', 1:'y', 2:'z'}
@@ -161,6 +165,104 @@ class Field:
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
             fig.colorbar(im[i], cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+            ax.set_xlabel(xax)
+            ax.set_ylabel(yax)
+
+        plt.show()
+
+    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr'):
+        """
+        Voxel representation of a 3D array with matplotlib
+        """
+        import matplotlib.pyplot as plt
+        import matplotlib as mpl
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        fig = plt.figure(tight_layout=True, dpi=200, figsize=[12,6])
+
+        plot_x, plot_y, plot_z = False, False, False
+
+        if field == 'all':
+            plot_x = True
+            plot_y = True
+            plot_z = True
+
+        elif field == 'x': plot_x = True
+        elif field == 'y': plot_y = True
+        elif field == 'z': plot_z = True
+
+        if xmax is None: xmax = self.Nx
+        if ymax is None: ymax = self.Ny
+        if zmax is None: zmax = self.Nz
+
+        x,y,z = np.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
+        axs = []
+
+        # field x
+        if plot_x:
+            arr = self.field_x[0:xmax,0:ymax,0:zmax]
+            if field == 'all':
+                ax = fig.add_subplot(1, 3, 1, projection='3d')
+            else:
+                ax = fig.add_subplot(1, 1, 1, projection='3d')
+            
+            vmin, vmax = -np.max(np.abs(arr)), +np.max(np.abs(arr))
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            colors = mpl.colormaps[cmap](norm(arr))
+            vox = ax.voxels(x, y, z, filled=np.ones_like(arr), facecolors=colors)
+            
+            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+            m.set_array([])
+            fig.colorbar(m, shrink=0.5, aspect=10)
+            ax.set_title(f'Field x')
+            axs.append(ax)
+
+        # field y
+        if plot_y:
+            arr = self.field_y[0:xmax,0:ymax,0:zmax]
+            if field == 'all':
+                ax = fig.add_subplot(1, 3, 2, projection='3d')
+            else:
+                ax = fig.add_subplot(1, 1, 1, projection='3d')
+            
+            vmin, vmax = -np.max(np.abs(arr)), +np.max(np.abs(arr))
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            colors = mpl.colormaps[cmap](norm(arr))
+            vox = ax.voxels(x, y, z, filled=np.ones_like(arr), facecolors=colors)
+            
+            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+            m.set_array([])
+            fig.colorbar(m, shrink=0.5, aspect=10)
+            ax.set_title(f'Field y')
+            axs.append(ax)
+
+        # field z
+        if plot_z:
+            arr = self.field_z[0:xmax,0:ymax,0:zmax]
+            if field == 'all':
+                ax = fig.add_subplot(1, 3, 3, projection='3d')
+            else:
+                ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+            vmin, vmax = -np.max(np.abs(arr)), +np.max(np.abs(arr))
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            colors = mpl.colormaps[cmap](norm(arr))
+            vox = ax.voxels(x, y, z, filled=np.ones_like(arr), facecolors=colors)
+            
+            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+            m.set_array([])
+            fig.colorbar(m, shrink=0.5, aspect=10)
+            ax.set_title(f'Field z')
+            axs.append(ax)
+
+        dims = {0:'x', 1:'y', 2:'z'}
+        for i, ax in enumerate(axs):
+            ax.set_xlabel('nx')
+            ax.set_ylabel('ny')
+            ax.set_zlabel('nz')
+            ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
 
         plt.show()
 

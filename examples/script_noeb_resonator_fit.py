@@ -18,9 +18,9 @@ from scipy.special import jv
 from field import Field 
 
 #----- TE Funtions -----#
-m = 0
+m = 1
 n = 1
-p = 1
+p = 0
 theta = 0 #np.pi/8
 
 # Analytic solution of cubic resonator
@@ -57,7 +57,7 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 50 # Number of mesh cells
+N = 30 # Number of mesh cells
 
 Nx = N
 Ny = N
@@ -285,7 +285,7 @@ for i, ax in enumerate(axs[0,:]):
     im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=-lims[i], vmax=lims[i])
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FIT H{dims[i]}{title}')
-    
+
 
 #FDTD
 ax = axs[1,0]
@@ -334,7 +334,7 @@ ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
 fig.suptitle(f'H field, timestep={Nt}')
-fig.savefig(f'imgResH/analytic{plane}.png')
+fig.savefig(f'imgResH/analytic{plane}_TE{m}{n}{p}.png')
 plt.clf()
 plt.close(fig)
 
@@ -401,6 +401,6 @@ ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
 fig.suptitle(f'H field, timestep={Nt}')
-fig.savefig(f'imgResH/analytic{plane}.png')
+fig.savefig(f'imgResH/analytic{plane}_TE{m}{n}{p}.png')
 plt.clf()
 plt.close(fig)

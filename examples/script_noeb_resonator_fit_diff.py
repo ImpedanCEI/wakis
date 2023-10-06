@@ -18,7 +18,7 @@ from scipy.special import jv
 from field import Field 
 
 #----- TE Funtions -----#
-m = 0
+m = 1
 n = 1
 p = 1
 theta = 0 #np.pi/8
@@ -57,7 +57,7 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 30 # Number of mesh cells
+N = 60 # Number of mesh cells
 
 Nx = N
 Ny = N
@@ -69,12 +69,12 @@ dx = L / Nx
 dy = L / Ny
 dz = L / Nz
 
-xmin = -Lx/2 + dx / 2
-xmax = Lx/2 + dx / 2
-ymin = - Ly/2 + dy / 2
-ymax = Ly/2 + dy / 2
-zmin = - Lz/2 + dz / 2
-zmax = Lz/2 + dz / 2
+xmin = -Lx/2 #+ dx / 2
+xmax = Lx/2 #+ dx / 2
+ymin = - Ly/2 #+ dy / 2
+ymax = Ly/2 #+ dy / 2
+zmin = - Lz/2 #+ dz / 2
+zmax = Lz/2 #+ dz / 2
 
 # ---- Solver definitions ---------#
 
@@ -95,20 +95,20 @@ for ii in range(Nx):
     for jj in range(Ny):
         for kk in range(Nz):
 
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, -0.5 * solverFIT.dt)
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            solverFIT.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, (-0.5) * solverFIT.dt)
 
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solverFIT.dt)
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            solverFIT.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, (-0.5) * solverFIT.dt)
 
-            x = ii * dx + xmin
-            y = jj * dy + ymin
-            z = kk * dz + zmin
-            solverFIT.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solverFIT.dt)
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            solverFIT.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, (-0.5) * solverFIT.dt)
 
 #----- Time loop -----#
 
@@ -118,7 +118,60 @@ for nt in tqdm(range(Nt)):
 
 #----- Compare -----#
 
-analytic = EMSolver3D(gridFIT, 'FDTD', NCFL)
+''' # Equivalent to using FDTD
+analyticHx = np.zeros((Nx, Ny, Nz))
+analyticHy = np.zeros((Nx, Ny, Nz))
+analyticHz = np.zeros((Nx, Ny, Nz))
+
+for ii in range(Nx):
+    for jj in range(Ny):
+        for kk in range(Nz):
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticHz[ii, jj, kk] = analytic_sol_Hz(x, y, z, (Nt-0.5) * solverFIT.dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticHy[ii, jj, kk] = analytic_sol_Hy(x, y, z, (Nt-0.5) * solverFIT.dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticHx[ii, jj, kk] = analytic_sol_Hx(x, y, z, (Nt-0.5) * solverFIT.dt)
+'''
+
+ # Equivalent to using FDTD
+analyticH = Field(Nx, Ny, Nz)
+
+analyticH.field_x = np.zeros((Nx, Ny, Nz))
+analyticH.field_y = np.zeros((Nx, Ny, Nz))
+analyticH.field_z = np.zeros((Nx, Ny, Nz))
+
+for ii in range(Nx):
+    for jj in range(Ny):
+        for kk in range(Nz):
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, (Nt-0.5) * solverFIT.dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, (Nt-0.5) * solverFIT.dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, (Nt-0.5) * solverFIT.dt)
+
+'''
+gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
+analytic = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
 for ii in range(Nx):
     for jj in range(Ny):
@@ -138,11 +191,12 @@ for ii in range(Nx):
             y = (jj + 0.5)*dy + ymin
             z = (kk + 0.5)*dz + zmin
             analytic.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, (Nt-0.5) * analytic.dt)
+'''
 
 # Plot fields
 planes = ['XY', 'YZ', 'XZ']
 
-fig, axs = plt.subplots(3,3, tight_layout=True, figsize=[8,6])
+fig, axs = plt.subplots(3,3, dpi=200, figsize=[8,6])
 dims = {0:'x', 1:'y', 2:'z'}
 
 
@@ -151,32 +205,31 @@ for j, plane in enumerate(planes):
         xx, yy, zz = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
         title = '(Nx/2,y,z)'
         xax, yax = 'z', 'y'
+        extent = (0, Nz, 0, Ny)
 
     if plane == 'XY':
         xx, yy, zz = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
         title = '(x,y,Nz/2)'
         xax, yax = 'y', 'x'
+        extent = (0, Ny, 0, Nx)
 
     if plane == 'XZ':
         xx, yy, zz = slice(0,Nx), int(Ny//2), slice(0,Nz)  #plane ZX
-        title = '(x,Nz/2,z)'
+        title = '(x,Ny/2,z)'
         xax, yax = 'z', 'x'
-
-    field_an = {0: analytic.Hx[xx, yy, zz],
-              1: analytic.Hy[xx, yy, zz], 
-              2: analytic.Hz[xx, yy, zz]
-              }
+        extent = (0, Nz, 0, Nx)
 
     for i, ax in enumerate(axs[j,:]):
 
-        field2plot = (solverFIT.H[xx, yy, zz, dims[i]] - field_an[i])/np.max(np.abs(field_an[i]))
+        field2plot = (solverFIT.H[xx, yy, zz, dims[i]] - analyticH[xx, yy, zz, dims[i]])/np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
 
-        im = ax.imshow(field2plot, cmap='bwr', vmin=-1., vmax=1.)
+        im = ax.imshow(field2plot, cmap='bwr', vmin=-1., vmax=1., extent=extent)
         fig.colorbar(im, label=r'$\varepsilon_{rel}$', cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
         ax.set_title(f'FIT H{dims[i]}{title}')
         ax.set_xlabel(xax)
         ax.set_ylabel(yax)
 
+fig.tight_layout(pad=0.05, rect=[0, 0, 1, 0.92])
 fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig(f'imgResH/diff_TE{m}{n}{p}.png')
 plt.show()

@@ -2,6 +2,7 @@ import numpy as np
 from grid2D import Grid2D
 from grid2D import compute_areas as compute_areas_2D, mark_cells as mark_cells_2D
 from numba import jit
+from field import Field
 
 def seg_length(x_1, y_1, z_1, x_2, y_2, z_2):
     return np.linalg.norm(np.array([x_1 - x_2, y_1 - y_2, z_1 - z_2]))
@@ -90,7 +91,7 @@ class Grid3D:
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         self.compute_edges()
-        if sol_type is 'DM' or sol_type is 'FDTD' or sol_type is 'FIT':
+        if sol_type is 'DM' or sol_type is 'FDTD': #or sol_type is 'FIT':
             self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
                                self.Sxy_red, self.Syz_red, self.Szx_red,
                                self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
@@ -137,16 +138,51 @@ class Grid3D:
                             self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
                             self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
             self.compute_extensions()
-        '''
+        
+        
         elif sol_type is 'FIT':
 
-            # lengths
-            self.l_x = np.ones((nx, ny, nz))*self.dx
-            self.l_y = np.ones((nx, ny, nz))*self.dy
-            self.l_z = np.ones((nx, ny, nz))*self.dz
+            # primal Grid G
+            self.x = np.linspace(self.xmin, self.xmax, self.nx+1)
+            self.y = np.linspace(self.ymin, self.ymax, self.ny+1)
+            self.z = np.linspace(self.zmin, self.zmax, self.nz+1)
 
-            # Areas
-        '''
+            Y, X, Z = np.meshgrid(self.y, self.x, self.z)
+
+            self.L = Field(self.nx, self.ny, self.nz)
+            self.L.field_x = X[1:, 1:, 1:] - X[:-1, :-1, :-1]
+            self.L.field_y = Y[1:, 1:, 1:] - Y[:-1, :-1, :-1]
+            self.L.field_z = Z[1:, 1:, 1:] - Z[:-1, :-1, :-1]
+
+            self.iA = Field(self.nx, self.ny, self.nz)
+            self.iA.field_x = np.divide(1.0, self.L.field_y * self.L.field_z)
+            self.iA.field_y = np.divide(1.0, self.L.field_x * self.L.field_z)
+            self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
+
+            # tilde grid ~G
+            self.tx = (self.x[1:]+self.x[:-1])/2 
+            self.ty = (self.y[1:]+self.y[:-1])/2
+            self.tz = (self.z[1:]+self.z[:-1])/2
+
+            self.tx = np.append(self.tx, 0.)
+            self.ty = np.append(self.ty, 0.)
+            self.tz = np.append(self.tz, 0.)
+
+            tY, tX, tZ = np.meshgrid(self.ty, self.tx, self.tz)
+
+            self.tL = Field(self.nx, self.ny, self.nz)
+            self.tL.field_x = tX[1:, 1:, 1:] - tX[:-1, :-1, :-1]
+            self.tL.field_y = tY[1:, 1:, 1:] - tY[:-1, :-1, :-1]
+            self.tL.field_z = tZ[1:, 1:, 1:] - tZ[:-1, :-1, :-1]
+
+            self.itA = Field(self.nx, self.ny, self.nz)
+            aux = self.tL.field_y * self.tL.field_z
+            self.itA.field_x = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
+            aux = self.tL.field_x * self.tL.field_z
+            self.itA.field_y = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
+            aux = self.tL.field_x * self.tL.field_y
+            self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
+            del aux
     """
   Function to compute the length of the edges of the conformal grid.
     Inputs:
