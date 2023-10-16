@@ -1,5 +1,4 @@
 import pyvista as pv
-from pyvista import examples
 import numpy as np
 from scipy.constants import c as c_light
 import sys
