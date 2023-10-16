@@ -158,8 +158,8 @@ class SolverFIT3D:
         self.apply_bc()
 
         # Pre-computing
-        self.iMuiDaCDs = self.iMmu * self.iDa * self.C * self.Ds
-        self.iMepsitDaCttDs = self.iMeps * self.itDa * self.C.transpose() * self.tDs
+        self.iMuiDaCDs = self.iDa * self.iMmu  * self.C * self.Ds
+        self.iMepsitDaCttDs = self.itDa * self.iMeps * self.C.transpose() * self.tDs 
 
     def one_step(self):
 
@@ -174,7 +174,7 @@ class SolverFIT3D:
 
     def apply_bc(self):
 
-        # Perodic: by default enforeced
+        # Perodic: by default enforced
         '''
         if self.bc_low[0].lower() == 'periodic':
             xlo = 1
@@ -219,13 +219,13 @@ class SolverFIT3D:
                 self.BC[:, :, -1, d] = zhi
             '''
             for d in ['x', 'y', 'z']: #tangential to zero
-                if d is not 'x':
+                if d != 'x':
                     self.BC[0, :, :, d] = xlo
                     self.BC[-1, :, :, d] = xhi
-                if d is not 'y':
+                if d != 'y':
                     self.BC[:, 0, :, d] = ylo
                     self.BC[:, -1, :, d] = yhi
-                if d is not 'z':
+                if d != 'z':
                     self.BC[:, :, 0, d] = zlo
                     self.BC[:, :, -1, d] = zhi
             
@@ -235,7 +235,7 @@ class SolverFIT3D:
                             )
 
             # Update iMeps
-            self.iMeps = self.Dbc*self.iMeps*self.Dbc
+            self.iMmu = self.Dbc*self.iMmu*self.Dbc
 
 
         # Dirichlet PMC: tangential H field = 0 at boundary
@@ -266,13 +266,13 @@ class SolverFIT3D:
                 self.BC[:, :, -1, d] = zhi
             '''
             for d in ['x', 'y', 'z']: #tangential to zero
-                if d is not 'x':
+                if d != 'x':
                     self.BC[0, :, :, d] = xlo
                     self.BC[-1, :, :, d] = xhi
-                if d is not 'y':
+                if d != 'y':
                     self.BC[:, 0, :, d] = ylo
                     self.BC[:, -1, :, d] = yhi
-                if d is not 'z':
+                if d != 'z':
                     self.BC[:, :, 0, d] = zlo
                     self.BC[:, :, -1, d] = zhi
             

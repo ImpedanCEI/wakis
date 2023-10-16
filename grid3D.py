@@ -160,13 +160,16 @@ class Grid3D:
             self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
 
             # tilde grid ~G
+            #self.itA = self.iA
+            #self.tL = self.L
+
             self.tx = (self.x[1:]+self.x[:-1])/2 
             self.ty = (self.y[1:]+self.y[:-1])/2
             self.tz = (self.z[1:]+self.z[:-1])/2
 
-            self.tx = np.append(self.tx, 0.)
-            self.ty = np.append(self.ty, 0.)
-            self.tz = np.append(self.tz, 0.)
+            self.tx = np.append(self.tx, self.tx[-1])
+            self.ty = np.append(self.ty, self.ty[-1])
+            self.tz = np.append(self.tz, self.tz[-1])
 
             tY, tX, tZ = np.meshgrid(self.ty, self.tx, self.tz)
 
@@ -183,6 +186,7 @@ class Grid3D:
             aux = self.tL.field_x * self.tL.field_y
             self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
             del aux
+            
     """
   Function to compute the length of the edges of the conformal grid.
     Inputs:

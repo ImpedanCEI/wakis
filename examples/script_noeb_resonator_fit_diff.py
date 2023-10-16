@@ -57,11 +57,11 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 60 # Number of mesh cells
+N = 4 # Number of mesh cells
 
-Nx = N
-Ny = N
-Nz = N
+Nx = 5
+Ny = 8
+Nz = 10
 Lx = L
 Ly = L
 Lz = L
@@ -112,7 +112,7 @@ for ii in range(Nx):
 
 #----- Time loop -----#
 
-Nt = 50
+Nt = 10
 for nt in tqdm(range(Nt)):
     solverFIT.one_step()
 
@@ -145,10 +145,6 @@ for ii in range(Nx):
 
  # Equivalent to using FDTD
 analyticH = Field(Nx, Ny, Nz)
-
-analyticH.field_x = np.zeros((Nx, Ny, Nz))
-analyticH.field_y = np.zeros((Nx, Ny, Nz))
-analyticH.field_z = np.zeros((Nx, Ny, Nz))
 
 for ii in range(Nx):
     for jj in range(Ny):
@@ -196,7 +192,7 @@ for ii in range(Nx):
 # Plot fields
 planes = ['XY', 'YZ', 'XZ']
 
-fig, axs = plt.subplots(3,3, dpi=200, figsize=[8,6])
+fig, axs = plt.subplots(3,3, dpi=100, figsize=[8,6])
 dims = {0:'x', 1:'y', 2:'z'}
 
 
@@ -233,3 +229,20 @@ fig.tight_layout(pad=0.05, rect=[0, 0, 1, 0.92])
 fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig(f'imgResH/diff_TE{m}{n}{p}.png')
 plt.show()
+
+solverFIT.H.inspect3D(cmap='rainbow')
+analyticH.inspect3D(cmap='rainbow')
+
+'''
+plt.imshow((solverFIT.iMmu*solverFIT.C).toarray(), cmap='bwr')
+plt.title('iMmu * C matrix')
+plt.show()
+
+plt.imshow((solverFIT.iMmu).toarray(), cmap='bwr')
+plt.title('iMmu')
+plt.show()
+
+plt.imshow((solverFIT.C*solverFIT.iMmu).toarray(), cmap='bwr')
+plt.title('C * iMmu matrix')
+plt.show()
+'''

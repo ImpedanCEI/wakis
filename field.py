@@ -130,7 +130,7 @@ class Field:
 
         return i, j, k
 
-    def inspect(self, plane='XY', cmap='bwr', x=None, y=None, z=None):
+    def inspect(self, plane='XY', cmap='bwr', dpi=100, x=None, y=None, z=None):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -153,7 +153,7 @@ class Field:
             extent = (0, self.Ny, 0, self.Nz)
             xax, yax = 'nz', 'ny'
 
-        fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6])
+        fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6], dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
 
         im = np.zeros_like(axs)
@@ -164,13 +164,13 @@ class Field:
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
-            fig.colorbar(im[i], cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+            fig.colorbar(im[i], cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.1))
             ax.set_xlabel(xax)
             ax.set_ylabel(yax)
 
         plt.show()
 
-    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr'):
+    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr', dpi=100):
         """
         Voxel representation of a 3D array with matplotlib
         """
@@ -178,7 +178,7 @@ class Field:
         import matplotlib as mpl
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        fig = plt.figure(tight_layout=True, dpi=200, figsize=[12,6])
+        fig = plt.figure(tight_layout=True, dpi=dpi, figsize=[12,6])
 
         plot_x, plot_y, plot_z = False, False, False
 
@@ -187,9 +187,9 @@ class Field:
             plot_y = True
             plot_z = True
 
-        elif field == 'x': plot_x = True
-        elif field == 'y': plot_y = True
-        elif field == 'z': plot_z = True
+        elif field.lower() == 'x': plot_x = True
+        elif field.lower() == 'y': plot_y = True
+        elif field.lower() == 'z': plot_z = True
 
         if xmax is None: xmax = self.Nx
         if ymax is None: ymax = self.Ny
