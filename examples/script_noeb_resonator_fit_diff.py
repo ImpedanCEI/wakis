@@ -18,9 +18,9 @@ from scipy.special import jv
 from field import Field 
 
 #----- TE Funtions -----#
-m = 1
+m = 2
 n = 1
-p = 1
+p = 2
 theta = 0 #np.pi/8
 
 # Analytic solution of cubic resonator
@@ -57,11 +57,11 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 4 # Number of mesh cells
+N = 30 # Number of mesh cells
 
-Nx = 5
-Ny = 8
-Nz = 10
+Nx = 15
+Ny = 20
+Nz = 25
 Lx = L
 Ly = L
 Lz = L
@@ -112,7 +112,7 @@ for ii in range(Nx):
 
 #----- Time loop -----#
 
-Nt = 10
+Nt = 2
 for nt in tqdm(range(Nt)):
     solverFIT.one_step()
 
@@ -195,7 +195,6 @@ planes = ['XY', 'YZ', 'XZ']
 fig, axs = plt.subplots(3,3, dpi=100, figsize=[8,6])
 dims = {0:'x', 1:'y', 2:'z'}
 
-
 for j, plane in enumerate(planes):
     if plane == 'YZ':
         xx, yy, zz = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
@@ -230,10 +229,14 @@ fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig(f'imgResH/diff_TE{m}{n}{p}.png')
 plt.show()
 
-solverFIT.H.inspect3D(cmap='rainbow')
+solverFIT.H.inspect3D(cmap='rainbow', show=False)
 analyticH.inspect3D(cmap='rainbow')
 
 '''
+plt.imshow((solverFIT.C).toarray(), cmap='bwr')
+plt.title('C matrix')
+plt.show()
+
 plt.imshow((solverFIT.iMmu*solverFIT.C).toarray(), cmap='bwr')
 plt.title('iMmu * C matrix')
 plt.show()

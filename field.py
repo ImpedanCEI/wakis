@@ -130,7 +130,7 @@ class Field:
 
         return i, j, k
 
-    def inspect(self, plane='XY', cmap='bwr', dpi=100, x=None, y=None, z=None):
+    def inspect(self, plane='XY', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -168,9 +168,13 @@ class Field:
             ax.set_xlabel(xax)
             ax.set_ylabel(yax)
 
-        plt.show()
+        if handles:
+            return fig, axs
+        
+        if show:
+            plt.show()
 
-    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr', dpi=100):
+    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr', dpi=100, show=True, handles=False):
         """
         Voxel representation of a 3D array with matplotlib
         """
@@ -264,7 +268,11 @@ class Field:
             ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
             ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
 
-        plt.show()
+        if handles:
+            return fig, axs
+        
+        if show:
+            plt.show()
 
 class Field2D:
     '''
