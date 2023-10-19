@@ -204,7 +204,7 @@ class Field:
 
         # field x
         if plot_x:
-            arr = self.field_x[0:xmax,0:ymax,0:zmax]
+            arr = self.field_x[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 1, projection='3d')
             else:
@@ -223,7 +223,7 @@ class Field:
 
         # field y
         if plot_y:
-            arr = self.field_y[0:xmax,0:ymax,0:zmax]
+            arr = self.field_y[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 2, projection='3d')
             else:
@@ -242,7 +242,7 @@ class Field:
 
         # field z
         if plot_z:
-            arr = self.field_z[0:xmax,0:ymax,0:zmax]
+            arr = self.field_z[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 3, projection='3d')
             else:

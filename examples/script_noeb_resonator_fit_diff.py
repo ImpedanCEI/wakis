@@ -18,9 +18,9 @@ from scipy.special import jv
 from field import Field 
 
 #----- TE Funtions -----#
-m = 2
+m = 1
 n = 1
-p = 2
+p = 1
 theta = 0 #np.pi/8
 
 # Analytic solution of cubic resonator
@@ -57,11 +57,11 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 30 # Number of mesh cells
+N = 50 # Number of mesh cells
 
-Nx = 15
-Ny = 20
-Nz = 25
+Nx = N
+Ny = N
+Nz = N
 Lx = L
 Ly = L
 Lz = L
@@ -112,7 +112,7 @@ for ii in range(Nx):
 
 #----- Time loop -----#
 
-Nt = 2
+Nt = 30
 for nt in tqdm(range(Nt)):
     solverFIT.one_step()
 
@@ -229,7 +229,7 @@ fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig(f'imgResH/diff_TE{m}{n}{p}.png')
 plt.show()
 
-solverFIT.H.inspect3D(cmap='rainbow', show=False)
+solverFIT.H.inspect3D(cmap='rainbow', show=False, xmax=Nx-1, ymax=Ny-1, zmax=Nz-1)
 analyticH.inspect3D(cmap='rainbow')
 
 '''

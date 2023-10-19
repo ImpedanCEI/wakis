@@ -147,8 +147,8 @@ class SolverFIT3D:
         self.bc_low = bc_low
         self.bc_high = bc_high
 
-        #self.apply_bc() # modifies Px, Py, Pz
-        self.apply_bc_to_M() # modifies Px, Py, Pz
+        #self.apply_bc_to_P() # modifies Px, Py, Pz
+        #self.apply_bc_to_M() # modifies iMmu or iMeps
 
         # Curl matrix
         self.C = vstack([
@@ -157,11 +157,22 @@ class SolverFIT3D:
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ])
         
+        self.apply_bc_to_C() # modifies rows or columns of C
+
         # Pre-computing
-        self.iMuiDaCDs = self.iDa * self.iMmu * self.C * self.Ds
-        self.iMepsitDaCttDs = self.itDa * self.iMeps * self.C.transpose() * self.tDs 
+        #self.iMuiDaCDs = self.iDa * self.iMmu * self.C * self.Ds
+        #self.iMepsitDaCttDs = self.itDa * self.iMeps * self.C.transpose() * self.tDs 
+
+        self.iMuiDaCDs = self.tDs * self.iMmu * self.iDa * self.C 
+        self.iMepsitDaCttDs = self.itDa * self.iMeps * self.Ds * self.C.transpose()
+
+        self.step_0 = True
 
     def one_step(self):
+
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.iMuiDaCDs*self.E.toarray()
@@ -171,7 +182,266 @@ class SolverFIT3D:
                          self.dt*(self.iMepsitDaCttDs * self.H.toarray() - self.iMeps*self.J.toarray())
                          )
         
-    def apply_bc(self):
+    def apply_bc_to_C(self):
+
+        # Perodic: by default enforced
+        '''
+        if self.bc_low[0].lower() == 'periodic':
+            xlo = 1
+        if self.bc_low[1].lower() == 'periodic':
+            ylo = 1    
+        if self.bc_low[2].lower() == 'periodic':
+            zlo = 1   
+        if self.bc_high[0].lower() == 'periodic':
+            xhi = 1
+        if self.bc_high[1].lower() == 'periodic':
+            yhi = 1
+        if self.bc_high[2].lower() == 'periodic':
+            zhi = 1
+        '''
+
+        # Dirichlet PEC: tangential E field = 0 at boundary
+        if any(True for x in self.bc_low if x.lower() == 'electric' or x.lower() == 'pec'):
+    
+            if self.bc_low[0].lower() == 'electric' or self.bc_low[0].lower() == 'pec':
+                xlo = 0
+            if self.bc_low[1].lower() == 'electric' or self.bc_low[1].lower() == 'pec':
+                ylo = 0    
+            if self.bc_low[2].lower() == 'electric' or self.bc_low[2].lower() == 'pec':
+                zlo = 0   
+            if self.bc_high[0].lower() == 'electric' or self.bc_high[0].lower() == 'pec':
+                xhi = 0
+            if self.bc_high[1].lower() == 'electric' or self.bc_high[1].lower() == 'pec':
+                yhi = 0
+            if self.bc_high[2].lower() == 'electric' or self.bc_high[2].lower() == 'pec':
+                zhi = 0
+
+            # Assemble matrix
+            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
+
+            '''
+            for d in ['x', 'y', 'z']: # all to zero
+                self.BC[0, :, :, d] = xlo
+                self.BC[:, 0, :, d] = ylo
+                self.BC[:, :, 0, d] = zlo
+                self.BC[-1, :, :, d] = xhi
+                self.BC[:, -1, :, d] = yhi
+                self.BC[:, :, -1, d] = zhi
+            '''
+            for d in ['x', 'y', 'z']: #tangential to zero
+                if d != 'x':
+                    self.BC[0, :, :, d] = xlo
+                    self.BC[-1, :, :, d] = xhi
+                if d != 'y':
+                    self.BC[:, 0, :, d] = ylo
+                    self.BC[:, -1, :, d] = yhi
+                if d != 'z':
+                    self.BC[:, :, 0, d] = zlo
+                    self.BC[:, :, -1, d] = zhi
+            
+            self.Dbc = diags(self.BC.toarray(),
+                            shape=(3*self.N, 3*self.N), 
+                            dtype=np.int8
+                            )
+
+            # Update C (columns)
+            self.C = self.C*self.Dbc
+
+
+        # Dirichlet PMC: tangential H field = 0 at boundary
+        if any(True for x in self.bc_low if x.lower() == 'magnetic' or x.lower() == 'pmc'):
+
+            if self.bc_low[0].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
+                xlo = 0
+            if self.bc_low[1].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
+                ylo = 0    
+            if self.bc_low[2].lower() == 'magnetic' or self.bc_low[2] == 'pmc':
+                zlo = 0   
+            if self.bc_high[0].lower() == 'magnetic' or self.bc_high[0] == 'pmc':
+                xhi = 0
+            if self.bc_high[1].lower() == 'magnetic' or self.bc_high[1] == 'pmc':
+                yhi = 0
+            if self.bc_high[2].lower() == 'magnetic' or self.bc_high[2] == 'pmc':
+                zhi = 0
+
+            # Assemble matrix
+            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
+            '''
+            for d in ['x', 'y', 'z']: #all components to 0
+                self.BC[0, :, :, d] = xlo
+                self.BC[:, 0, :, d] = ylo
+                self.BC[:, :, 0, d] = zlo
+                self.BC[-1, :, :, d] = xhi
+                self.BC[:, -1, :, d] = yhi
+                self.BC[:, :, -1, d] = zhi
+            '''
+            for d in ['x', 'y', 'z']: #tangential to zero
+                if d != 'x':
+                    self.BC[0, :, :, d] = xlo
+                    self.BC[-1, :, :, d] = xhi
+                if d != 'y':
+                    self.BC[:, 0, :, d] = ylo
+                    self.BC[:, -1, :, d] = yhi
+                if d != 'z':
+                    self.BC[:, :, 0, d] = zlo
+                    self.BC[:, :, -1, d] = zhi
+
+            self.Dbc = diags(self.BC.toarray(),
+                            shape=(3*self.N, 3*self.N), 
+                            dtype=np.int8
+                            )
+
+            # Update C (rows)
+            self.C = self.Dbc*self.C
+
+    def set_ghosts_to_0(self):
+            
+        # Set H ghost quantities to 0
+        for d in ['x', 'y', 'z']: #tangential to zero
+            if d != 'x':
+                self.H[-1, :, :, d] = 0.
+            if d != 'y':
+                self.H[:, -1, :, d] = 0.
+            if d != 'z':
+                self.H[:, :, -1, d] = 0.
+
+        # Set E ghost quantities to 0
+        self.E[-1, :, :, 'x'] = 0.
+        self.E[:, -1, :, 'y'] = 0.
+        self.E[:, :, -1, 'z'] = 0.
+
+    def apply_bc_to_M(self):
+
+        # Perodic: by default enforced
+        '''
+        if self.bc_low[0].lower() == 'periodic':
+            xlo = 1
+        if self.bc_low[1].lower() == 'periodic':
+            ylo = 1    
+        if self.bc_low[2].lower() == 'periodic':
+            zlo = 1   
+        if self.bc_high[0].lower() == 'periodic':
+            xhi = 1
+        if self.bc_high[1].lower() == 'periodic':
+            yhi = 1
+        if self.bc_high[2].lower() == 'periodic':
+            zhi = 1
+        '''
+
+        # Dirichlet PEC: tangential E field = 0 at boundary
+        if any(True for x in self.bc_low if x.lower() == 'electric' or x.lower() == 'pec'):
+    
+            if self.bc_low[0].lower() == 'electric' or self.bc_low[0].lower() == 'pec':
+                xlo = 0
+            if self.bc_low[1].lower() == 'electric' or self.bc_low[1].lower() == 'pec':
+                ylo = 0    
+            if self.bc_low[2].lower() == 'electric' or self.bc_low[2].lower() == 'pec':
+                zlo = 0   
+            if self.bc_high[0].lower() == 'electric' or self.bc_high[0].lower() == 'pec':
+                xhi = 0
+            if self.bc_high[1].lower() == 'electric' or self.bc_high[1].lower() == 'pec':
+                yhi = 0
+            if self.bc_high[2].lower() == 'electric' or self.bc_high[2].lower() == 'pec':
+                zhi = 0
+
+            # Assemble matrix
+            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
+
+            '''
+            for d in ['x', 'y', 'z']:
+                self.BC[0, :, :, d] = xlo
+                self.BC[:, 0, :, d] = ylo
+                self.BC[:, :, 0, d] = zlo
+                self.BC[-1, :, :, d] = xhi
+                self.BC[:, -1, :, d] = yhi
+                self.BC[:, :, -1, d] = zhi
+            '''
+            for d in ['x', 'y', 'z']: #tangential to zero
+                if d != 'x':
+                    self.BC[0, :, :, d] = xlo
+                    self.BC[-1, :, :, d] = xhi
+                if d != 'y':
+                    self.BC[:, 0, :, d] = ylo
+                    self.BC[:, -1, :, d] = yhi
+                if d != 'z':
+                    self.BC[:, :, 0, d] = zlo
+                    self.BC[:, :, -1, d] = zhi
+            
+            self.Dbc = diags(self.BC.toarray(),
+                            shape=(3*self.N, 3*self.N), 
+                            dtype=np.int8
+                            )
+
+            # Update iMeps
+            self.iMeps = self.Dbc*self.iMeps*self.Dbc
+
+
+        # Dirichlet PMC: tangential H field = 0 at boundary
+        if any(True for x in self.bc_low if x.lower() == 'magnetic' or x.lower() == 'pmc'):
+
+            if self.bc_low[0].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
+                xlo = 0
+            if self.bc_low[1].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
+                ylo = 0    
+            if self.bc_low[2].lower() == 'magnetic' or self.bc_low[2] == 'pmc':
+                zlo = 0   
+            if self.bc_high[0].lower() == 'magnetic' or self.bc_high[0] == 'pmc':
+                xhi = 0
+            if self.bc_high[1].lower() == 'magnetic' or self.bc_high[1] == 'pmc':
+                yhi = 0
+            if self.bc_high[2].lower() == 'magnetic' or self.bc_high[2] == 'pmc':
+                zhi = 0
+
+            # Assemble matrix
+            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
+            '''
+            for d in ['x', 'y', 'z']: #all components to 0
+                self.BC[0, :, :, d] = xlo
+                self.BC[:, 0, :, d] = ylo
+                self.BC[:, :, 0, d] = zlo
+                self.BC[-1, :, :, d] = xhi
+                self.BC[:, -1, :, d] = yhi
+                self.BC[:, :, -1, d] = zhi
+            '''
+            for d in ['x', 'y', 'z']: #tangential to zero
+                if d != 'x':
+                    self.BC[0, :, :, d] = xlo
+                    self.BC[-1, :, :, d] = xhi
+                if d != 'y':
+                    self.BC[:, 0, :, d] = ylo
+                    self.BC[:, -1, :, d] = yhi
+                if d != 'z':
+                    self.BC[:, :, 0, d] = zlo
+                    self.BC[:, :, -1, d] = zhi
+            
+            self.Dbc = diags(self.BC.toarray(),
+                            shape=(3*self.N, 3*self.N), 
+                            dtype=np.int8
+                            )
+
+            # Update iMmu
+            self.iMmu = self.Dbc*self.iMmu*self.Dbc
+
+        # Open; pml [TODO]
+        '''
+        if self.bc_low[0] == 'pml':
+            self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
+        if self.bc_low[1] == 'pml':
+            self.N_pml_low[1] = 10 if N_pml_low is None else N_pml_low[1]
+        if self.bc_low[2] == 'pml':
+            self.N_pml_low[2] = 10 if N_pml_low is None else N_pml_low[2]
+        if self.bc_high[0] == 'pml':
+            self.N_pml_high[0] = 10 if N_pml_high is None else N_pml_high[0]
+        if self.bc_high[1] == 'pml':
+            self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
+        if self.bc_high[2] == 'pml':
+            self.N_pml_high[2] = 10 if N_pml_high is None else N_pml_high[2]
+        '''
+
+        # Update C
+        #self.C = self.Dbc*self.C*self.Dbc
+
+    def apply_bc_to_P(self): #not working
         # Perodic: by default enforced
         
         # Dirichlet PEC: tangential E field = 0 at boundary
@@ -260,134 +530,3 @@ class SolverFIT3D:
             self.Px = self.Dbcx*self.Px 
             self.Py = self.Dbcy*self.Py
             self.Pz = self.Dbcz*self.Pz
-
-    def apply_bc_to_M(self):
-
-        # Perodic: by default enforced
-        '''
-        if self.bc_low[0].lower() == 'periodic':
-            xlo = 1
-        if self.bc_low[1].lower() == 'periodic':
-            ylo = 1    
-        if self.bc_low[2].lower() == 'periodic':
-            zlo = 1   
-        if self.bc_high[0].lower() == 'periodic':
-            xhi = 1
-        if self.bc_high[1].lower() == 'periodic':
-            yhi = 1
-        if self.bc_high[2].lower() == 'periodic':
-            zhi = 1
-        '''
-
-        # Dirichlet PEC: tangential E field = 0 at boundary
-        if any(True for x in self.bc_low if x.lower() == 'electric' or x.lower() == 'pec'):
-    
-            if self.bc_low[0].lower() == 'electric' or self.bc_low[0].lower() == 'pec':
-                xlo = 0
-            if self.bc_low[1].lower() == 'electric' or self.bc_low[1].lower() == 'pec':
-                ylo = 0    
-            if self.bc_low[2].lower() == 'electric' or self.bc_low[2].lower() == 'pec':
-                zlo = 0   
-            if self.bc_high[0].lower() == 'electric' or self.bc_high[0].lower() == 'pec':
-                xhi = 0
-            if self.bc_high[1].lower() == 'electric' or self.bc_high[1].lower() == 'pec':
-                yhi = 0
-            if self.bc_high[2].lower() == 'electric' or self.bc_high[2].lower() == 'pec':
-                zhi = 0
-
-            # Assemble matrix
-            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
-
-            '''
-            for d in ['x', 'y', 'z']:
-                self.BC[0, :, :, d] = xlo
-                self.BC[:, 0, :, d] = ylo
-                self.BC[:, :, 0, d] = zlo
-                self.BC[-1, :, :, d] = xhi
-                self.BC[:, -1, :, d] = yhi
-                self.BC[:, :, -1, d] = zhi
-            '''
-            for d in ['x', 'y', 'z']: #tangential to zero
-                if d != 'x':
-                    self.BC[0, :, :, d] = xlo
-                    self.BC[-1, :, :, d] = xhi
-                if d != 'y':
-                    self.BC[:, 0, :, d] = ylo
-                    self.BC[:, -1, :, d] = yhi
-                if d != 'z':
-                    self.BC[:, :, 0, d] = zlo
-                    self.BC[:, :, -1, d] = zhi
-            
-            self.Dbc = diags(self.BC.toarray(),
-                            shape=(3*self.N, 3*self.N), 
-                            dtype=np.int8
-                            )
-
-            # Update iMeps
-            self.iMmu = self.Dbc*self.iMmu*self.Dbc
-
-
-        # Dirichlet PMC: tangential H field = 0 at boundary
-        if any(True for x in self.bc_low if x.lower() == 'magnetic' or x.lower() == 'pmc'):
-
-            if self.bc_low[0].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
-                xlo = 0
-            if self.bc_low[1].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
-                ylo = 0    
-            if self.bc_low[2].lower() == 'magnetic' or self.bc_low[2] == 'pmc':
-                zlo = 0   
-            if self.bc_high[0].lower() == 'magnetic' or self.bc_high[0] == 'pmc':
-                xhi = 0
-            if self.bc_high[1].lower() == 'magnetic' or self.bc_high[1] == 'pmc':
-                yhi = 0
-            if self.bc_high[2].lower() == 'magnetic' or self.bc_high[2] == 'pmc':
-                zhi = 0
-
-            # Assemble matrix
-            self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
-            '''
-            for d in ['x', 'y', 'z']: #all components to 0
-                self.BC[0, :, :, d] = xlo
-                self.BC[:, 0, :, d] = ylo
-                self.BC[:, :, 0, d] = zlo
-                self.BC[-1, :, :, d] = xhi
-                self.BC[:, -1, :, d] = yhi
-                self.BC[:, :, -1, d] = zhi
-            '''
-            for d in ['x', 'y', 'z']: #tangential to zero
-                if d != 'x':
-                    self.BC[0, :, :, d] = xlo
-                    self.BC[-1, :, :, d] = xhi
-                if d != 'y':
-                    self.BC[:, 0, :, d] = ylo
-                    self.BC[:, -1, :, d] = yhi
-                if d != 'z':
-                    self.BC[:, :, 0, d] = zlo
-                    self.BC[:, :, -1, d] = zhi
-            
-            self.Dbc = diags(self.BC.toarray(),
-                            shape=(3*self.N, 3*self.N), 
-                            dtype=np.int8
-                            )
-
-            # Update iMmu
-            self.iMmu = self.Dbc*self.iMmu*self.Dbc
-
-        # Open; pml [TODO]
-        '''
-        if self.bc_low[0] == 'pml':
-            self.N_pml_low[0] = 10 if N_pml_low is None else N_pml_low[0]
-        if self.bc_low[1] == 'pml':
-            self.N_pml_low[1] = 10 if N_pml_low is None else N_pml_low[1]
-        if self.bc_low[2] == 'pml':
-            self.N_pml_low[2] = 10 if N_pml_low is None else N_pml_low[2]
-        if self.bc_high[0] == 'pml':
-            self.N_pml_high[0] = 10 if N_pml_high is None else N_pml_high[0]
-        if self.bc_high[1] == 'pml':
-            self.N_pml_high[1] = 10 if N_pml_high is None else N_pml_high[1]
-        if self.bc_high[2] == 'pml':
-            self.N_pml_high[2] = 10 if N_pml_high is None else N_pml_high[2]
-        '''
-
-        # Update C
-        #self.C = self.Dbc*self.C*self.Dbc

@@ -20,7 +20,7 @@ from field import Field
 #----- TE Funtions -----#
 m = 1
 n = 1
-p = 0
+p = 1
 theta = 0 #np.pi/8
 
 # Analytic solution of cubic resonator
@@ -259,7 +259,7 @@ for ii in range(Nx):
             z = kk * dz + zmin
             analytic.Hz[ii, jj, kk] = analytic_sol_Hz(x, y, z, (Nt-0.5) * analytic.dt)
 
-            x = (ii + 0.5) * dx + xmin
+            x = (ii + 0.5) * dx + xmin 
             y = jj * dy + ymin
             z = (kk + 0.5) * dz + zmin
             analytic.Hy[ii, jj, kk] = analytic_sol_Hy(x, y, z, (Nt-0.5) * analytic.dt)
@@ -281,7 +281,8 @@ dims = {0:'x', 1:'y', 2:'z'}
 lims = {0: np.max(np.abs(analytic.Hx[xx, yy, zz])), 1: np.max(np.abs(analytic.Hy[xx, yy, zz])), 2: np.max(np.abs(analytic.Hz[xx, yy, zz]))}
 #FIT
 for i, ax in enumerate(axs[0,:]):
-    vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
+    #vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
+    vmin, vmax = -lims[i], lims[i]
     im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=-lims[i], vmax=lims[i])
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FIT H{dims[i]}{title}')
@@ -349,7 +350,7 @@ dims = {0:'x', 1:'y', 2:'z'}
 lims = {0: np.max(np.abs(analytic.Hx[xx, yy, zz])), 1: np.max(np.abs(analytic.Hy[xx, yy, zz])), 2: np.max(np.abs(analytic.Hz[xx, yy, zz]))}
 #FIT
 for i, ax in enumerate(axs[0,:]):
-    vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
+    #vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
     im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=-lims[i], vmax=lims[i])
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'FIT H{dims[i]}{title}')
@@ -377,7 +378,7 @@ ax.set_ylabel(yax)
 
 #Analytic
 ax = axs[2,0]
-vmin, vmax = -np.max(np.abs(analytic.Hx[xx, yy, zz])), np.max(np.abs(analytic.Hx[xx, yy, zz]))
+vmin, vmax = -lims[0], lims[0]
 im = ax.imshow(analytic.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
 ax.set_title(f'Analytic Hx{title}')
@@ -385,7 +386,7 @@ ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
 ax = axs[2,1]
-vmin, vmax = -np.max(np.abs(analytic.Hy[xx, yy, zz])), np.max(np.abs(analytic.Hy[xx, yy, zz]))
+vmin, vmax = -lims[1], lims[1]
 im = ax.imshow(analytic.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
 ax.set_title(f'Analytic Hy{title}')
@@ -393,7 +394,7 @@ ax.set_xlabel(xax)
 ax.set_ylabel(yax)
 
 ax = axs[2,2]
-vmin, vmax = -np.max(np.abs(analytic.Hz[xx, yy, zz])), np.max(np.abs(analytic.Hz[xx, yy, zz]))
+vmin, vmax = -lims[2], lims[2]
 im = ax.imshow(analytic.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
 fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
 ax.set_title(f'Analytic Hz{title}')
