@@ -71,9 +71,10 @@ X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
 #grid = pv.StructuredGrid(X,Y,Z)
 grid = pv.StructuredGrid(X.transpose(),Y.transpose(),Z.transpose())
 
-
+#grid.bounds
 #grid.plot(smooth_shading=True, show_edges=True)
 
+'''
 pl = pv.Plotter()
 pl.add_mesh(grid, scalars = [i for i in range(grid.n_points)], show_edges=True)
 label_coords = grid.points + [0, 0, 0.02]
@@ -82,8 +83,7 @@ pl.add_point_labels(label_coords, point_labels,
                     font_size=25, point_size=20)
 pl.camera_position = 'yz'
 pl.show()
-
-#grid.bounds
+'''
 
 # ----- Unstructured Grid -----
 '''
@@ -154,7 +154,7 @@ grid.cell_data['Hz'] = np.reshape(analyticH[:, :, :, 'z'], N)
 grid.cell_data['Hy'] = np.reshape(analyticH[:, :, :, 'y'], N)
 grid.cell_data['Hx'] = np.reshape(analyticH[:, :, :, 'x'], N)
 
-grid.plot(smooth_shading=True, show_edges=True, scalars='Hz', cmap='rainbow')
+#grid.plot(smooth_shading=True, show_edges=True, scalars='Hz', cmap='rainbow')
 #grid.plot(smooth_shading=True, show_edges=True, scalars='Hy', cmap='rainbow')
 #grid.plot(smooth_shading=True, show_edges=True, scalars='Hx', cmap='rainbow')
 #analyticH.inspect3D(cmap='rainbow')
@@ -177,3 +177,96 @@ for ii in range(Nx):
 grid.cell_data['Hz'] = np.reshape(analyticHz[:, :, :], N)
 grid.plot(smooth_shading=True, show_edges=True, scalars='Hz', cmap='rainbow')
 '''
+
+# ------ Clip scalar data with stl -------
+
+# --- Read stl ----
+unit = 1e-3
+surf = pv.read('goniometer.stl')
+surf = surf.rotate_x(90)    # z axis longitudinal
+surf = surf.scale(unit)            # [m]
+#surf = surf.subdivide(3, subfilter='linear') #if used, select.threshold() is empty
+
+# bounds
+xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
+pad = 1.0 * unit
+
+# n cells 
+Nx = 30
+Ny = 40
+Nz = 50
+N = Nx*Ny*Nz
+
+# cell vertex
+x = np.linspace(xmin - pad, xmax + pad, Nx + 1)
+y = np.linspace(ymin - pad, ymax + pad, Ny + 1)
+z = np.linspace(zmin - pad, zmax + pad, Nz + 1)
+
+# grid
+Z, Y, X = np.meshgrid(z, y, x, indexing='ij')
+grid = pv.StructuredGrid(X, Y, Z)
+
+# ---- Cells inside surface ----
+tol = unit*1.e-3
+select = grid.select_enclosed_points(surf, tolerance=tol)
+inside = select.threshold(0.1)
+points_inside = np.where(select['SelectedPoints'] > 0.1)[0]
+cells_inside = np.where(select.point_data_to_cell_data()['SelectedPoints'] > 0.1)[0]
+grid['Solid1'] = select.point_data_to_cell_data()['SelectedPoints']
+
+# ---- Add Scalar data ----
+
+analyticH = Field(Nx, Ny, Nz)
+dt = 1.0 / (c_light * np.sqrt(1 / dx ** 2 + 1 / dy ** 2 + 1 / dz ** 2))
+Nt = 10
+
+for ii in range(Nx):
+    for jj in range(Ny):
+        for kk in range(Nz):
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, (Nt-0.5) * dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, (Nt-0.5) * dt)
+
+            x = (ii+0.5) * dx + xmin
+            y = (jj+0.5) * dy + ymin
+            z = (kk+0.5) * dz + zmin
+            analyticH[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, (Nt-0.5) * dt)
+
+grid.cell_data['Hz'] = np.reshape(analyticH[:, :, :, 'z'], N)
+grid.cell_data['Hy'] = np.reshape(analyticH[:, :, :, 'y'], N)
+grid.cell_data['Hx'] = np.reshape(analyticH[:, :, :, 'x'], N)
+
+# -------- Clip data -------
+
+grid.cell_data['Hz'][cells_inside] = 0.0
+
+# -------- Plot -------
+pl = pv.Plotter()
+pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
+pl.add_mesh(grid.slice(normal=[1,0,0]), scalars='Hz', cmap='rainbow')
+#pl.add_mesh(grid.extract_cells(cells_inside), scalars='Solid1', cmap='Blues', opacity=0.6)
+#pl.add_mesh(surf, color='blue', opacity=0.35)
+
+pl.show()
+
+# ------ Clip analyticH instead -----
+
+analyticH[cells_inside, 'y'] = 0.0
+
+grid.cell_data['Hy'] = np.reshape(analyticH[:, :, :, 'y'], N)
+
+# -------- Plot -------
+pl = pv.Plotter()
+pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
+pl.add_mesh(grid.slice(normal=[1,0,0]), scalars='Hz', cmap='rainbow')
+#pl.add_mesh(grid.extract_cells(cells_inside), scalars='Solid1', cmap='Blues', opacity=0.6)
+#pl.add_mesh(surf, color='blue', opacity=0.35)
+
+pl.show()
