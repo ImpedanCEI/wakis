@@ -184,7 +184,7 @@ grid.plot(smooth_shading=True, show_edges=True, scalars='Hz', cmap='rainbow')
 unit = 1e-3
 surf = pv.read('goniometer.stl')
 surf = surf.rotate_x(90)    # z axis longitudinal
-surf = surf.scale(unit)            # [m]
+surf = surf.scale(unit)     # [m]
 #surf = surf.subdivide(3, subfilter='linear') #if used, select.threshold() is empty
 
 # bounds

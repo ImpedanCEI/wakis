@@ -85,9 +85,8 @@ bc_high=['pec', 'pec', 'pec']
 NCFL=1.0
 
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
-tgridFIT = Grid3D(xmin + dx/2, xmax + dx/2, ymin + dy/2, ymax + dy/2, zmin + dz/2, zmax + dz/2, Nx, Ny, Nz, conductors, 'FIT')
-#solverFIT = SolverFIT3D(gridFIT, bc_low=bc_low, bc_high=bc_high)
-solverFIT = SolverFIT3D(gridFIT, tgridFIT, bc_low=bc_low, bc_high=bc_high)
+solverFIT = SolverFIT3D(gridFIT, bc_low=bc_low, bc_high=bc_high)
+
 
 #---- Initial conditions ------------#
 
@@ -229,8 +228,8 @@ fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig(f'imgResH/diff_TE{m}{n}{p}.png')
 plt.show()
 
-solverFIT.H.inspect3D(cmap='rainbow', show=False, xmax=Nx-1, ymax=Ny-1, zmax=Nz-1)
-analyticH.inspect3D(cmap='rainbow')
+#solverFIT.H.inspect3D(cmap='rainbow', show=False, xmax=Nx-1, ymax=Ny-1, zmax=Nz-1)
+#analyticH.inspect3D(cmap='rainbow')
 
 '''
 plt.imshow((solverFIT.C).toarray(), cmap='bwr')

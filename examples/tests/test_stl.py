@@ -20,9 +20,9 @@ xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 pad = 1.0 * unit
 
 # n cells 
-Nx = 30
-Ny = 40
-Nz = 50
+Nx = 30*2
+Ny = 40*2
+Nz = 50*2
 N = Nx*Ny*Nz
 
 # cell vertex
@@ -162,7 +162,8 @@ grid.cell_data['Hx'] = np.reshape(analyticH[:, :, :, 'x'], N)
 # ----- Clip stl cells field to 0.0 -------
 
 n = select.point_data_to_cell_data()['SelectedPoints'] > 0.1
-mask = np.reshape(np.logical_not(n), (Nx, Ny, Nz)).astype(int)*100
+mask = np.reshape(np.logical_not(n), (Nx, Ny, Nz)).astype(int)
+#mask = np.reshape(n, (Nx, Ny, Nz)).astype(int)*100
 
 # clipping field obj
 aux = analyticH[:,:,:, 'z']*mask
@@ -173,6 +174,8 @@ pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
 pl.add_mesh(grid.slice(normal=[1,0,0]), show_edges=True, scalars='Hz', cmap='rainbow')
 pl.show()
 
+
+'''
 # clipping grid obj
 grid.cell_data['Hz'][cells_inside] = 0.0
 
@@ -180,3 +183,4 @@ pl = pv.Plotter()
 pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
 pl.add_mesh(grid.slice(normal=[1,0,0]), scalars='Hz', cmap='rainbow')
 pl.show()
+'''
