@@ -33,6 +33,7 @@ class Grid3D:
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, nx, ny, nz, conductors, sol_type):
+        
         self.xmin = xmin
         self.xmax = xmax
         self.ymin = ymin
@@ -186,6 +187,15 @@ class Grid3D:
             aux = self.tL.field_x * self.tL.field_y
             self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
             del aux
+            
+            self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
+                               self.Sxy_red, self.Syz_red, self.Szx_red,
+                               self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
+            self.mark_cells(self.l_x, self.l_y, self.l_z, self.nx, self.ny, self.nz, self.dx, self.dy, self.dz,
+                            self.Sxy, self.Syz, self.Szx, self.flag_int_cell_xy, self.flag_int_cell_yz, self.flag_int_cell_zx,
+                            self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
+                            self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
+                            self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
             
     """
   Function to compute the length of the edges of the conformal grid.
