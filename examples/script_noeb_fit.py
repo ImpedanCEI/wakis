@@ -43,8 +43,8 @@ conductors = noConductor()
 bc_low=['Periodic', 'Periodic', 'Periodic']
 bc_high=['Periodic', 'Periodic', 'Periodic']
 
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+#bc_low=['pec', 'pec', 'pec']
+#bc_high=['pec', 'pec', 'pec']
 
 NCFL = 1
 
@@ -56,10 +56,10 @@ solverFIT = SolverFIT3D(gridFIT, tgridFIT, bc_low=bc_low, bc_high=bc_high)
 
 # set FDTD solver
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
-solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
+solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL, bc_low=bc_low, bc_high=bc_high)
 
 # set source
-xs, ys, zs = int(3*Nx/4), int(3*Ny/4),  int(Nz//2)
+xs, ys, zs = int(1*Nx/4), int(1*Ny/4),  int(Nz//2)
 solverFIT.E[xs, ys, zs, 'z'] = 1.0*c_light
 solverFDTD.Ez[xs, ys, zs] = 1.0*c_light
 
