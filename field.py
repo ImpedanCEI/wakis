@@ -91,8 +91,29 @@ class Field:
         else:
             raise IndexError('key must be a 3-tuple or an integer')
 
-    def __mul__(self, other):
-        return Field()
+    def __mul__(self, other, dtype=None):
+
+        if dtype is None:
+            dtype = self.dtype
+
+        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+        mulField.field_x = self.field_x * other
+        mulField.field_y = self.field_y * other
+        mulField.field_z = self.field_z * other
+
+        return mulField
+
+    def __div__(self, other, dtype=None):
+
+        if dtype is None:
+            dtype = self.dtype
+            
+        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+        mulField.field_x = self.field_x / other
+        mulField.field_y = self.field_y / other
+        mulField.field_z = self.field_z / other
+
+        return mulField
 
     def __repr__(self):
         return 'x:\n' + self.field_x.__repr__() + '\n'+  \
@@ -267,6 +288,9 @@ class Field:
             ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
             ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
             ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.set_xlim(0,self.Nx)
+            ax.set_ylim(0,self.Ny)
+            ax.set_zlim(0,self.Nz)
 
         if handles:
             return fig, axs
