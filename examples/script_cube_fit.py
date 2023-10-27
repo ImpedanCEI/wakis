@@ -32,17 +32,17 @@ dx = L / Nx
 dy = L / Ny
 dz = L / Nz
 
-xmin = -Lx/2  + dx / 2
-xmax = Lx/2 + dx / 2
-ymin = - Ly/2 + dx / 2
-ymax = Ly/2 + dx / 2
-zmin = - Lz/2 + dx / 2
-zmax = Lz/2 + dx / 2
+xmin = -Lx/2
+xmax = Lx/2 
+ymin = - Ly/2
+ymax = Ly/2
+zmin = - Lz/2 
+zmax = Lz/2 
 
 #Embedded cube 
-lx = Lx*0.6
-ly = Ly*0.6
-lz = Lz*0.6
+lx = Lx*0.7
+ly = Ly*0.7
+lz = Lz*0.7
 x_cent = 0
 y_cent = 0
 z_cent = 0
@@ -53,14 +53,13 @@ NCFL = 1
 
 # set FIT solver
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
-tgridFIT = Grid3D(xmin + dx/2, xmax + dx/2, ymin + dy/2, ymax + dy/2, zmin + dz/2, zmax + dz/2, Nx, Ny, Nz, conductors, 'FIT')
-#solverFIT = SolverFIT3D(gridFIT)
-solverFIT = SolverFIT3D(gridFIT, tgridFIT)
+solverFIT = SolverFIT3D(gridFIT)
 
 # set FDTD solver
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
 
+# Initial conditions
 solverFIT.E[int(Nx/2), int(Ny/2), int(Nz/2), 'z'] = 1.0*c_light
 solverFDTD.Ez[int(Nx/2), int(Ny/2),  int(Nz/2)] = 1.0*c_light
 
