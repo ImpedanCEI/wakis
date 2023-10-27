@@ -93,7 +93,7 @@ class SolverFIT3D:
             self.step_0 = False
 
             if self.use_conductors:
-                self.set_conductors_to_0()
+                self.set_field_in_conductors_to_0()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
@@ -230,37 +230,29 @@ class SolverFIT3D:
         self.E[:, :, -1, 'z'] = 0.
 
     def apply_conductors(self):
+        '''
+        Set the 1/epsilon values inside the PEC conductors to zero
+        '''
+        self.flag_in_conductors = self.grid.flag_int_cell_yz[:-1,:,:]  \
+                        * self.grid.flag_int_cell_zx[:,:-1,:] \
+                        * self.grid.flag_int_cell_xy[:,:,:-1]
 
-        #self.ieps[:,:,:,'x'] *= self.grid.flag_int_cell_yz[:-1,:,:].astype(int)
-        #self.ieps[:,:,:,'y'] *= self.grid.flag_int_cell_zx[:,:-1,:].astype(int)
-        #self.ieps[:,:,:,'z'] *= self.grid.flag_int_cell_xy[:,:,:-1].astype(int)
+        self.ieps *= self.flag_in_conductors
 
-        self.ieps[:,:,:,'x'] *= self.grid.flag_int_cell_yz[:-1,:,:].astype(int)
-        self.ieps[:,:,:,'y'] *= self.grid.flag_int_cell_yz[:-1,:,:].astype(int)
-        self.ieps[:,:,:,'z'] *= self.grid.flag_int_cell_yz[:-1,:,:].astype(int)
-        # material matrices need to be the same in all directions (1 material per cell)
-
-        #self.ieps[:,:,:,'x'] *= self.grid.flag_int_cell_yz[1:,:,:].astype(int)
-        #self.ieps[:,:,:,'y'] *= self.grid.flag_int_cell_zx[:,1:,:].astype(int)
-        #self.ieps[:,:,:,'z'] *= self.grid.flag_int_cell_xy[:,:,1:].astype(int)
-
-        #self.imu[:,:,:,'x'] *= self.grid.flag_int_cell_yz[:-1,:, :].astype(int)
-        #self.imu[:,:,:,'y'] *= self.grid.flag_int_cell_zx[:,:-1, :].astype(int)
-        #self.imu[:,:,:,'z'] *= self.grid.flag_int_cell_xy[:,:,:-1].astype(int)
-
-    def set_conductors_to_0(self):
+    def set_field_in_conductors_to_0(self):
         '''
         Cleanup for initial conditions if they are 
         accidentally applied to the conductors
         '''    
-        flag_int_cell = {'x': self.grid.flag_int_cell_zx[:,:-1,:].astype(int), # doesn't work
-                         'y': self.grid.flag_int_cell_zx[:,:-1,:].astype(int), # works
-                         'z': self.grid.flag_int_cell_zx[:,:-1,:].astype(int), # ?
-                         }
+        self.flag_cleanup = self.grid.flag_int_cell_yz[:-1,:,:]  \
+                        + self.grid.flag_int_cell_zx[:,:-1,:] \
+                        + self.grid.flag_int_cell_xy[:,:,:-1]
 
-        for d in ['x', 'y', 'z']: 
-            self.H[:, :, :, d] *= flag_int_cell[d]
-            self.E[:, :, :, d] *= flag_int_cell[d]
+        self.H *= self.flag_cleanup
+        self.E *= self.flag_cleanup
+        
+
+
 
     def add_materials(self):
         '''
