@@ -115,6 +115,18 @@ class Field:
 
         return mulField
 
+    def __add__(self, other, dtype=None):
+
+        if dtype is None:
+            dtype = self.dtype
+            
+        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+        mulField.field_x = self.field_x + other
+        mulField.field_y = self.field_y + other
+        mulField.field_z = self.field_z + other
+
+        return mulField
+
     def __repr__(self):
         return 'x:\n' + self.field_x.__repr__() + '\n'+  \
                 'y:\n' + self.field_y.__repr__() + '\n'+ \
@@ -150,6 +162,9 @@ class Field:
         j = (n-k*self.Nx*self.Ny)//self.Nx
 
         return i, j, k
+
+    def get_abs(self):
+        return np.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
     def inspect(self, plane='XY', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
         import matplotlib.pyplot as plt
