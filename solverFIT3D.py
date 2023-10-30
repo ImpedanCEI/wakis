@@ -3,14 +3,16 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
 from scipy.sparse import diags, block_diag, hstack, vstack
 from scipy.sparse.linalg import inv
+
 from field import Field
+from materials import material_lib
 
 class SolverFIT3D:
 
     def __init__(self, grid, cfln=1.0,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_conductors=True, use_materials=False,
+                 use_conductors=True, use_stl=False,
                  i_s=0, j_s=0, k_s=0, N_pml_low=None, N_pml_high=None):
 
         # Grid 
@@ -19,7 +21,10 @@ class SolverFIT3D:
         self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 +
                                             1 / self.grid.dz ** 2))
         self.use_conductors = use_conductors
-        self.use_materials = use_materials
+        self.use_stl = use_stl
+
+        if use_stl:
+            self.use_conductors = False
 
         self.Nx = self.grid.nx
         self.Ny = self.grid.ny
@@ -71,10 +76,10 @@ class SolverFIT3D:
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./eps_0) 
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./mu_0) 
 
-        if use_materials:
-            self.add_materials()
+        if self.use_stl:
+            self.apply_stl()
 
-        if use_conductors:
+        if self.use_conductors:
             self.apply_conductors()
 
         self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
@@ -245,18 +250,38 @@ class SolverFIT3D:
         accidentally applied to the conductors
         '''    
         self.flag_cleanup = self.grid.flag_int_cell_yz[:-1,:,:]  \
-                        + self.grid.flag_int_cell_zx[:,:-1,:] \
+                        + self.grid.flag_int_cell_zx[:,:-1,:]    \
                         + self.grid.flag_int_cell_xy[:,:,:-1]
 
         self.H *= self.flag_cleanup
         self.E *= self.flag_cleanup
         
-
-
-
-    def add_materials(self):
+    def apply_stl(self):
         '''
-        [TODO]
-        '''
+        Mask the cells inside the stl and assing the material
+        defined by the user
 
-        pass
+        * Note: when assigning the stl material, the default values
+                1./eps_0 and 1./mu_0 are substracted
+        '''
+        grid = self.grid.grid
+        self.stl_solids = self.grid.stl_solids
+        self.stl_materials = self.grid.stl_materials
+
+        for key in self.stl_solids.keys():
+
+            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
+            
+            if type(self.stl_materials[key]) is str:
+                mat_key = self.stl_materials[key].lower()
+
+                self.ieps += mask * (1./material_lib[mat_key][0] - 1./eps_0)
+                self.imu += mask * (1./material_lib[mat_key][1]  - 1./mu_0)
+
+            else:
+                eps = self.stl_materials[key][0]
+                mu = self.stl_materials[key][1]
+
+                self.ieps += mask * (1./eps - 1./eps_0)
+                self.imu += mask * (1./mu  - 1./mu_0)
+
