@@ -115,7 +115,9 @@ class SolverFIT3D:
         Modifies rows or columns of C and tDs and itDa matrices
         according to bc_low and bc_high
         '''
-
+        xlo, ylo, zlo = 1., 1., 1.
+        xhi, yhi, zhi = 1., 1., 1.
+        
         # Perodic: out == in
         if any(True for x in self.bc_low if x.lower() == 'periodic'):
             if self.bc_low[0].lower() == 'periodic' and self.bc_high[0].lower() == 'periodic':
@@ -261,8 +263,7 @@ class SolverFIT3D:
         Mask the cells inside the stl and assing the material
         defined by the user
 
-        * Note: when assigning the stl material, the default values
-                1./eps_0 and 1./mu_0 are substracted
+        * Note: stl material should contain **relative** epsilon and mu
         '''
         grid = self.grid.grid
         self.stl_solids = self.grid.stl_solids
@@ -273,15 +274,17 @@ class SolverFIT3D:
             mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
             
             if type(self.stl_materials[key]) is str:
+                # Retrieve from material library
                 mat_key = self.stl_materials[key].lower()
 
-                self.ieps += mask * (1./material_lib[mat_key][0] - 1./eps_0)
-                self.imu += mask * (1./material_lib[mat_key][1]  - 1./mu_0)
+                self.ieps += mask * (1./material_lib[mat_key][0])
+                self.imu += mask * (1./material_lib[mat_key][1])
 
             else:
-                eps = self.stl_materials[key][0]
-                mu = self.stl_materials[key][1]
+                # From input
+                eps_r = self.stl_materials[key][0]
+                mu_r = self.stl_materials[key][1]
 
-                self.ieps += mask * (1./eps - 1./eps_0)
-                self.imu += mask * (1./mu  - 1./mu_0)
+                self.ieps += mask * (1./eps_r)
+                self.imu += mask * (1./mu_r)
 
