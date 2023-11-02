@@ -9,7 +9,7 @@ from materials import material_lib
 
 class SolverFIT3D:
 
-    def __init__(self, grid, cfln=1.0,
+    def __init__(self, grid, cfln=0.5,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=True, use_stl=False,
@@ -117,7 +117,7 @@ class SolverFIT3D:
         '''
         xlo, ylo, zlo = 1., 1., 1.
         xhi, yhi, zhi = 1., 1., 1.
-        
+
         # Perodic: out == in
         if any(True for x in self.bc_low if x.lower() == 'periodic'):
             if self.bc_low[0].lower() == 'periodic' and self.bc_high[0].lower() == 'periodic':
@@ -264,6 +264,8 @@ class SolverFIT3D:
         defined by the user
 
         * Note: stl material should contain **relative** epsilon and mu
+        ** Note 2: when assigning the stl material, the default values
+                   1./eps_0 and 1./mu_0 are substracted
         '''
         grid = self.grid.grid
         self.stl_solids = self.grid.stl_solids
@@ -277,14 +279,27 @@ class SolverFIT3D:
                 # Retrieve from material library
                 mat_key = self.stl_materials[key].lower()
 
-                self.ieps += mask * (1./material_lib[mat_key][0])
-                self.imu += mask * (1./material_lib[mat_key][1])
+                eps = material_lib[mat_key][0]*eps_0
+                mu = material_lib[mat_key][1]*mu_0
+
+                # Setting to zero
+                self.ieps += self.ieps * (-1.0*mask) 
+                self.imu += self.imu * (-1.0*mask)
+
+                # Adding new values
+                self.ieps += mask * 1./eps 
+                self.imu += mask * 1./mu
 
             else:
                 # From input
-                eps_r = self.stl_materials[key][0]
-                mu_r = self.stl_materials[key][1]
+                eps = self.stl_materials[key][0]*eps_0
+                mu = self.stl_materials[key][1]*mu_0
 
-                self.ieps += mask * (1./eps_r)
-                self.imu += mask * (1./mu_r)
+                # Setting to zero
+                self.ieps += self.ieps * (-1.0*mask) 
+                self.imu += self.imu * (-1.0*mask)
+
+                # Adding new values
+                self.ieps += mask * 1./eps
+                self.imu += mask * 1./mu
 
