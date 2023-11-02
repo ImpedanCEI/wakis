@@ -119,11 +119,17 @@ class Field:
 
         if dtype is None:
             dtype = self.dtype
-            
-        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
-        mulField.field_x = self.field_x + other
-        mulField.field_y = self.field_y + other
-        mulField.field_z = self.field_z + other
+        
+        if type(other) is Field:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            mulField.field_x = self.field_x + other.field_x
+            mulField.field_y = self.field_y + other.field_y
+            mulField.field_z = self.field_z + other.field_z  
+        else:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            mulField.field_x = self.field_x + other
+            mulField.field_y = self.field_y + other
+            mulField.field_z = self.field_z + other
 
         return mulField
 
