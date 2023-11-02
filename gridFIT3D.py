@@ -38,9 +38,8 @@ class GridFIT3D:
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, 
-                stl_solids=None, stl_materials=None, 
-                stl_rotate=[0., 0., 0.], stl_scale=0.):
+                Nx, Ny, Nz, stl_solids=None, stl_materials=None, 
+                stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=0.):
         
         # domain limits
         self.xmin = xmin
@@ -63,6 +62,7 @@ class GridFIT3D:
         self.stl_solids = stl_solids
         self.stl_materials = stl_materials
         self.stl_rotate = stl_rotate
+        self.stl_translate = stl_translate
         self.stl_scale = stl_scale
 
         # primal Grid G
@@ -122,15 +122,25 @@ class GridFIT3D:
                 raise Exception('Attribute `stl_solids` must contain a string or a dictionary')
 
         if type(self.stl_rotate) is not dict:
+            # if not a dict, the same values will be applied to all solids
             stl_rotate = {}
             for key in self.stl_solids.keys():
                 stl_rotate[key] = self.stl_rotate
             self.stl_rotate = stl_rotate
+
         if type(self.stl_scale) is not dict:
+            # if not a dict, the same values will be applied to all solids
             stl_scale = {}
             for key in self.stl_solids.keys():
                 stl_scale[key] = self.stl_scale
             self.stl_scale = stl_scale
+
+        if type(self.stl_translate) is not dict:
+            # if not a dict, the same values will be applied to all solids
+            stl_translate = {}
+            for key in self.stl_solids.keys():
+                stl_translate[key] = self.stl_translate
+            self.stl_translate = stl_translate
 
         tol = np.min([self.dx, self.dy, self.dz])*1e-3
         for key in self.stl_solids.keys():
@@ -143,7 +153,10 @@ class GridFIT3D:
             surf = surf.rotate_y(self.stl_rotate[key][1])  
             surf = surf.rotate_z(self.stl_rotate[key][2])  
 
-            #scale
+            # translate
+            surf.translate(self.stl_translate[key])
+
+            # scale
             surf = surf.scale(self.stl_scale[key]) 
 
             # mark cells in stl [True == in stl, False == out stl]
