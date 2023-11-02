@@ -20,7 +20,7 @@ Ny = 100
 Nz = 100
 
 # Embedded boundaries
-stl_file = 'tests/sphere.stl'
+stl_file = 'stl/sphere.stl'
 surf = pv.read(stl_file)
 
 stl_solids = {'Solid 1': stl_file}
@@ -92,7 +92,7 @@ def plot_E_field(solver, n, plot_patch=True):
 
     #fig.suptitle(f'Abs(E) field, timestep={n}')
     fig.tight_layout()
-    fig.savefig('imgAbsE/'+str(n).zfill(4)+'.png')
+    fig.savefig('imgE/'+str(n).zfill(4)+'.png')
     plt.clf()
     plt.close(fig)
 
@@ -117,7 +117,7 @@ def plot_H_field(solver, n, plot_patch=True):
     
     #fig.suptitle(f'Abs(H) field, timestep={n}')
     fig.tight_layout()
-    fig.savefig('imgAbsH/'+str(n).zfill(4)+'.png')
+    fig.savefig('imgH/'+str(n).zfill(4)+'.png')
     plt.clf()
     plt.close(fig)
 
@@ -125,28 +125,33 @@ def plot_H_field(solver, n, plot_patch=True):
 # ------------ Time loop ----------------
 
 # Initial conditions
-def plane_wave(solver,t):
-    vp = c_light                   # velocity
-    kz = 2*np.pi*(zmax-zmin)/5     # wave number (5 nodes)
-    w = kz*vp                      # ang. frequency
+def plane_wave(solver,t, Nt,f=None, beta=1.0):
+
+    if f is None:
+        f = 15 * 1/(solver.dt*(Nt-1))    # 15 nodes
+    vp = beta*c_light       # wavefront velocity beta*c
+    w = 2*np.pi*f           # ang. frequency  
+    kz = w/c_light          # wave number 
 
     solver.H[:,:,0,'y'] = -1.0 * np.cos(w*t) 
-    solver.E[:,:,0,'x'] = 1.0 * np.cos(w*t) #/(kz/(mu_0*vp)) 
-    #* kz/(mu_0*vp) 
+    solver.E[:,:,0,'x'] = 1.0 * np.cos(w*t) /(kz/(mu_0*vp)) 
 
-Nt = 300
+
+#Nt = 300
+Nt = int((zmax-zmin)/(solver.dt*c_light))
+
 for n in tqdm(range(Nt)):
 
     # Initial condition
-    plane_wave(solver, n*solver.dt*c_light)
+    plane_wave(solver, n*solver.dt, Nt)
 
     # Advance
     solver.one_step()
 
     # Plot
-    if n%5 == 0:
-        plot_E_field(solver, n)
-        plot_H_field(solver, n)
+    #if n%5 == 0:
+        #plot_E_field(solver, n)
+        #plot_H_field(solver, n)
 
 
 
