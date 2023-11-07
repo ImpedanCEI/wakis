@@ -72,7 +72,7 @@ class SolverFIT3D:
         self.bc_high = bc_high
         self.apply_bc_to_C() 
 
-        # Materials [TODO]
+        # Materials 
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./eps_0) 
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./mu_0) 
 
@@ -97,8 +97,8 @@ class SolverFIT3D:
             self.set_ghosts_to_0()
             self.step_0 = False
 
-            if self.use_conductors:
-                self.set_field_in_conductors_to_0()
+            #if self.use_conductors:
+                #self.set_field_in_conductors_to_0()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
@@ -125,17 +125,15 @@ class SolverFIT3D:
                 self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
                 self.itA[-1, :, :, 'z'] = self.iA[0, :, :, 'z']
 
-            elif self.bc_low[1].lower() == 'periodic' and self.bc_high[1].lower() == 'periodic':
+            if self.bc_low[1].lower() == 'periodic' and self.bc_high[1].lower() == 'periodic':
                 self.tL[:, -1, :, 'y'] = self.L[:, 0, :, 'y']
                 self.itA[:, -1, :, 'x'] = self.iA[:, 0, :, 'x']
                 self.itA[:, -1, :, 'z'] = self.iA[:, 0, :, 'z']
 
-            elif self.bc_low[2].lower() == 'periodic' and self.bc_high[2].lower() == 'periodic':
+            if self.bc_low[2].lower() == 'periodic' and self.bc_high[2].lower() == 'periodic':
                 self.tL[:, :, -1, 'z'] = self.L[:, :, 0, 'z']
                 self.itA[:, :, -1, 'x'] = self.iA[:, :, 0, 'x']
                 self.itA[:, :, -1, 'y'] = self.iA[:, :, 0, 'y']
-            else:
-                raise Exception('Invalid use of periodic boundary condiions')
 
             self.tDs = diags(self.tL.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
             self.itDa = diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
@@ -241,8 +239,8 @@ class SolverFIT3D:
         Set the 1/epsilon values inside the PEC conductors to zero
         '''
         self.flag_in_conductors = self.grid.flag_int_cell_yz[:-1,:,:]  \
-                        * self.grid.flag_int_cell_zx[:,:-1,:] \
-                        * self.grid.flag_int_cell_xy[:,:,:-1]
+                        + self.grid.flag_int_cell_zx[:,:-1,:] \
+                        + self.grid.flag_int_cell_xy[:,:,:-1]
 
         self.ieps *= self.flag_in_conductors
 
