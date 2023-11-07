@@ -51,96 +51,12 @@ def analytic_sol_Hx(x, y, z, t):
         n * np.pi / Ly * (y_0 - Ly/2)) * np.cos(p * np.pi / Lz * (z_0 - Lz/2)) * np.cos(
         np.sqrt(2) * np.pi / Lx * c_light * t)
 
-# Plotting functions
-folder ='imgRes'
-def plot_E_field(solverFIT, solverFDTD, n):
-
-    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
-    dims = {0:'x', 1:'y', 2:'z'}
-    lims = {0: 500, 1: 500, 2: 500}
-
-    #FIT
-    for i, ax in enumerate(axs[0,:]):
-        vmin, vmax = -lims[i], lims[i]
-        #vmin, vmax = -np.max(np.abs(solverFIT.E[:,:,int(Nz/2), dims[i]])), np.max(np.abs(solverFIT.E[:,:,int(Nz/2), dims[i]]))
-        im = ax.imshow(solverFIT.E[:,:,int(Nz/2), dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
-        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT E{dims[i]}(x,y,Nz/2)')
-
-    #FDTD
-    ax = axs[1,0]
-    vmin, vmax = -lims[0], lims[0]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Ex[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Ex[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Ex[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Ex(x,y,Nz/2)')
-
-    ax = axs[1,1]
-    vmin, vmax = -lims[1], lims[1]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Ey[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Ey[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Ey[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Ey(x,y,Nz/2)')
-
-    ax = axs[1,2]
-    vmin, vmax = -lims[2], lims[2]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Ez[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Ez[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Ez[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Ez(x,y,Nz/2)')
-
-    fig.suptitle(f'E field, timestep={n}')
-    fig.savefig(f'{folder}E/'+str(n).zfill(4)+'.png')
-    plt.clf()
-    plt.close(fig)
-
-def plot_H_field(solverFIT, solverFDTD, n):
-
-    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
-    dims = {0:'x', 1:'y', 2:'z'}
-    lims = {0: 0.05, 1: 0.05, 2: 1}
-
-    #FIT
-    for i, ax in enumerate(axs[0,:]):
-        vmin, vmax = -lims[i], lims[i]
-        #vmin, vmax = -np.max(np.abs(solverFIT.H[:,:,int(Nz/2), dims[i]])), np.max(np.abs(solverFIT.H[:,:,int(Nz/2), dims[i]]))
-        im = ax.imshow(solverFIT.H[:,:,int(Nz/2), dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
-        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT H{dims[i]}(x,y,Nz/2)')
-
-    #FDTD
-    ax = axs[1,0]
-    vmin, vmax = -lims[0], lims[0]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Hx[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Hx[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Hx[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hx(x,y,Nz/2)')
-
-    ax = axs[1,1]
-    vmin, vmax = -lims[1], lims[1]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Hy[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Hy[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Hy[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hy(x,y,Nz/2)')
-
-    ax = axs[1,2]
-    vmin, vmax = -lims[2], lims[2]
-    #vmin, vmax = -np.max(np.abs(solverFDTD.Hz[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Hz[:,:,int(Nz/2)]))
-    im = ax.imshow(solverFDTD.Hz[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'FDTD Hz(x,y,Nz/2)')
-
-    fig.suptitle(f'H field, timestep={n}')
-    fig.savefig(f'{folder}H/'+str(n).zfill(4)+'.png')
-    plt.clf()
-    plt.close(fig)
-
 #---- Domain definition ----#
 
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 50 # Number of mesh cells
+N = 30 # Number of mesh cells
 
 Nx = N
 Ny = N
@@ -174,13 +90,110 @@ conductors = ConductorsAssembly([cube])
 bc_low=['pec', 'pec', 'pec']
 bc_high=['pec', 'pec', 'pec']
 
-
 NCFL=1.0
 gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
 solverFIT = SolverFIT3D(gridFIT, NCFL, bc_low=bc_low, bc_high=bc_high)
 
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
 solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
+
+# Plotting functions
+folder ='imgRes'
+plane = 'XY'
+
+if plane == 'XY':
+    xx, yy, zz = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
+    title = '(x,y,Nz/2)'
+    xax, yax = 'y', 'x'
+
+if plane == 'YZ':
+    xx, yy, zz = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
+    title = '(Nx/2,y,z)'
+    xax, yax = 'z', 'y'
+
+
+def plot_E_field(solverFIT, solverFDTD, n):
+
+    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
+    dims = {0:'x', 1:'y', 2:'z'}
+    lims = {0: 500, 1: 500, 2: 500}
+
+    #FIT
+    for i, ax in enumerate(axs[0,:]):
+        vmin, vmax = -lims[i], lims[i]
+        #vmin, vmax = -np.max(np.abs(solverFIT.E[:,:,int(Nz/2), dims[i]])), np.max(np.abs(solverFIT.E[:,:,int(Nz/2), dims[i]]))
+        im = ax.imshow(solverFIT.E[xx, yy, zz, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
+        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+        ax.set_title(f'FIT E{dims[i]}(x,y,Nz/2)')
+
+    #FDTD
+    ax = axs[1,0]
+    vmin, vmax = -lims[0], lims[0]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Ex[xx, yy, zz])), np.max(np.abs(solverFDTD.Ex[xx, yy, zz]))
+    im = ax.imshow(solverFDTD.Ex[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ex(x,y,Nz/2)')
+
+    ax = axs[1,1]
+    vmin, vmax = -lims[1], lims[1]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Ey[xx, yy, zz])), np.max(np.abs(solverFDTD.Ey[xx, yy, zz]))
+    im = ax.imshow(solverFDTD.Ey[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ey(x,y,Nz/2)')
+
+    ax = axs[1,2]
+    vmin, vmax = -lims[2], lims[2]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Ez[xx, yy, zz])), np.max(np.abs(solverFDTD.Ez[xx, yy, zz]))
+    im = ax.imshow(solverFDTD.Ez[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Ez(x,y,Nz/2)')
+
+    fig.suptitle(f'E field, timestep={n}')
+    fig.savefig(f'{folder}E/'+str(n).zfill(4)+'.png')
+    plt.clf()
+    plt.close(fig)
+
+def plot_H_field(solverFIT, solverFDTD, n):
+
+    fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
+    dims = {0:'x', 1:'y', 2:'z'}
+    lims = {0: 0.05, 1: 0.05, 2: 1}
+
+    #FIT
+    for i, ax in enumerate(axs[0,:]):
+        vmin, vmax = -lims[i], lims[i]
+        #vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
+        im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
+        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+        ax.set_title(f'FIT H{dims[i]}(x,y,Nz/2)')
+
+    #FDTD
+    ax = axs[1,0]
+    vmin, vmax = -lims[0], lims[0]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Hx[xx, yy, zz])), np.max(np.abs(solverFDTD.Hx[xx, yy, zz]))
+    im = ax.imshow(solverFDTD.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hx(x,y,Nz/2)')
+
+    ax = axs[1,1]
+    vmin, vmax = -lims[1], lims[1]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Hy[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Hy[:,:,int(Nz/2)]))
+    im = ax.imshow(solverFDTD.Hy[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hy(x,y,Nz/2)')
+
+    ax = axs[1,2]
+    vmin, vmax = -lims[2], lims[2]
+    #vmin, vmax = -np.max(np.abs(solverFDTD.Hz[:,:,int(Nz/2)])), np.max(np.abs(solverFDTD.Hz[:,:,int(Nz/2)]))
+    im = ax.imshow(solverFDTD.Hz[:,:,int(Nz/2)], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'FDTD Hz(x,y,Nz/2)')
+
+    fig.suptitle(f'H field, timestep={n}')
+    fig.savefig(f'{folder}H/'+str(n).zfill(4)+'.png')
+    plt.clf()
+    plt.close(fig)
+
 
 #---- Initial conditions -----#
 for ii in range(Nx):
@@ -222,14 +235,15 @@ for ii in range(Nx):
 
 #----- Time loop -----#
 
-Nt = 30
+Nt = 200
 for nt in tqdm(range(Nt)):
 
     solverFIT.one_step()
     solverFDTD.one_step()
 
-    plot_E_field(solverFIT, solverFDTD, nt)
-    plot_H_field(solverFIT, solverFDTD, nt)
+    if nt%2:
+        plot_E_field(solverFIT, solverFDTD, nt)
+        plot_H_field(solverFIT, solverFDTD, nt)
 
 #----- Compare -----#
 
@@ -361,3 +375,8 @@ fig.suptitle(f'H field, timestep={Nt}')
 fig.savefig('analyticYZ.png')
 plt.clf()
 plt.close(fig)
+
+#!convert -delay 10 -loop 0 imgResH/*.png imgResH/H_ResCube.gif
+#!convert -delay 10 -loop 0 imgResE/*.png imgResE/E_ResCube.gif
+#!rm imgResH/*.png
+#!rm imgResE/*.png
