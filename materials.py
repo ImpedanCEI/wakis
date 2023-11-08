@@ -1,5 +1,5 @@
 '''
-Material library dictrionary
+Material library dictionary
 
 Format:
 {
