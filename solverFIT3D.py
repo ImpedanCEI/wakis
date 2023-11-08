@@ -13,7 +13,7 @@ class SolverFIT3D:
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=True, use_stl=False,
-                 i_s=0, j_s=0, k_s=0, N_pml_low=None, N_pml_high=None):
+                 bg=[1.0, 1.0]):
 
         # Grid 
         self.grid = grid
@@ -73,8 +73,9 @@ class SolverFIT3D:
         self.apply_bc_to_C() 
 
         # Materials 
-        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./eps_0) 
-        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./mu_0) 
+        self.eps_bg, self.mu_bg = bg[0]*eps_0, bg[1]*mu_0
+        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.eps_bg) 
+        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.mu_bg) 
 
         if self.use_stl:
             self.apply_stl()
