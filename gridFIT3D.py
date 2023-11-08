@@ -154,7 +154,7 @@ class GridFIT3D:
             surf = surf.rotate_z(self.stl_rotate[key][2])  
 
             # translate
-            surf.translate(self.stl_translate[key])
+            surf = surf.translate(self.stl_translate[key])
 
             # scale
             surf = surf.scale(self.stl_scale[key]) 
