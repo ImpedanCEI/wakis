@@ -185,6 +185,8 @@ def plot_H_field(solver, analytic, n):
 
 #---- Initial conditions -----#
 mask = np.reshape(solver.grid.grid['Solid 1'], (solver.Nx, solver.Ny, solver.Nz)).astype(int)
+#mask = np.roll(mask, [-1, -1], axis=[0,1] )
+
 for ii in range(Nx):
     for jj in range(Ny):
         for kk in range(Nz):
@@ -194,13 +196,13 @@ for ii in range(Nx):
                 x = (ii+0.5) * dx + xmin 
                 y = (jj+0.5) * dy + ymin 
                 z = (kk+0.5) * dz + zmin 
-                solver.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
-                solver.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solver.dt)
-                solver.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solver.dt)
+                solver.E[ii, jj, kk, 'z'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
+                solver.E[ii, jj, kk, 'y'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
+                solver.E[ii, jj, kk, 'x'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
 
 #----- Time loop -----#
 
-Nt = 300
+Nt = 150
 for nt in tqdm(range(Nt)):
 
     solver.one_step()
@@ -209,3 +211,4 @@ for nt in tqdm(range(Nt)):
         plot_E_field(solver, nt)
         plot_H_field(solver, analytic, nt)
 
+#convert -delay 5 -loop 0 imgRes/*.png imgRes/.gif
