@@ -9,3 +9,5 @@ ECT_*
 *.png
 *.gif
 *.old*
+*.svg
+*.pdf
