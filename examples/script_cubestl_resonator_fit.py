@@ -49,9 +49,9 @@ def analytic_sol_Hx(x, y, z, t):
 #---- Domain definition ----#
 
 # Number of mesh cells
-Nx = 50
-Ny = 50
-Nz = 50
+Nx = 30
+Ny = 30
+Nz = 30
 
 # Embedded boundaries
 stl_file = 'stl/cube.stl'
@@ -184,25 +184,42 @@ def plot_H_field(solver, analytic, n):
 
 
 #---- Initial conditions -----#
-mask = np.reshape(solver.grid.grid['Solid 1'], (solver.Nx, solver.Ny, solver.Nz)).astype(int)
-#mask = np.roll(mask, [-1, -1], axis=[0,1] )
+mask = np.reshape(solver.grid.grid['Solid 1'], (solver.Nx, solver.Ny, solver.Nz))
+mask_x = mask
+mask_y = mask
+mask_z = mask
+
+#mask_x = np.roll(mask, [-1, -1], axis=[1,2] )
+#mask_y = np.roll(mask, [-1, -1], axis=[0,2] )
+#mask_z = np.roll(mask, [-1, -1], axis=[0,1] )
+
+#mask_x = np.roll(mask, [-1], axis=[0] )
+#mask_y = np.roll(mask, [-1], axis=[1] )
+#mask_z = np.roll(mask, [-1], axis=[2] )
+
+# No zero waves for E IC
+mask_x = np.roll(mask, [-1], axis=[1])+np.roll(mask, [+1], axis=[1])
+mask_y = np.roll(mask, [-1], axis=[0])+np.roll(mask, [+1], axis=[0])
+mask_z = mask_x+mask_y
+
 
 for ii in range(Nx):
     for jj in range(Ny):
         for kk in range(Nz):
 
-            if mask[ii,jj,kk]:
-                
-                x = (ii+0.5) * dx + xmin 
-                y = (jj+0.5) * dy + ymin 
-                z = (kk+0.5) * dz + zmin 
-                solver.E[ii, jj, kk, 'z'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
-                solver.E[ii, jj, kk, 'y'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
-                solver.E[ii, jj, kk, 'x'] = 500*analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
+            x = (ii+0.5) * dx + xmin 
+            y = (jj+0.5) * dy + ymin 
+            z = (kk+0.5) * dz + zmin 
 
+            if mask_x[ii,jj,kk]:
+                solver.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solver.dt)
+            if mask_y[ii,jj,kk]:
+                solver.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solver.dt)
+            if mask_z[ii,jj,kk]:
+                solver.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, -0.5 * solver.dt)
+ 
 #----- Time loop -----#
-
-Nt = 150
+Nt = 100
 for nt in tqdm(range(Nt)):
 
     solver.one_step()
