@@ -15,16 +15,16 @@ from field import Field
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 30
-Ny = 100
-Nz = 100
+Nx = 80
+Ny = 80
+Nz = 160
 
 # Embedded boundaries
-stl_file = 'stl/sphere.stl'
+stl_file = 'stl/sphere.stl' 
 surf = pv.read(stl_file)
 
 stl_solids = {'Solid 1': stl_file}
-stl_materials = {'Solid 1': 'PEC'}
+stl_materials = {'Solid 1': 'dielectric'}
 stl_rotate = [0, 0, 0]
 stl_scale = 1e-3
 
@@ -36,14 +36,16 @@ surf = surf.scale(stl_scale)
 
 # Domain bounds
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
-padx, pady, padz = (xmax-xmin)*0.5, (ymax-ymin)*0.2, (zmax-zmin)*0.2
+padx, pady, padz = (xmax-xmin)*0.2, (ymax-ymin)*0.2, (zmax-zmin)*1.0
 
 xmin, ymin, zmin = (xmin-padx), (ymin-pady), (zmin-padz)
 xmax, ymax, zmax = (xmax+padx), (ymax+pady), (zmax+padz)
 
+Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
+
 # boundary conditions
-bc_low=['periodic', 'pec', 'pec']
-bc_high=['periodic', 'pec', 'pec']
+bc_low=['pec', 'pec', 'pec']
+bc_high=['pec', 'pec', 'pec']
 
 # set FIT solver
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
@@ -121,6 +123,20 @@ def plot_H_field(solver, n, plot_patch=True):
     plt.clf()
     plt.close(fig)
 
+def plot3D_Hy_field(solver, n):
+    # Add H field data
+    grid.grid.cell_data['Hy'] = np.reshape(solver.H[:, :, :, 'y'], solver.N)
+    points= grid.grid.cell_data_to_point_data() #interpolate
+    clim = [-2., 2.]
+
+    # Pyvista plot
+    ac1 = pl.add_mesh(points.clip_box(bounds=[xmax-Lx/2, xmax, ymax-Ly/2, ymax, zmin, zmax]), scalars='Hy', cmap='jet', clim=clim)
+
+    # Save
+    #pl.save_graphic('imgH/'+str(n).zfill(4)+'_3D.pdf')
+    pl.screenshot('imgH/'+str(n).zfill(4)+'_3D.png')
+    pl.remove_actor(ac1)
+    
 
 # ------------ Time loop ----------------
 
@@ -139,6 +155,15 @@ def plane_wave(solver,t, Nt,f=None, beta=1.0):
 
 #Nt = 300
 Nt = int((zmax-zmin)/(solver.dt*c_light))
+pl = pv.Plotter(off_screen=True)
+pl.add_mesh(surf, color='white', opacity=0.3)
+pl.add_axes()
+pl.enable_3_lights()
+pl.camera_position = 'zx'
+pl.camera.azimuth += 30
+pl.camera.elevation += 30
+pl.camera.zoom(0.5)
+
 
 for n in tqdm(range(Nt)):
 
@@ -152,6 +177,6 @@ for n in tqdm(range(Nt)):
     #if n%5 == 0:
         #plot_E_field(solver, n)
         #plot_H_field(solver, n)
-
-
-
+    
+    if n%10 == 0:
+        plot3D_Hy_field(solver, n)
