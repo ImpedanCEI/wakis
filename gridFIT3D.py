@@ -145,20 +145,26 @@ class GridFIT3D:
         tol = np.min([self.dx, self.dy, self.dz])*1e-3
         for key in self.stl_solids.keys():
 
-            # import stl
-            surf = pv.read(self.stl_solids[key])
-
-            # rotate
-            surf = surf.rotate_x(self.stl_rotate[key][0])  
-            surf = surf.rotate_y(self.stl_rotate[key][1])  
-            surf = surf.rotate_z(self.stl_rotate[key][2])  
-
-            # translate
-            surf = surf.translate(self.stl_translate[key])
-
-            # scale
-            surf = surf.scale(self.stl_scale[key]) 
+            surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             select = self.grid.select_enclosed_points(surf, tolerance=tol)
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
+
+    def read_stl(self, key):
+
+        # import stl
+        surf = pv.read(self.stl_solids[key])
+
+        # rotate
+        surf = surf.rotate_x(self.stl_rotate[key][0])  
+        surf = surf.rotate_y(self.stl_rotate[key][1])  
+        surf = surf.rotate_z(self.stl_rotate[key][2])  
+
+        # translate
+        surf = surf.translate(self.stl_translate[key])
+
+        # scale
+        surf = surf.scale(self.stl_scale[key]) 
+
+        return surf
