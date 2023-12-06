@@ -39,7 +39,7 @@ class GridFIT3D:
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, stl_solids=None, stl_materials=None, 
-                stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=0.):
+                stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0):
         
         # domain limits
         self.xmin = xmin
