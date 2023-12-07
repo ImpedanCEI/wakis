@@ -77,6 +77,9 @@ class SolverFIT3D:
         self.apply_bc_to_C() 
 
         # Materials 
+        if type(bg) is str:
+            bg = material_lib[bg.lower()]
+
         self.eps_bg, self.mu_bg = bg[0]*eps_0, bg[1]*mu_0
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.eps_bg) 
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.mu_bg) 
@@ -608,9 +611,9 @@ class SolverFIT3D:
                 mask = np.reshape(self.grid.grid[add_patch], (Nx, Ny, Nz))
                 patch = np.ones((Nx, Ny, Nz))
                 if patch_reverse:
-                    patch[mask] = np.nan
+                    patch[mask] = np.nan 
                 else:
-                    patch[np.logical_not(mask)] = np.nan
+                    patch[np.logical_not(mask)] = np.nan 
                 ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
 
             elif type(add_patch) is list:
@@ -621,7 +624,7 @@ class SolverFIT3D:
                     ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
 
         if n is not None:
-            fig.suptitle(f'${field}_{component}$ field, timestep={n}')
+            fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
             title += '_'+str(n).zfill(6)
 
         fig.tight_layout()
@@ -630,5 +633,6 @@ class SolverFIT3D:
             fig.savefig(title+'.png')
             plt.clf()
             plt.close(fig)
+
         else:
             plt.show()
