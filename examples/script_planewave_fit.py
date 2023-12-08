@@ -72,6 +72,7 @@ if plane == 'YZ':
     title = '(Nx/2,y,z)'
     xax, yax = 'z', 'y'
     extent = [0,Nz,0,Ny]
+    extent = [zmin, zmax, ymin, ymax]
 
 def plot_E_field(solver, n, plot_patch=True):
 
@@ -155,15 +156,18 @@ def plane_wave(solver,t, Nt,f=None, beta=1.0):
 
 #Nt = 300
 Nt = int((zmax-zmin)/(solver.dt*c_light))
+
+'''
 pl = pv.Plotter(off_screen=True)
 pl.add_mesh(surf, color='white', opacity=0.3)
 pl.add_axes()
-pl.enable_3_lights()
+#pl.enable_3_lights()
 pl.camera_position = 'zx'
 pl.camera.azimuth += 30
 pl.camera.elevation += 30
 pl.camera.zoom(0.5)
-
+'''
+Nt = 10
 
 for n in tqdm(range(Nt)):
 
@@ -178,5 +182,16 @@ for n in tqdm(range(Nt)):
         #plot_E_field(solver, n)
         #plot_H_field(solver, n)
     
-    if n%10 == 0:
-        plot3D_Hy_field(solver, n)
+    # Plot 3D
+    #if n%10 == 0:
+        #plot3D_Hy_field(solver, n)
+
+# Plot 3D built-in
+solver.plot3D(field='H', component='y', clim=None,  hide_solids=None, show_solids=None, 
+               add_stl='Solid 1', stl_opacity=0.1, stl_colors='white',
+               title=None, cmap='rainbow', clip_volume=False, clip_normal='-y',
+               clip_box=True, clip_bounds=None, off_screen=True, zoom=0.4, n=n)
+
+solver.plot2D(field='E', component='x', plane='ZY', pos=0.5, norm='symlog', 
+               vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1,
+               add_patch=False, title=None, off_screen=True, n=n, interpolation='spline36')
