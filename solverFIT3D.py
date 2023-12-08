@@ -74,6 +74,8 @@ class SolverFIT3D:
         # Boundaries
         self.bc_low = bc_low
         self.bc_high = bc_high
+        self.activate_abc = False
+
         self.apply_bc_to_C() 
 
         # Materials 
@@ -97,10 +99,11 @@ class SolverFIT3D:
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
 
+        # Flags
         self.step_0 = True
-
-        # Plot
         self.plotter_active = False
+
+        self.attrcleanup()
 
     def one_step(self):
 
@@ -115,11 +118,13 @@ class SolverFIT3D:
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
 
-        #compute J here ?
-
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() - self.iDeps*self.J.toarray())
                          )
+        
+        #update ABC
+        if self.activate_abc:
+            self.update_abc()
         
     def apply_bc_to_C(self):
         '''
@@ -191,7 +196,7 @@ class SolverFIT3D:
         # Dirichlet PMC: tangential H field = 0 at boundary
         if any(True for x in self.bc_low if x.lower() == 'magnetic' or x.lower() == 'pmc'):
 
-            if self.bc_low[0].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
+            if self.bc_low[0].lower() == 'magnetic' or self.bc_low[0] == 'pmc':
                 xlo = 0
             if self.bc_low[1].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
                 ylo = 0    
@@ -225,6 +230,46 @@ class SolverFIT3D:
 
             # Update C (rows)
             self.C = self.Dbc*self.C
+
+        # Absorbing boundary conditions ABC
+        if any(True for x in self.bc_low if x.lower() == 'abc'):
+            self.activate_abc = True
+
+    def update_abc(self):
+        '''
+        Apply ABC algo to the selected BC, 
+        to be applied after each timestep
+        '''
+
+        if self.bc_low[0].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[0, :, :, d] = self.E[1, :, :, d]
+                self.H[0, :, :, d] = self.H[1, :, :, d]  
+
+        if self.bc_low[1].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, 0, :, d] = self.E[:, 1, :, d]
+                self.H[:, 0, :, d] = self.H[:, 1, :, d]
+                   
+        if self.bc_low[2].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, :, 0, d] = self.E[:, :, 1, d]
+                self.H[:, :, 0, d] = self.H[:, :, 1, d]  
+
+        if self.bc_high[0].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[-1, :, :, d] = self.E[-2, :, :, d]
+                self.H[-1, :, :, d] = self.H[-2, :, :, d] 
+
+        if self.bc_high[1].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, -1, :, d] = self.E[:, -2, :, d]
+                self.H[:, -1, :, d] = self.H[:, -2, :, d] 
+
+        if self.bc_high[2].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, :, -1, d] = self.E[:, :, -2, d]
+                self.H[:, :, -1, d] = self.H[:, :, -2, d] 
 
     def set_ghosts_to_0(self):
         '''
@@ -311,6 +356,18 @@ class SolverFIT3D:
                 # Adding new values
                 self.ieps += mask * 1./eps
                 self.imu += mask * 1./mu
+
+    def attrcleanup(self):
+
+        # Fields
+        del self.L, self.tL, self.iA, self.itA
+        del self.BC
+
+        # Matrices
+        del self.Px, self.Py, self.Pz
+        del self.Ds, self.iDa, self.tDs, self.itDa
+        del self.C
+        del self.Dbc
 
     def plot3D(self, field='E', component='z', clim=None, hide_solids=None,
                show_solids=None, add_stl=None, stl_opacity=0.1, stl_colors='white',
