@@ -7,7 +7,7 @@ from field import Field
 
 unit = 1e-3
 # --- Read stl ----
-surf = pv.read('goniometer.stl')
+surf = pv.read('../stl/goniometer.stl')
 surf = surf.rotate_x(90)    # z axis longitudinal
 surf = surf.scale(unit)            # [m]
 #surf = surf.subdivide(3, subfilter='linear') #if used, select.threshold() is empty
@@ -16,7 +16,6 @@ surf = surf.scale(unit)            # [m]
 
 # bounds
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
-
 pad = 1.0 * unit
 
 # n cells 
@@ -45,7 +44,6 @@ pl.show()
 # ---- Cells inside surface ----
 tol = unit*1.e-3
 select = grid.select_enclosed_points(surf, tolerance=tol)
-inside = select.threshold(0.1)
 points_inside = np.where(select['SelectedPoints'] > 0.1)[0]
 cells_inside = np.where(select.point_data_to_cell_data()['SelectedPoints'] > 0.1)[0]
 
@@ -53,18 +51,20 @@ grid['Solid1'] = select.point_data_to_cell_data()['SelectedPoints']
 #solid1 = np.array(select['SelectedPoints'], dtype=float)
 #solid1[solid1 < 0.1] = np.nan
 
-
+inside = select.threshold(0.1)
 # Plot
 pl = pv.Plotter()
 pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
+pl.add_mesh(grid.extract_cells(cells_inside), scalars='Solid1', cmap='Blues', opacity=0.6)
+
+pl.show()
+
 #pl.add_mesh(inside, show_edges=True,  color='blue', opacity=0.85)
 #pl.add_mesh(select.point_data_to_cell_data().slice(normal=[1,0,0]), scalars='SelectedPoints', cmap='Blues', opacity=0.6)
 #pl.add_mesh(select.slice(normal=[1,0,0]), scalars='SelectedPoints', cmap='Blues', opacity=0.6)
 #pl.add_mesh(select.threshold(0.1), scalars='SelectedPoints', cmap='Blues', opacity=0.6)
-pl.add_mesh(grid.extract_cells(cells_inside), scalars='Solid1', cmap='Blues', opacity=0.6)
-#pl.add_mesh(surf, color='blue', opacity=0.35)
-pl.show()
 
+#pl.add_mesh(surf, color='blue', opacity=0.35)
 
 '''
 # ---- Voxelize and merge test ----
@@ -94,7 +94,7 @@ inside = select.threshold(0.001)
 inside.plot()
 '''
 # ---- Cells_inside to Field slices ----
-
+'''
 # ---- Aux functions ------
 m = 1
 n = 1
@@ -173,7 +173,7 @@ pl = pv.Plotter()
 pl.add_mesh(grid, show_edges=True, style='wireframe', color='w', opacity=0.15)
 pl.add_mesh(grid.slice(normal=[1,0,0]), show_edges=True, scalars='Hz', cmap='rainbow')
 pl.show()
-
+'''
 
 '''
 # clipping grid obj
