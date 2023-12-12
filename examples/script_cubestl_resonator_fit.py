@@ -49,9 +49,9 @@ def analytic_sol_Hx(x, y, z, t):
 #---- Domain definition ----#
 
 # Number of mesh cells
-Nx = 30
-Ny = 30
-Nz = 30
+Nx = 50
+Ny = 50
+Nz = 50
 
 # Embedded boundaries
 stl_file = 'stl/cube.stl'
@@ -99,17 +99,22 @@ dx, dy, dz = solver.dx, solver.dy, solver.dz
 
 # Plotting functions
 folder ='imgRes'
-plane = 'XY'
+plane = 'ZX'
 
 if plane == 'XY':
     xx, yy, zz = slice(0,Nx), slice(0,Ny), int(Nz//2) #plane XY
     title = '(x,y,Nz/2)'
     xax, yax = 'ny', 'nx'
 
-if plane == 'YZ':
+if plane == 'ZY':
     xx, yy, zz = int(Nx//2), slice(0,Ny), slice(0,Nz) #plane YZ
     title = '(Nx/2,y,z)'
     xax, yax = 'nz', 'ny'
+
+if plane == 'ZX':
+    xx, yy, zz = slice(0,Nx), int(Ny//2), slice(0,Nz) #plane ZX
+    title = '(x,Ny/2,z)'
+    xax, yax = 'nz', 'nx'
 
 def get_analytic_H(analytic, n):
     dx, dy, dz = analytic.dx, analytic.dy, analytic.dz
@@ -134,7 +139,7 @@ def plot_E_field(solver, n):
 
     fig, axs = plt.subplots(1,3, tight_layout=True, figsize=[8,6])
     dims = {0:'x', 1:'y', 2:'z'}
-    lims = {0: 500, 1: 500, 2: 500}
+    lims = {0: 50, 1: 50, 2: 50}
 
     #FIT
     for i, ax in enumerate(axs[:]):
@@ -155,7 +160,7 @@ def plot_H_field(solver, analytic, n):
 
     fig, axs = plt.subplots(2,3, tight_layout=True, figsize=[8,6])
     dims = {0:'x', 1:'y', 2:'z'}
-    lims = {0: 1, 1: 1, 2: 1}
+    lims = {0: 1.0, 1: 0.1, 2: 1}
 
     #FIT
     for i, ax in enumerate(axs[0,:]):
@@ -185,9 +190,9 @@ def plot_H_field(solver, analytic, n):
 
 #---- Initial conditions -----#
 mask = np.reshape(solver.grid.grid['Solid 1'], (solver.Nx, solver.Ny, solver.Nz))
-mask_x = mask
-mask_y = mask
-mask_z = mask
+#mask_x = mask
+#mask_y = mask
+#mask_z = mask
 
 #mask_x = np.roll(mask, [-1, -1], axis=[1,2] )
 #mask_y = np.roll(mask, [-1, -1], axis=[0,2] )
@@ -201,6 +206,11 @@ mask_z = mask
 mask_x = np.roll(mask, [-1], axis=[1])+np.roll(mask, [+1], axis=[1])
 mask_y = np.roll(mask, [-1], axis=[0])+np.roll(mask, [+1], axis=[0])
 mask_z = mask_x+mask_y
+
+#
+#mask_x = np.roll(mask, [-1], axis=[1])+np.roll(mask, [+1], axis=[1])
+#mask_y = np.roll(mask, [-1], axis=[0])+np.roll(mask, [+1], axis=[0])
+#mask_z = mask_x+mask_y
 
 
 for ii in range(Nx):
@@ -229,3 +239,9 @@ for nt in tqdm(range(Nt)):
         plot_H_field(solver, analytic, nt)
 
 #convert -delay 5 -loop 0 imgRes/*.png imgRes/.gif
+'''
+solver.plot3D(field='H', component='z', clim=None,  hide_solids=None, show_solids=None, 
+               add_stl='Solid 1', stl_opacity=0.1, stl_colors='white',
+               title=None, cmap='rainbow', clip_volume=True, clip_normal='-z',
+               clip_box=False, clip_bounds=None, off_screen=False, zoom=0.4, n=nt)
+'''
