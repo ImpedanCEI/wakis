@@ -77,8 +77,8 @@ t = np.arange(0, Nt*solver.dt, solver.dt)
 ninj = int(tinj/solver.dt)
 
 # Prepare save file
-hf = h5py.File('hdf5/Ez_per-abs.h5', 'w')
-hf2 = h5py.File('hdf5/Jz_per-abs.h5', 'w')
+hf = h5py.File('hdf5/Ez_abc2.h5', 'w')
+hf2 = h5py.File('hdf5/Jz_abc2.h5', 'w')
 hf['x'], hf['y'], hf['z'], hf['t'] = x, y, z, t
 
 plot = True
@@ -105,49 +105,6 @@ for n in tqdm(range(Nt)):
 # Close save file
 hf.close()
 hf2.close()
-
-# Plot 1D
-'''
-hf = h5py.File('hdf5/Ez_abc.h5', 'r')
-hf2 = h5py.File('hdf5/Jz_abc.h5', 'r')
-
-fig, ax = plt.subplots(1, 1, figsize=[6,5], dpi=140)
-
-axx = ax.twinx()
-keystoplot = [ninj+(Nt-ninj)*0.1, ninj+(Nt-ninj)*0.3, ninj+(Nt-ninj)*0.6, ninj+(Nt-ninj)*0.8, Nt-1]
-colors = plt.cm.rainbow([0.2, 0.4, 0.6, 0.8, 1.])
-colorsJ = [0.2, 0.4, 0.6, 0.8, 1.]
-
-for i, key in enumerate(keystoplot):
-    Etoplot = np.array(hf[list(hf.keys())[int(key)]])
-    Jtoplot = np.array(hf2[list(hf2.keys())[int(key)]])
-    ax.plot(z, Etoplot, color=colors[i], ls='--', label=f'timestep #{int(key)}', lw=2)
-    axx.plot(z, Jtoplot, color='darkorange', label=f'timestep #{int(key)}', alpha=colorsJ[i])
-    axx.fill_between(z, Jtoplot, color='darkorange', label=f'timestep #{int(key)}', alpha=colorsJ[i]*0.8)
-hf.close()
-hf2.close()
-
-hf = h5py.File('hdf5/Ez_pec.h5', 'r')
-hf2 = h5py.File('hdf5/Jz_pec.h5', 'r')
-
-for i, key in enumerate(keystoplot):
-    Etoplot = np.array(hf[list(hf.keys())[int(key)]])
-    Jtoplot = np.array(hf2[list(hf2.keys())[int(key)]])
-    ax.plot(z, Etoplot, color=colors[i], label=f'timestep #{int(key)}', lw=2)
-
-ax.set_xlabel('$z$ [m]')
-ax.set_ylabel('$E_z$ [V/m]', color='darkgreen', fontweight='bold')
-lims = max(np.abs(plt.ylim()[0]), np.abs(plt.ylim()[0]))
-ax.set_ylim(-1e6, 1e6)
-axx.set_ylabel('Charge distribution [C/m]', color='r', fontweight='bold')
-axx.set_ylim(ymin=-np.max(Jtoplot)*1.5, ymax=np.max(Jtoplot)*1.5)
-ax.legend(loc=4, ncol=2)
-
-fig.suptitle('$E_z(x_s,y_s,z)$ field and $J_z(x_s,y_s,z)$ for different timesteps')
-fig.tight_layout()
-plt.show()
-'''
-
 
 # Plot 3D built-in
 #solver.plot3D(field='H', component='y', clim=None,  hide_solids=None, show_solids=None, 
