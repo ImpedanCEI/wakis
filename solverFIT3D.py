@@ -12,7 +12,7 @@ class SolverFIT3D:
     def __init__(self, grid, cfln=0.5,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_conductors=True, use_stl=False,
+                 use_conductors=False, use_stl=False,
                  bg=[1.0, 1.0]):
 
         # Grid 
