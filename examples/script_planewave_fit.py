@@ -44,8 +44,8 @@ xmax, ymax, zmax = (xmax+padx), (ymax+pady), (zmax+padz)
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
 # boundary conditions
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+bc_low=['pec', 'pec', 'abc']
+bc_high=['pec', 'pec', 'abc']
 
 # set FIT solver
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
@@ -155,7 +155,7 @@ def plane_wave(solver,t, Nt,f=None, beta=1.0):
 
 
 #Nt = 300
-Nt = int((zmax-zmin)/(solver.dt*c_light))
+Nt = int((zmax-zmin)/(solver.dt*c_light))+200
 
 '''
 pl = pv.Plotter(off_screen=True)
@@ -167,7 +167,6 @@ pl.camera.azimuth += 30
 pl.camera.elevation += 30
 pl.camera.zoom(0.5)
 '''
-Nt = 10
 
 for n in tqdm(range(Nt)):
 
@@ -178,9 +177,12 @@ for n in tqdm(range(Nt)):
     solver.one_step()
 
     # Plot
-    #if n%5 == 0:
+    if n%10 == 0:
         #plot_E_field(solver, n)
         #plot_H_field(solver, n)
+        solver.plot2D(field='H', component='y', plane='ZY', pos=0.5, norm=None, 
+               vmin=-1, vmax=1, figsize=[8,4], cmap='rainbow', patch_alpha=0.1,
+               add_patch='Solid 1', title='imgPwH/Hy', off_screen=True, n=n, interpolation='spline36')
     
     # Plot 3D
     #if n%10 == 0:
@@ -192,6 +194,6 @@ solver.plot3D(field='H', component='y', clim=None,  hide_solids=None, show_solid
                title=None, cmap='rainbow', clip_volume=False, clip_normal='-y',
                clip_box=True, clip_bounds=None, off_screen=True, zoom=0.4, n=n)
 
-solver.plot2D(field='E', component='x', plane='ZY', pos=0.5, norm='symlog', 
+solver.plot2D(field='E', component='x', plane='ZY', pos=0.5, norm=None, 
                vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1,
                add_patch=False, title=None, off_screen=True, n=n, interpolation='spline36')
