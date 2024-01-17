@@ -19,7 +19,7 @@ from field import Field
 
 #----- TE Funtions -----#
 m = 1
-n = 1
+n = 0
 p = 1
 theta = 0 #np.pi/8
 
@@ -57,7 +57,7 @@ def analytic_sol_Hx(x, y, z, t):
 Z0 = np.sqrt(mu_0 / eps_0)
 
 L = 1. # Domain length
-N = 30 # Number of mesh cells
+N = 50 # Number of mesh cells
 
 Nx = N
 Ny = N
@@ -99,20 +99,12 @@ def get_analytic_H(analytic, n):
         for jj in range(Ny):
             for kk in range(Nz):
 
-                x = (ii + 0.5) * dx + xmin
-                y = (jj + 0.5) * dy + ymin
-                z = kk * dz + zmin
-                analytic.Hz[ii, jj, kk] = analytic_sol_Hz(x, y, z, (n-0.5) * analytic.dt)
-
-                x = (ii + 0.5) * dx + xmin 
-                y = jj * dy + ymin
-                z = (kk + 0.5) * dz + zmin
-                analytic.Hy[ii, jj, kk] = analytic_sol_Hy(x, y, z, (n-0.5) * analytic.dt)
-
-                x = ii*dx + xmin
-                y = (jj + 0.5)*dy + ymin
-                z = (kk + 0.5)*dz + zmin
-                analytic.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, (n-0.5) * analytic.dt) 
+                x = (ii+0.5) * dx + xmin 
+                y = (jj+0.5) * dy + ymin 
+                z = (kk+0.5) * dz + zmin 
+                analytic.H[ii, jj, kk, 'z'] = analytic_sol_Hz(x, y, z, (n-0.5) * solverFIT.dt)
+                analytic.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, (n-0.5) * solverFIT.dt)
+                analytic.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, (n-0.5) * solverFIT.dt)
 
 def plot_E_field(solverFIT, solverFDTD, n):
 
@@ -166,18 +158,19 @@ def plot_E_field(solverFIT, solverFDTD, n):
 
 def plot_H_field(solverFIT, solverFDTD, analytic, n):
     
-    get_analytic_H(analytic, np.sqrt(2)*n)
+    get_analytic_H(analytic, n)
 
     fig, axs = plt.subplots(3,3, tight_layout=True, figsize=[8,6])
     dims = {0:'x', 1:'y', 2:'z'}
     #lims = {0: np.max(np.abs(analytic.Hx[xx, yy, zz])), 1: np.max(np.abs(analytic.Hy[xx, yy, zz])), 2: np.max(np.abs(analytic.Hz[xx, yy, zz]))}
-    lims = {0: 0.05, 1: 0.05, 2: 1.}
+    lims = {0: 0.1, 1: 0.01, 2: 1.}
     #vmin, vmax = -1., 1. 
+
     #FIT
     for i, ax in enumerate(axs[0,:]):
         #vmin, vmax = -np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]])), np.max(np.abs(solverFIT.H[xx, yy, zz, dims[i]]))
         vmin, vmax = -lims[i], lims[i]
-        im = ax.imshow(solverFIT.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
+        im = ax.imshow(solverFIT.H[xx, yy, int(Nz//2-1), dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
         ax.set_title(f'FIT H{dims[i]}{title}')
         ax.set_xlabel(xax)
@@ -212,34 +205,19 @@ def plot_H_field(solverFIT, solverFDTD, analytic, n):
     ax.set_ylabel(yax)
 
     #Analytic
-    ax = axs[2,0]
-    vmin, vmax = -lims[0], lims[0]
-    im = ax.imshow(analytic.Hx[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'Analytic Hx{title}')
-    ax.set_xlabel(xax)
-    ax.set_ylabel(yax)
+    for i, ax in enumerate(axs[2,:]):
+        vmin, vmax = -lims[i], lims[i]
+        im = ax.imshow(analytic.H[xx, yy, zz, dims[i]], cmap='rainbow', vmin=vmin, vmax=vmax)
+        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+        ax.set_title(f'Analytic H{dims[i]}{title}')
+        ax.set_xlabel(xax)
+        ax.set_ylabel(yax)
 
-    ax = axs[2,1]
-    vmin, vmax = -lims[1], lims[1]
-    im = ax.imshow(analytic.Hy[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'Analytic Hy{title}')
-    ax.set_xlabel(xax)
-    ax.set_ylabel(yax)
-
-    ax = axs[2,2]
-    vmin, vmax = -lims[2], lims[2]
-    im = ax.imshow(analytic.Hz[xx, yy, zz], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-    ax.set_title(f'Analytic Hz{title}')
-    ax.set_xlabel(xax)
-    ax.set_ylabel(yax)
-
-    fig.suptitle(f'H field, timestep={n}')
+    fig.suptitle(f'H Field, timestep={n}')
     fig.savefig(f'{folder}H/'+str(n).zfill(4)+'.png')
     plt.clf()
     plt.close(fig)
+
 
 # ---- Grid definitions ---------#
 
@@ -247,14 +225,18 @@ conductors = noConductor()
 bc_low=['pec', 'pec', 'pec']
 bc_high=['pec', 'pec', 'pec']
 
-NCFL=1.0
-
-gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
 gridFDTD = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FDTD')
+solverFDTD = EMSolver3D(gridFDTD, 'FDTD')
+del gridFDTD
 
+grid = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, conductors, 'FIT')
+analytic = SolverFIT3D(grid, bc_low=bc_low, bc_high=bc_high)
+del grid
+
+gridFIT = Grid3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx+1, Ny+1, Nz+1, conductors, 'FIT')
 solverFIT = SolverFIT3D(gridFIT, bc_low=bc_low, bc_high=bc_high)
-solverFDTD = EMSolver3D(gridFDTD, 'FDTD', NCFL)
-analytic = EMSolver3D(gridFDTD, 'FDTD', NCFL)
+del gridFIT
+solverFIT.dt = solverFDTD.dt
 
 #---- Initial conditions ------------#
 
@@ -282,22 +264,25 @@ for ii in range(Nx):
             solverFIT.H[ii, jj, kk, 'y'] = analytic_sol_Hy(x, y, z, -0.5 * solverFIT.dt)
 
             x = ii*dx + xmin
-            y = (jj + 0.5)*dy + ymin
-            z = (kk + 0.5)*dz + zmin
+            y = (jj + 0.5) * dy + ymin
+            z = (kk + 0.5) * dz + zmin
             solverFDTD.Hx[ii, jj, kk] = analytic_sol_Hx(x, y, z, -0.5 * solverFDTD.dt)
 
-            x = ii*dx + xmin
-            y = (jj + 0.5)*dy + ymin
-            z = (kk + 0.5)*dz + zmin
+            x = (ii + 0.5) * dx + xmin
+            y = (jj + 0.5) * dy + ymin
+            z = (kk + 0.5) * dz + zmin
             solverFIT.H[ii, jj, kk, 'x'] = analytic_sol_Hx(x, y, z, -0.5 * solverFIT.dt)
 
 #----- Time loop -----#
 
-Nt = 50
+Nt = 260
 for nt in tqdm(range(Nt)):
 
     solverFIT.one_step()
     solverFDTD.one_step()
 
-    plot_E_field(solverFIT, solverFDTD, nt)
-    plot_H_field(solverFIT, solverFDTD, analytic, nt)
+    #plot_E_field(solverFIT, solverFDTD, nt)
+    if nt%2 == 0:
+        plot_H_field(solverFIT, solverFDTD, analytic, nt)
+
+#convert -delay 5 -loop 0 *.png H_noeb.gif
