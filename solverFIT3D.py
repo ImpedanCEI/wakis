@@ -1,3 +1,5 @@
+from tqdm import tqdm
+
 import numpy as np
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
@@ -9,7 +11,7 @@ from materials import material_lib
 
 class SolverFIT3D:
 
-    def __init__(self, grid, cfln=0.5,
+    def __init__(self, grid, wake=None, cfln=0.5,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=False, use_stl=False,
@@ -43,6 +45,9 @@ class SolverFIT3D:
         self.iA = self.grid.iA
         self.tL = self.grid.tL
         self.itA = self.grid.itA
+
+        # Wake computation
+        self.wake = wake
 
         # Fields
         self.E = Field(self.Nx, self.Ny, self.Nz)
@@ -125,7 +130,208 @@ class SolverFIT3D:
         #update ABC
         if self.activate_abc:
             self.update_abc()
+
+    def emsolve(self, Nt, save=False, fields=['E'], components=['Abs'], 
+            every=1, subdomain=None):
+        '''
+        Run the simulation and save the selected field components in HDF5 files
+        for every timestep. Each field will be saved in a separate HDF5 file 'Xy.h5'
+        where X is the field and y the component.
+
+        Parameters:
+        ----------
+        Nt: int
+            Number of timesteps to run
         
+        fields: list, default ['E']
+            3D field magnitude ('E', 'H', or 'J') to save
+            'Ex', 'Hy', etc., is also accepted and will override 
+            the `components` parameter.
+        components: list, default ['z']
+            Field compoonent ('x', 'y', 'z', 'Abs') to save. It will be overriden
+            if a component is specified in the`field` parameter
+        every: int, default 1
+            Number of timesteps between saves
+        slice: list, default None
+            Slice [x,y,z] of the domain to be saved
+
+        Raises:
+        -------
+        ImportError:
+            If the hdf5 dependency cannot be imported
+
+        Dependencies:
+        -------------
+        h5py
+        '''
+
+        if save:
+            try:
+                import h5py
+            except:
+                raise('Python package `h5py` is needed to save field data in HDF5 format')
+
+            hfs = {}
+            for field in fields:
+
+                if len(field) == 1:
+                    for component in components:
+                        hfs[field+component] = h5py.File(field+component+'.h5', 'w')
+
+                else:
+                    hfs[field] = h5py.File(field+'.h5', 'w')
+
+            for hf in hfs:
+                hf['x'], hf['y'], hf['z'] = self.x, self.y, self.z
+                hf['t'] = np.arange(0, Nt*self.dt, every*self.dt)
+
+            if subdomain is not None:
+                xx, yy, zz = subdomain
+            else:
+                xx, yy, zz = slice(0,self.Nx), slice(0,self.Ny), slice(0,self.Nz)
+
+        for n in tqdm(range(Nt)):
+
+            if save:
+                for field in hfs.keys():
+                    try:
+                        d = getattr(self, field[0])[xx,yy,zz,field[1:]]
+                    except:
+                        raise(f'Component {field} not valid. Input must have a field ["E", "H", "J"] 
+                              and a component ["x", "y", "z", "Abs"]')
+                    
+                    # Save timestep in HDF5
+                    hfs[field]['#'+str(n).zfill(5)] = d
+
+            self.one_step()
+
+    def wakesolve(self, wakelength, wake=None, save_J=False, results_in_txt=True):
+        '''
+        Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
+        wake potential WP(s) and impedance Z(s). 
+        
+        The `Ez` field is saved every timestep in a subdomain (xtest, ytest, z) around 
+        the beam trajectory in HDF5 format file `Ez.h5`.
+
+        The computed results are available as Solver class attributes: 
+            - wake potential: WP (longitudinal), WPx, WPy (transverse) [V/pC]
+            - impedance: Z (longitudinal), Zx, Zy (transverse) [Ohm]
+            - beam charge distribution: lambdas (distance) [C/m] lambdaf (spectrum) [C]
+
+        Parameters:
+        ----------
+        wakelength: float
+            Desired length of the wake in [m] to be computed 
+            
+            Maximum simulation time in [s] can be computed from the wakelength parameter as:
+            .. math::    t_{max} = t_{inj} + (wakelength + (z_{max}-z_{min}))/c 
+
+        wake: Wake obj, default None
+            `Wake()` object containing the information needed to run 
+            the wake solver calculation. See Wake() docstring for more information.
+            Can be passed at `Solver()` instantiation as parameter too.
+
+        save_J: bool, default False
+            Flag to enable saving the current J in a diferent HDF5 file 'Jz.h5'
+
+        results_in_txt: bool, default True
+            Flag to enable saving the wake potential and impedance results in `.txt` files.
+            Longitudinal: WP.txt, Z.txt. Transverse: WPx.txt, WPy.txt, Zx.txt, Zy.txt
+        
+        Raises:
+        -------
+        AttributeError:
+            If the Wake object is not provided
+        ImportError:
+            If the hdf5 dependency cannot be imported
+
+        Dependencies:
+        -------------
+        h5py
+        '''
+
+        if wake is not None: self.wake = wake
+        if self.wake is None:
+            raise('Wake solver information not passed to the solver instantiation')
+
+        try:
+            import h5py
+        except:
+            raise('Python package `h5py` is needed to save field data in HDF5 format')
+        
+        # beam parameters
+        self.q = self.wake.q
+        self.ti = self.wake.ti
+        self.sigmaz = self.wake.sigmaz
+
+        # source position
+        self.xsource, self.ysource = self.wake.xsource, self.wake.ysource
+        self.ixs, self.iys = np.abs(self.x-self.xsource).argmin(), np.abs(self.y-self.ysource).argmin()
+        
+        # integration path (test position)
+        self.xtest, self.ytest = self.wake.xtest, self.wake.ytest
+        self.ixt, self.iyt = np.abs(self.x-self.xtest).argmin(), np.abs(self.y-self.ytest).argmin()
+    
+        def beam(self, t):
+            '''
+            Update the current J every timestep 
+            to introduce a gaussian beam 
+            moving in +z direction
+            '''
+            s0 = self.z.min() - c_light*self.ti
+            s = self.z - c_light*t
+
+            # gaussian
+            profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
+
+            # update 
+            self.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/self.dx/self.dy
+            
+        tmax = (wakelength + self.ti*c_light + (self.z.max()-self.z.min()))/c_light #[s]
+        Nt = int(tmax/self.dt)
+        xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
+
+        #hdf5 
+        hf = h5py.File('Ez.h5', 'w')
+        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z
+        hf['t'] = np.arange(0, Nt*self.dt, self.dt)
+
+        if save_J:
+            hfJ = h5py.File('Jz.h5', 'w')
+            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z
+            hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+
+        for n in tqdm(range(Nt)):
+
+            # Initial condition
+            beam(self, n*self.dt)
+
+            # Advance
+            self.one_step()
+
+            # Save
+            hf['#'+str(n).zfill(5)] = self.E[xx, yy, :, 'z'] 
+            if save_J:
+                hfJ['#'+str(n).zfill(5)] = self.J[xx, yy, :, 'z'] 
+
+        hf.close()
+        if save_J:
+            hfJ.close()
+        
+        # wake computation 
+        # TODO: allow only longitudinal (?)
+        self.wake.solve(save=results_in_txt)
+
+        self.s = self.wake.s
+        self.WP = self.wake.WP
+        self.WPx = self.wake.WPx
+        self.WPy = self.wake.WPy
+        self.Z = self.wake.Z
+        self.Zx = self.wake.Zx
+        self.Zy = self.wake.Zy
+        self.lambdas = self.wake.lambdas 
+        self.lambdaf = self.wake.lambdaf 
+
     def apply_bc_to_C(self):
         '''
         Modifies rows or columns of C and tDs and itDa matrices
