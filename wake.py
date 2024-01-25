@@ -5,16 +5,17 @@ import shutil
 import h5py
 import numpy as np
 from tqdm import tqdm
+from scipy.constants import c as c_light
 
 class Wake():
     ''' Class for wake potential and impedance
     calculation from 3D time domain E fields
     '''
 
-    def __init__(self, q=1e-9, sigmaz=1e-3, 
+    def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
-                 chargedist=None, ti=None, Ez_file=None, 
-                 save=False, verbose=0, log=True):
+                 chargedist=None, ti=None, Ez_file='Ez.h5', 
+                 save=True, verbose=0, log=True):
         '''
         Parameters
         ----------
@@ -22,6 +23,8 @@ class Wake():
             Beam total charge in [C]
         sigmaz : float 
             Beam sigma in the longitudinal direction [m]
+        beta : float, deafult 1.0
+            Ratio of beam's velocity to the speed of light c [a.u.]
         xsource : float, default 0.
             Beam center in the transverse plane, x-dir [m]
         ysource : float, default 0.
@@ -41,18 +44,79 @@ class Wake():
             'Y' : charge distribution in [C/m]
         Ez_file : str, default 'Ez.h5'
             hdf5 file containing Ez(x,y,z) data for every timestep
-        '''
+        save: bool, default True
+            Flag to enable saving the wake potential, impedance and charge distribution 
+            results in `.txt` files.
+            - Longitudinal: WP.txt, Z.txt. 
+            - Transverse: WPx.txt, WPy.txt, Zx.txt, Zy.txt
+            - Charge distribution: lambda.txt, spectrum.txt
+        verbose: bool, default 0
+            Controls the level of verbose in the terminal output
+        log: bool, default True
+            Creates a `wake.log` file with the summary of the input parameters
+            and calculations performed 
 
-        #constants
-        self.c = 299792458.0 #[m/s]
+        Attributes
+        ----------
+        Ezt : ndarray
+            Matrix (nz x nt) containing Ez(x_test, y_test, z, t)
+            where nz = len(z), nt = len(t)
+        s : ndarray
+            Wakelegth vector s=c_light*t-z [m] representing the distance between 
+            the source and the integration point. Goes from -ti*c_light 
+            to the simulated wakelength where ti is the beam injection time.
+        WP : ndarray
+            Longitudinal wake potential WP(s) [V/pC]
+        WP_3d : ndarray
+            Longitudinal wake potential in 3d WP(x,y,s). Shape = (2*n+1, 2*n+1, len(s))
+            where n = n_transverse_cells and s the wakelength array [V/pC]
+        Z : ndarray
+            Longitudinal impedance [Ohm] computed by the fourier-transformation of the 
+            longitudinal component of the wake potential, which is divided by the 
+            fourier-transformed charge distribution line function lambda(s) using a 
+            single-sided DFT with 1000 samples.
+        WPx : ndarray
+            Trasnverse wake potential in x direction WPx(s) [V/pC]
+        WPy : ndarray
+            Transverse wake potential in y direction WP(s) [V/pC]
+        Zx : ndarray
+            Trasnverse impedance in x-dir Zx(f) [Ohm]
+        Zy : ndarray
+            Transverse impedance in y-dir Zy(f) [Ohm]
+        lambdas : ndarray
+            Linear charge distribution of the passing beam λ(s) [C/m]
+        lambdaf : ndarray
+            Charge distribution spectrum λ(f) [C]
+        dx : float 
+            Ez field mesh step in transverse plane, x-dir [m]
+        dy : float 
+            Ez field mesh step in transverse plane, y-dir [m]
+        x : ndarray
+            vector containing x-coordinates for field monitor [m]
+        y : ndarray
+            vector containing y-coordinates for field monitor [m]
+        n_transverse_cells : int, default 1
+            Number of transverse cells used for the 3d calculation: 2*n+1 
+            This determines de size of the 3d wake potential 
+
+        '''
 
         #beam
         self.q = q
         self.sigmaz = sigmaz
+        self.beta = beta # TODO: modify c with beta
+        self.c = c_light 
         self.xsource, self.ysource = xsource, ysource
         self.xtest, self.ytest = xtest, ytest
         self.chargedist = chargedist
         self.ti = ti
+
+        # Injection time
+        if ti is not None:
+            self.ti = ti
+        else:
+            ti = 8.548921333333334*self.sigmaz/self.c  #injection time as in CST
+            self.ti = ti
 
         #field
         self.Ez_file = Ez_file
@@ -78,7 +142,7 @@ class Wake():
         self.verbose = verbose
         self.save = save
         self.log = log
-
+        
         # create log
         if self.log:
             self.params_to_log()
@@ -86,10 +150,7 @@ class Wake():
     def solve(self):
         '''
         Perform the wake potential and impedance for
-        longitudinal and transverse plane and display
-        calculation time
-
-        Functions are specified in solver.py
+        longitudinal and transverse plane 
         '''
         t0 = time.time()
 
@@ -108,7 +169,7 @@ class Wake():
         #Elapsed time
         t1 = time.time()
         totalt = t1-t0
-        print('Calculation terminated in %ds' %totalt)
+        self.log('Calculation terminated in %ds' %totalt)
 
     def calc_long_WP(self, Ezt=None,**kwargs):
         '''
@@ -132,7 +193,7 @@ class Wake():
         Ezt : ndarray, default None
             Matrix (nz x nt) containing Ez(x_test, y_test, z, t)
             where nz = len(z), nt = len(t)
-        Ez_file : str, default None
+        Ez_file : str, default 'Ez.h5'
             HDF5 file containing the Ez(x, y, z) field data
             for every timestep. Needed only if Ezt is not provided.
         '''
@@ -149,14 +210,7 @@ class Wake():
         # Aux variables
         nt = len(self.t)
         dt = self.t[2]-self.t[1]
-
-        # Injection time
-        if self.ti is not None:
-            ti = self.ti
-
-        else:
-            ti = 8.548921333333334*self.sigmaz/self.c  #injection time as in CST
-            self.ti = ti
+        ti = self.ti
 
         if self.zf is None: self.zf = self.z
 
@@ -236,16 +290,10 @@ class Wake():
         if self.Ez_hf is None:
             self.read_Ez()
 
-        # Init time
-        if self.ti is not None:
-            ti = self.ti
-
-        else:
-            ti = 8.548921333333334*self.sigmaz/self.c  #injection time as in CST
-
         # Aux variables
         nt = len(self.t)
         dt = self.t[2]-self.t[1]
+        ti = self.ti
 
         # Longitudinal dimension
         if self.zf is None: self.zf = self.z
