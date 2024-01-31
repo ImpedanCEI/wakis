@@ -84,108 +84,117 @@ else:
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
+plot = False
+if plot:
+    # CST wake
+    cstWP = wake.read_txt('cst/WP.txt')
+    cstZ = wake.read_txt('cst/Z.txt')
 
-# CST wake
-cstWP = wake.read_txt('cst/WP.txt')
-cstZ = wake.read_txt('cst/Z.txt')
+    fig, ax = plt.subplots(1,2, figsize=[8,4], dpi=150)
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
+    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[0].set_xlabel('s [mm]')
+    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+    ax[0].legend()
 
-fig, ax = plt.subplots(1,2, figsize=[8,4], dpi=150)
-ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
-ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
-ax[0].set_xlabel('s [mm]')
-ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
-ax[0].legend()
+    ax[1].plot(np.abs(wake.f)*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[1].set_xlabel('f [GHz]')
+    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+    ax[1].legend()
 
-ax[1].plot(np.abs(wake.f)*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
-ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
-ax[1].legend()
+    fig.suptitle('Benchmark with CST Wakefield Solver')
+    fig.tight_layout()
+    fig.savefig('benchmark.png')
 
-fig.suptitle('Benchmark with CST Wakefield Solver')
-fig.tight_layout()
-fig.savefig('benchmark.png')
-
-#plt.show()
+    plt.show()
 
 #--- 1d Ez field ---
-'''
-# E field
-d = wake.read_Ez('EzABC.h5',return_value=True)
-t, z = np.array(d['t']), np.array(d['z'])    
-dt = t[1]-t[0]
-steps = list(d.keys())
+plot = False
+if plot:
+    # E field
+    d = wake.read_Ez('EzABC.h5',return_value=True)
+    t, z = np.array(d['t']), np.array(d['z'])    
+    dt = t[1]-t[0]
+    steps = list(d.keys())
 
-# Beam J
-dd = wake.read_Ez('Jz.h5',return_value=True)
+    # Beam J
+    dd = wake.read_Ez('Jz.h5',return_value=True)
 
-# CST E field
-cstfiles = sorted(os.listdir('cst/1d/'))
+    # CST E field
+    cstfiles = sorted(os.listdir('cst/1d/'))
 
-for n, step in enumerate(steps[:3750:30]):
-    fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
-    axx = ax.twinx()  
+    for n, step in enumerate(steps[:3750:30]):
+        fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
+        axx = ax.twinx()  
 
-    #E field
-    cst = wake.read_txt('cst/1d/'+cstfiles[n])
-    ax.plot(cst[0]*1e-3, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST')
+        #E field
+        cst = wake.read_txt('cst/1d/'+cstfiles[n])
+        ax.plot(cst[0]*1e-3, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST')
 
-    ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) FIT')
-    ax.set_xlabel('z [m]')
-    ax.set_ylabel('$E_z$ field amplitude [V/m]', color='g')
-    ax.set_ylim(-4e4, 4e4)
-    ax.set_xlim(z.min(), z.max())
-    ax.legend(loc=1)
+        ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) FIT')
+        ax.set_xlabel('z [m]')
+        ax.set_ylabel('$E_z$ field amplitude [V/m]', color='g')
+        ax.set_ylim(-4e4, 4e4)
+        ax.set_xlim(z.min(), z.max())
+        ax.legend(loc=1)
 
-    axx.plot(z, dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
-    axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
-    axx.set_ylim(-7e6, 7e6)
+        axx.plot(z, dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
+        axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
+        axx.set_ylim(-7e6, 7e6)
 
-    fig.suptitle('timestep='+str(n*30))
-    fig.tight_layout()
-    fig.savefig('img/Ez1d_'+str(n*30).zfill(6)+'.png')
+        fig.suptitle('timestep='+str(n*30))
+        fig.tight_layout()
+        fig.savefig('img/Ez1d_'+str(n*30).zfill(6)+'.png')
 
-    plt.clf()
-    plt.close(fig)
-'''
+        plt.clf()
+        plt.close(fig)
+
 
 #--- 3d Ez field ---
 # TODO
 '''
 if not os.path.exists('cst/3d/Ez.h5'):
     wake.read_cst_3d('cst/3d/')
-
 '''
 
+#-------------- Compare .h5 files -------------
+plot = True
+if plot:
+    # E field
+    d1 = wake.read_Ez('EzABC.h5',return_value=True)
+    d2 = wake.read_Ez('EzPEC.h5',return_value=True)
+    d3 = wake.read_Ez('EzPECadd.h5',return_value=True)
 
-# E field
-d = wake.read_Ez('EzABC.h5',return_value=True)
-t, z = np.array(d['t']), np.array(d['z'])    
-dt = t[1]-t[0]
-steps = list(d.keys())
+    t = np.array(d1['t'])   
+    dt = t[1]-t[0]
+    steps = list(d1.keys())
 
-# Beam J
-dd = wake.read_Ez('Jz.h5',return_value=True)
+    # Beam J
+    dd = wake.read_Ez('Jz.h5',return_value=True)
 
-for n, step in enumerate(steps[:3750:30]):
-    fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
-    axx = ax.twinx()  
+    for n, step in enumerate(steps[:3750:30]):
+        fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
+        axx = ax.twinx()  
 
-    #E field
-    ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) FIT')
-    ax.set_xlabel('z [m]')
-    ax.set_ylabel('$E_z$ field amplitude [V/m]', color='g')
-    ax.set_ylim(-4e4, 4e4)
-    ax.set_xlim(z.min(), z.max())
-    ax.legend(loc=1)
+        # Beam current
+        axx.plot(np.array(d1['z']), dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
+        axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
+        axx.set_ylim(-7e6, 7e6)
 
-    axx.plot(z, dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
-    axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
-    axx.set_ylim(-7e6, 7e6)
+        # E field
+        ax.plot(np.array(d1['z']) , d1[step][1,1,:], c='b', lw=1.5, label='Ez(0,0,z) ABC bc')
+        ax.plot(np.array(d2['z']) , d2[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) PEC bc')
+        ax.plot(np.array(d3['z']) , d3[step][1,1,:], c='limegreen', lw=1.5, label='Ez(0,0,z) PEC+addspace 15')
+        ax.set_xlabel('z [m]')
+        ax.set_ylabel('$E_z$ field amplitude [V/m]', color='k')
+        ax.set_ylim(-4e4, 4e4)
+        ax.set_xlim(np.array(d1['z']).min(), np.array(d1['z']).max())
+        ax.legend(loc=1)
 
-    fig.suptitle('timestep='+str(n*30))
-    fig.tight_layout()
-    fig.savefig('img/Ez1d_'+str(n*30).zfill(6)+'.png')
+        fig.suptitle('timestep='+str(n*30))
+        fig.tight_layout()
+        fig.savefig('img/Ez1d_'+str(n*30).zfill(6)+'.png')
 
-    plt.clf()
-    plt.close(fig)
+        plt.clf()
+        plt.close(fig)
