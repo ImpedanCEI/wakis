@@ -15,7 +15,8 @@ class Wake():
     def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
                  chargedist=None, ti=None, Ez_file='Ez.h5', 
-                 save=True, verbose=0, log=True):
+                 save=True, results_folder='results/',
+                 verbose=0, logfile=True):
         '''
         Parameters
         ----------
@@ -52,7 +53,7 @@ class Wake():
             - Charge distribution: lambda.txt, spectrum.txt
         verbose: bool, default 0
             Controls the level of verbose in the terminal output
-        log: bool, default True
+        logfile: bool, default True
             Creates a `wake.log` file with the summary of the input parameters
             and calculations performed 
 
@@ -141,17 +142,23 @@ class Wake():
         #user
         self.verbose = verbose
         self.save = save
-        self.log = log
+        self.logfile = logfile
+        self.folder = results_folder
+        if not os.path.exists(self.folder): 
+            os.mkdir(self.folder)
         
         # create log
         if self.log:
             self.params_to_log()
 
-    def solve(self):
+    def solve(self, **kwargs):
         '''
         Perform the wake potential and impedance for
         longitudinal and transverse plane 
         '''
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+        
         t0 = time.time()
 
         # Obtain longitudinal Wake potential
@@ -220,11 +227,16 @@ class Wake():
         zmin = np.min(self.zf)               
 
         # Set Wake length and s
-        WL = nt*dt*self.c - (zmax-zmin) - ti*self.c
-        s = np.arange(-self.ti*self.c, WL, dt*self.c) 
+        if self.wakelength is not None: 
+            wakelength = self.wakelength
+        else:
+            wakelength = nt*dt*self.c - (zmax-zmin) - ti*self.c
+            self.wakelength = wakelength
+
+        s = np.arange(-self.ti*self.c, wakelength, dt*self.c) 
 
         self.log('Max simulated time = '+str(round(self.t[-1]*1.0e9,4))+' ns')
-        self.log('Wakelength = '+str(round(WL,3))+'m')
+        self.log('Wakelength = '+str(round(wakelength,3))+'m')
 
         # Initialize 
         WP = np.zeros_like(s)
@@ -254,10 +266,9 @@ class Wake():
 
         self.s = s
         self.WP = WP
-        self.wakelength = WL
 
         if self.save:
-            np.savetxt('WP.txt', np.c_[self.s,self.WP], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'WP.txt', np.c_[self.s,self.WP], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
 
     def calc_long_WP_3d(self, **kwargs):
         '''
@@ -279,7 +290,7 @@ class Wake():
             Number of transverse cells used for the 3d calculation: 2*n+1 
             This determines de size of the 3d wake potential 
         '''
-
+        self.log('\n')
         self.log('Longitudinal wake potential')
         self.log('-'*24)
 
@@ -303,11 +314,16 @@ class Wake():
         zmin = min(self.zf)               
 
         # Set Wake length and s
-        WL = nt*dt*self.c - (zmax-zmin) - ti*self.c
-        s = np.arange(-self.ti*self.c, WL, dt*self.c) 
+        if self.wakelength is not None: 
+            wakelength = self.wakelength
+        else:
+            wakelength = nt*dt*self.c - (zmax-zmin) - ti*self.c
+            self.wakelength = wakelength
+            
+        s = np.arange(-self.ti*self.c, wakelength, dt*self.c) 
 
         self.log(f'* Max simulated time = {np.max(self.t)} s')
-        self.log(f'* Wakelength = {WL} m')
+        self.log(f'* Wakelength = {wakelength} m')
 
         #field subvolume in No.cells for x, y
         i0, j0 = self.n_transverse_cells, self.n_transverse_cells    
@@ -341,12 +357,11 @@ class Wake():
         self.s = s
         self.WP = WP_3d[i0,j0,:]
         self.WP_3d = WP_3d
-        self.wakelength = WL
 
         self.log(f'Elapsed time {pbar.format_dict["elapsed"]} s')
 
         if self.save:
-            np.savetxt('WP.txt', np.c_[self.s, self.WP], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'WP.txt', np.c_[self.s, self.WP], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
 
     def calc_trans_WP(self, **kwargs):
         '''
@@ -379,6 +394,7 @@ class Wake():
         for key, val in kwargs.items():
             setattr(self, key, val)
 
+        self.log('\n')
         self.log('Transverse wake potential')
         self.log('-'*24)
         self.log(f'* No. transverse cells = {self.n_transverse_cells}')
@@ -401,25 +417,26 @@ class Wake():
 
         print('Calculating transverse wake potential WPx, WPy...')
         # Obtain the transverse wake potential 
-        with tqdm(total=len(s)*(i0*2+1)*(j0*2+1)) as pbar:
+        with tqdm(total=len(self.s)*(i0*2+1)*(j0*2+1)) as pbar:
             for n in range(len(self.s)):
                 for i in range(-i0,i0+1,1):
                     for j in range(-j0,j0+1,1):
                         # Perform the integral
                         int_WP[i0+i,j0+j,n]=np.sum(self.WP_3d[i0+i,j0+j,0:n])*ds 
+                        pbar.update(1)
 
                 # Perform the gradient (second order scheme)
                 WPx[n] = - (int_WP[i0+1,j0,n]-int_WP[i0-1,j0,n])/(2*dx)
                 WPy[n] = - (int_WP[i0,j0+1,n]-int_WP[i0,j0-1,n])/(2*dy)
-
+    
         self.WPx = WPx
         self.WPy = WPy
 
         self.log(f'Elapsed time {pbar.format_dict["elapsed"]} s')
                  
         if self.save:
-            np.savetxt('WPx.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
-            np.savetxt('WPy.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'WPx.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'WPy.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
 
     def calc_long_Z(self, samples=1001, **kwargs):
         '''
@@ -448,6 +465,7 @@ class Wake():
             Beam sigma in the longitudinal direction [m]. 
             Used to calculate maximum frequency of interest fmax=c/(3*sigmaz)
         '''
+        self.log('\n')
         self.log('Longitudinal impedance')
         self.log('-'*24)
 
@@ -455,6 +473,7 @@ class Wake():
             setattr(self, key, val)
 
         print('Calculating longitudinal impedance Z...')
+        self.log(f'Single sided DFT with number of samples = {samples}')
 
         # setup charge distribution in s
         if self.lambdas is None and self.chargedist is not None:
@@ -465,13 +484,13 @@ class Wake():
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
-        fmax=1*self.c/self.sigmaz/3   #max frequency of interest 
-        N=int((self.c/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
+        fmax = 1*self.c/self.sigmaz/3   #max frequency of interest 
+        N = int((self.c/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
 
         # Obtain DFTs
         lambdafft = np.fft.fft(self.lambdas*self.c, n=N)
         WPfft = np.fft.fft(self.WP*1e12, n=N)
-        ffft=np.fft.fftfreq(len(WPfft), ds/self.c)
+        ffft = np.fft.fftfreq(len(WPfft), ds/self.c)
 
         # Mask invalid frequencies
         mask  = np.logical_and(ffft >= 0 , ffft < fmax)
@@ -484,8 +503,8 @@ class Wake():
         self.lambdaf = lambdaf
 
         if self.save:
-            np.savetxt('Z.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Z [Ohm]'+'\n'+'-'*48)                
-            np.savetxt('spectrum.txt', np.c_[self.f, self.lambdaf], header='   f [Hz]'+' '*20+'Charge distribution spectrum [C/s]'+'\n'+'-'*48)                
+            np.savetxt(self.folder+'Z.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Z [Ohm]'+'\n'+'-'*48)                
+            np.savetxt(self.folder+'spectrum.txt', np.c_[self.f, self.lambdaf], header='   f [Hz]'+' '*20+'Charge distribution spectrum [C/s]'+'\n'+'-'*48)                
 
     def calc_trans_Z(self, samples=1001):
         '''
@@ -494,10 +513,12 @@ class Wake():
         single-sided DFT with 1000 samples
         Parameters can be passed as **kwargs
         '''
+        self.log('\n')
         self.log('Transverse impedance')
         self.log('-'*24)
 
         print('Calculating transverse impedance Zx, Zy...')
+        self.log(f'Single sided DFT with number of samples = {samples}')
 
         # Set up the DFT computation
         ds = self.s[2]-self.s[1]
@@ -525,8 +546,8 @@ class Wake():
         self.Zy = 1j * WPyf / lambdaf
 
         if self.save:
-            np.savetxt('Zx.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
-            np.savetxt('Zy.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'Zx.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
+            np.savetxt(self.folder+'Zy.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
 
     def calc_lambdas(self, **kwargs):
         '''Obtains normalized charge distribution in terms of s 
@@ -573,7 +594,7 @@ class Wake():
         self.lambdas = np.interp(self.s, z, chargedist/self.q)
 
         if self.save:
-            np.savetxt('lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
 
     def calc_lambdas_analytic(self, **kwargs):
         '''Obtains normalized charge distribution in s λ(z)
@@ -596,7 +617,7 @@ class Wake():
         self.lambdas = 1/(self.sigmaz*np.sqrt(2*np.pi))*np.exp(-(self.s**2)/(2*self.sigmaz**2))
 
         if self.save:
-            np.savetxt('lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
 
     def read_Ez(self, filename=None, return_value=False):
         '''
@@ -629,21 +650,32 @@ class Wake():
         '''
         Reads txt variables from ascii files and
         returns data in a dictionary. Header should
-        be the first line
+        be the first line. 
         '''
-        load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, usecols=usecols)
-        d = {}
-        with open(txt) as f:
-            header = f.readline()
 
-        header = header.replace(' ', '')
-        header = header.replace('#', '')
-        header = header.replace('\n', '')
+        try:
+            load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, usecols=usecols)
+        except:
+            load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, 
+                              usecols=usecols, dtype=np.complex_)
+            
+        try: # keys == header names
+            with open(txt) as f:
+                header = f.readline()
 
-        header = header.split(']')
+            header = header.replace(' ', '')
+            header = header.replace('#', '')
+            header = header.replace('\n', '')
+            header = header.split(']')
 
-        for i in len(load[0,:]):
-            d[header[i]+']'] = load[:, i]
+            d = {}
+            for i in range(len(load[0,:])):
+                d[header[i]+']'] = load[:, i]
+        
+        except: #keys == int 0, 1, ...
+            d = {}
+            for i in range(len(load[0,:])):
+                d[i] = load[:, i]
         
         return d
 
@@ -669,7 +701,7 @@ class Wake():
         self.log(f'* xsource, ysource = {self.xsource}, {self.ysource} [m]')
         self.log(f'* xtest, ytest = {self.xtest}, {self.ytest} [m]')
         self.log(f'* Beam injection time ti= {self.ti} [s]')
-
+        
         if self.chargedist is not None:
             if type(self.chargedist) is str:
                 self.log(f'* Charge distribution file: {self.chargedist}')
@@ -735,10 +767,13 @@ class Wake():
             os.rename(path+file[1], path+ntitle)
 
         #sort
-        def sorter(item):
-            num=item.split(path)[1].split('_')[1].split('.txt')[0]
-            return float(num)
-        fnames = sorted(glob.glob(path+'*.txt'), key=sorter)
+        try:
+            def sorter(item):
+                num=item.split(path)[1].split('_')[1].split('.txt')[0]
+                return float(num)
+            fnames = sorted(glob.glob(path+'*.txt'), key=sorter)
+        except:    
+            fnames = sorted(glob.glob(path+'*.txt'))
 
         #Get the number of longitudinal and transverse cells used for Ez
         i=0
@@ -774,13 +809,17 @@ class Wake():
         rows=skip 
 
         # Start scan
-        self.log.info(f'Scanning files in {path}:')
+        self.log(f'Scanning files in {path}:')
         for file in tqdm(fnames):
             #self.log.debug('Scanning file '+ file + '...')
             title=file.split(path)
             title2=title[1].split('_')
-            num=title2[1].split('.txt')
-            t.append(float(num[0])*1e-9)
+
+            try:
+                num=title2[1].split('.txt')
+                t.append(float(num[0])*1e-9)
+            except:
+                t.append(nsteps)
 
             with open(file) as f:
                 for line in f:
