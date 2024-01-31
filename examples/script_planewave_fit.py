@@ -24,7 +24,7 @@ stl_file = 'stl/sphere.stl'
 surf = pv.read(stl_file)
 
 stl_solids = {'Solid 1': stl_file}
-stl_materials = {'Solid 1': 'dielectric'}
+stl_materials = {'Solid 1': 'vacuum'}
 stl_rotate = [0, 0, 0]
 stl_scale = 1e-3
 
@@ -44,8 +44,8 @@ xmax, ymax, zmax = (xmax+padx), (ymax+pady), (zmax+padz)
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
 # boundary conditions
-bc_low=['pec', 'pec', 'abc']
-bc_high=['pec', 'pec', 'abc']
+bc_low=['pec', 'pec', 'pec']
+bc_high=['pec', 'pec', 'pec']
 
 # set FIT solver
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
