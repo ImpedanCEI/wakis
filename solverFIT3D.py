@@ -16,6 +16,9 @@ class SolverFIT3D:
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=False, use_stl=False,
                  bg=[1.0, 1.0]):
+        '''
+        TODO
+        '''
 
         # Grid 
         self.grid = grid
@@ -132,7 +135,7 @@ class SolverFIT3D:
             self.update_abc()
 
     def emsolve(self, Nt, save=False, fields=['E'], components=['Abs'], 
-            every=1, subdomain=None):
+            every=1, subdomain=None, plot=False, plot_every=1, **kwargs):
         '''
         Run the simulation and save the selected field components in HDF5 files
         for every timestep. Each field will be saved in a separate HDF5 file 'Xy.h5'
@@ -152,8 +155,19 @@ class SolverFIT3D:
             if a component is specified in the`field` parameter
         every: int, default 1
             Number of timesteps between saves
-        slice: list, default None
+        subdomain: list, default None
             Slice [x,y,z] of the domain to be saved
+        plot: bool, default False
+            Flag to enable 2D plotting
+        plot_every: int
+            Number of timesteps between consecutive plots
+        **kwargs:
+            Keyword arguments to be passed to the Plot2D function.
+            Default kwargs used: 
+                {'field':'E', 'component':'z',
+                'plane':'ZY', 'pos':0.5, 'title':'Ez', 
+                'cmap':'rainbow', 'patch_reverse':True, 
+                'off_screen': True, 'interpolation':'spline36'}
 
         Raises:
         -------
@@ -189,6 +203,12 @@ class SolverFIT3D:
                 xx, yy, zz = subdomain
             else:
                 xx, yy, zz = slice(0,self.Nx), slice(0,self.Ny), slice(0,self.Nz)
+        if plot:
+            plotkw = {'field':'E', 'component':'z',
+                    'plane':'ZY', 'pos':0.5, 'cmap':'rainbow', 
+                    'patch_reverse':True, 'title':'Ez', 
+                    'off_screen': True, 'interpolation':'spline36'}
+            plotkw.update(kwargs)
 
         for n in tqdm(range(Nt)):
 
@@ -197,15 +217,23 @@ class SolverFIT3D:
                     try:
                         d = getattr(self, field[0])[xx,yy,zz,field[1:]]
                     except:
-                        raise(f'Component {field} not valid. Input must have a field ["E", "H", "J"] 
-                              and a component ["x", "y", "z", "Abs"]')
+                        raise(f'Component {field} not valid. Input must have a \
+                              field ["E", "H", "J"] and a component ["x", "y", "z", "Abs"]')
                     
                     # Save timestep in HDF5
                     hfs[field]['#'+str(n).zfill(5)] = d
 
+            # Advance
             self.one_step()
 
-    def wakesolve(self, wakelength, wake=None, save_J=False, results_in_txt=True):
+            # Plot
+            if plot and n%plot_every == 0:
+                self.plot2D(n=n, **plotkw)
+
+
+    def wakesolve(self, wakelength, wake=None, 
+                  save_J=False, add_space=None,
+                  plot=False, plot_every=1, **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
         wake potential WP(s) and impedance Z(s). 
@@ -225,18 +253,22 @@ class SolverFIT3D:
             
             Maximum simulation time in [s] can be computed from the wakelength parameter as:
             .. math::    t_{max} = t_{inj} + (wakelength + (z_{max}-z_{min}))/c 
-
         wake: Wake obj, default None
             `Wake()` object containing the information needed to run 
             the wake solver calculation. See Wake() docstring for more information.
             Can be passed at `Solver()` instantiation as parameter too.
-
         save_J: bool, default False
             Flag to enable saving the current J in a diferent HDF5 file 'Jz.h5'
-
-        results_in_txt: bool, default True
-            Flag to enable saving the wake potential and impedance results in `.txt` files.
-            Longitudinal: WP.txt, Z.txt. Transverse: WPx.txt, WPy.txt, Zx.txt, Zy.txt
+        plot: bool, default False
+            Flag to enable 2D plotting
+        plot_every: int
+            Number of timesteps between consecutive plots
+        **kwargs:
+            Keyword arguments to be passed to the Plot2D function.
+            Default kwargs used: 
+                {'plane':'ZY', 'pos':0.5, 'title':'Ez', 
+                'cmap':'rainbow', 'patch_reverse':True, 
+                'off_screen': True, 'interpolation':'spline36'}
         
         Raises:
         -------
@@ -253,6 +285,8 @@ class SolverFIT3D:
         if wake is not None: self.wake = wake
         if self.wake is None:
             raise('Wake solver information not passed to the solver instantiation')
+        
+        self.wake.wakelength = wakelength
 
         try:
             import h5py
@@ -271,7 +305,15 @@ class SolverFIT3D:
         # integration path (test position)
         self.xtest, self.ytest = self.wake.xtest, self.wake.ytest
         self.ixt, self.iyt = np.abs(self.x-self.xtest).argmin(), np.abs(self.y-self.ytest).argmin()
-    
+        self.add_space = add_space
+
+        # plot params defaults
+        if plot:
+            plotkw = {'plane':'ZY', 'pos':0.5, 'title':'Ez',
+                    'cmap':'rainbow', 'patch_reverse':True,  
+                    'off_screen': True, 'interpolation':'spline36'}
+            plotkw.update(kwargs)
+
         def beam(self, t):
             '''
             Update the current J every timestep 
@@ -290,29 +332,38 @@ class SolverFIT3D:
         tmax = (wakelength + self.ti*c_light + (self.z.max()-self.z.min()))/c_light #[s]
         Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
+        if add_space is not None:
+            zz = slice(add_space, -add_space)
+        else: 
+            zz = slice(0, self.Nz)
 
         #hdf5 
         hf = h5py.File('Ez.h5', 'w')
-        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z
+        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
         hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
         if save_J:
             hfJ = h5py.File('Jz.h5', 'w')
-            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z
+            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z[zz]
             hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
 
+        print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
 
             # Initial condition
             beam(self, n*self.dt)
 
+            # Save
+            hf['#'+str(n).zfill(5)] = self.E[xx, yy, zz, 'z'] 
+            if save_J:
+                hfJ['#'+str(n).zfill(5)] = self.J[xx, yy, zz, 'z'] 
+            
             # Advance
             self.one_step()
-
-            # Save
-            hf['#'+str(n).zfill(5)] = self.E[xx, yy, :, 'z'] 
-            if save_J:
-                hfJ['#'+str(n).zfill(5)] = self.J[xx, yy, :, 'z'] 
+            
+            # Plot
+            if plot and n%plot_every == 0:
+                self.plot2D(field='E', component='z', n=n, **plotkw)
 
         hf.close()
         if save_J:
@@ -320,8 +371,10 @@ class SolverFIT3D:
         
         # wake computation 
         # TODO: allow only longitudinal (?)
-        self.wake.solve(save=results_in_txt)
+        
+        self.wake.solve()
 
+        self.wakelength = wakelength
         self.s = self.wake.s
         self.WP = self.wake.WP
         self.WPx = self.wake.WPx
@@ -751,10 +804,10 @@ class SolverFIT3D:
         else:
             pl.show(full_screen=True)
 
-    def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm='linear', 
+    def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm=None, 
                vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1, 
-               patch_reverse=False, add_patch=False, title=None, off_screen=False, n=None,
-               interpolation='antialiased'):
+               patch_reverse=False, add_patch=False, title=None, off_screen=False, 
+               n=None, interpolation='antialiased'):
         '''
         Built-in 2D plotting of a field slice using matplotlib
         
@@ -766,13 +819,15 @@ class SolverFIT3D:
         component: str, default 'z'
             Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
             if a component is defined in field
-        plane: str, default 'XZ'
-            Plane where to plot the 2d field cut: 'XY', 'ZY' or 'ZX'
+        plane: arr or str, default 'XZ'
+            Plane where to plot the 2d field cut: array of 2 slices() and 1 int [x,y,z]
+            or a str 'XY', 'ZY' or 'ZX'
         pos: float, default 0.5
             Position of the cutting plane, as a franction of the plane's normal dimension
             e.g. plane 'XZ' wil be sitting at y=pos*(ymax-ymin)
-        norm: str, default 'linear'
+        norm: str, default None
             Plotting scale to pass to matplotlib imshow: 'linear', 'log', 'symlog'
+            ** Only for matplotlib version >= 3.8
         vmin: list, optional
             Colorbar min limit for the field plot
         vmax: list, optional
@@ -812,7 +867,28 @@ class SolverFIT3D:
         if title is None:
             title = field + component +'2d'
             
-        if plane == 'XY':
+        if type(plane) is not str and len(plane) == 3:
+            x, y, z = plane[0], plane[1], plane[2]
+
+            if type(plane[2]) is int:
+                cut = f'(x,y,a) a={round(self.z[z],3)}'
+                xax, yax = 'y', 'x'
+                extent = [self.y[y].min(), self.y[y].max(), 
+                          self.x[x].min(), self.x[x].max()]            
+
+            if type(plane[0]) is int:
+                cut = f'(a,y,z) a={round(self.x[x],3)}'
+                xax, yax = 'z', 'y'
+                extent = [self.z[z].min(), self.z[z].max(), 
+                          self.y[y].min(), self.y[y].max()]    
+
+            if type(plane[1]) is int:
+                cut = f'(x,a,z) a={round(self.y[y],3)}'
+                xax, yax = 'z', 'x'
+                extent = [self.z[z].min(), self.z[z].max(), 
+                          self.x[x].min(), self.x[x].max()]   
+
+        elif plane == 'XY':
             x, y, z = slice(0,Nx), slice(0,Ny), int(Nz*pos) #plane XY
             cut = f'(x,y,a) a={round(pos*(zmax-zmin)+zmin,3)}'
             xax, yax = 'y', 'x'
@@ -831,7 +907,7 @@ class SolverFIT3D:
             extent = [zmin, zmax, xmin, xmax]
         
         else:
-            print("Plane needs to be one of the following: 'XY', 'ZY', 'ZX'")
+            print("Plane needs to be an array of slices [x,y,z] or a str 'XY', 'ZY', 'ZX'")
 
         fig, ax = plt.subplots(1,1, figsize=figsize)
 
