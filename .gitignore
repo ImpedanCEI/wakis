@@ -11,4 +11,5 @@ ECT_*
 *.old*
 *.svg
 *.pdf
+*.h5
 */hdf5*
