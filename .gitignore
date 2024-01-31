@@ -13,4 +13,4 @@ ECT_*
 *.pdf
 *.h5
 */hdf5*
-*/cst
+*/cst*
