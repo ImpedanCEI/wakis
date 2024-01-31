@@ -12,5 +12,9 @@ ECT_*
 *.svg
 *.pdf
 *.h5
+*.log
+*.txt
+*.dat
 */hdf5*
-*/cst*
+*/cst/*
+*/results*/*
