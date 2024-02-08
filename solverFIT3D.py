@@ -620,14 +620,15 @@ class SolverFIT3D:
 
         # Fields
         del self.L, self.tL, self.iA, self.itA
-        del self.BC
+        if hasattr(self, 'BC'):
+            del self.BC
+            del self.Dbc
 
         # Matrices
         del self.Px, self.Py, self.Pz
         del self.Ds, self.iDa, self.tDs, self.itDa
         del self.C
-        del self.Dbc
-
+        
     def plot3D(self, field='E', component='z', clim=None, hide_solids=None,
                show_solids=None, add_stl=None, stl_opacity=0.1, stl_colors='white',
                title=None, cmap='jet', clip_volume=True, clip_normal='-y',
@@ -964,6 +965,155 @@ class SolverFIT3D:
 
         if n is not None:
             fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
+            title += '_'+str(n).zfill(6)
+
+        fig.tight_layout()
+
+        if off_screen:
+            fig.savefig(title+'.png')
+            plt.clf()
+            plt.close(fig)
+
+        else:
+            plt.show()
+
+    def plot1D(self, field='E', component='z', line=None, pos=0.5, 
+               xscale='linear', yscale='linear', xlim=None, ylim=None, 
+               figsize=[8,4], title=None, off_screen=False, n=None, **kwargs):
+        '''
+        Built-in 1D plotting of a field line using matplotlib
+        
+        Parameters:
+        ----------
+        field: str, default 'E'
+            Field magnitude ('E', 'H', or 'J') to plot
+            To plot a component 'Ex', 'Hy' is also accepted
+        component: str, default 'z'
+            Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
+            if a component is defined in field
+        figsize: list, default [8,4]    
+            Figure size to pass to the plot initialization
+        title: str, optional
+            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True.
+            If n is provided, 'str(n).zfill(6)' will be added to the title.
+        cmap: str, default 'jet'
+            Colormap name to use in the field display
+        off_screen: bool, default False
+            Enable plot rendering off screen, for gif frames generation. 
+            Plot will not be rendered if set to True.
+        n: int, optional
+            Timestep number to be added to the plot title and figsave title.
+        **kwargs:
+            Keyword arguments to be passed to the `matplotlib.plot` function.
+            Default kwargs used: 
+                kwargs = {'color':'g', 'lw':1.2, 'ls':'-'}
+        '''
+        import matplotlib.pyplot as plt
+
+        Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
+        xmin, xmax = self.grid.xmin, self.grid.xmax 
+        ymin, ymax = self.grid.ymin, self.grid.ymax
+        zmin, zmax = self.grid.zmin, self.grid.zmax
+        
+        if len(field) == 2: #support for e.g. field='Ex'
+            component = field[1]
+            field = field[0]
+        
+        if title is None:
+            title = field + component +'2d'
+            
+        if type(line) is not str and len(line) == 3:
+            x, y, z = line[0], line[1], line[2]
+
+            #z-axis
+            if type(line[2]) is slice:  
+                cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
+                xax = 'z'
+                xx = self.z[z]
+                xlims = (self.z[z].min(), self.z[z].max())
+            
+            #x-axis
+            if type(line[0]) is slice:  
+                cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
+                xax = 'x'
+                xx = self.x[x]
+                xlims = (self.x[x].min(), self.x[x].max())
+
+            #y-axis
+            if type(line[2]) is slice:  
+                cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
+                xax = 'y'
+                xx = self.y[y]
+                xlims = (self.y[y].min(), self.y[y].max())
+
+        elif line.lower() == 'x':
+            x, y, z = slice(0,Nx), int(Ny*pos), int(Nz*pos) #x-axis
+            cut = f'(x,a,b) a={round(pos*(ymax-ymin)+ymin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
+            xax = 'x'
+            xx = self.x[x]
+            xlims = (xmin, xmax)
+
+        elif line.lower() == 'y':
+            x, y, z = int(Nx*pos), slice(0,Ny), int(Nz*pos) #y-axis
+            cut = f'(a,y,b) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
+            xax = 'y'
+            xx = self.y[y]
+            xlims = (ymin, ymax)
+        
+        elif line.lower() == 'z':
+            x, y, z = int(Nx*pos), int(Ny*pos), slice(0,Nz) #z-axis
+            cut = f'(a,b,z) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(ymax-ymin)+ymin,3)}'
+            xax = 'z'
+            xx = self.z[z]
+            xlims = (zmin, zmax)
+        
+        else:
+            print("line needs to be an array of slices [x,y,z] or a str 'x', 'y', 'z'")
+
+        plotkw = {'c':'g', 'lw':1.2, 'ls':'-'}
+        plotkw.update(kwargs)
+
+        fig, ax = plt.subplots(1,1, figsize=figsize)
+
+        if field == 'E':
+            if component == 'Abs':
+                ax.plot(xx, self.E.get_abs()[x, y, z], **plotkw)
+                yax = 'E(Abs) amplitude'
+            else:
+                ax.plot(xx, self.E[x, y, z, component], **plotkw)
+                yax = f'E{component} amplitude'
+
+        if field == 'H':
+            if component == 'Abs':
+                ax.plot(xx, self.H.get_abs()[x, y, z], **plotkw)
+                yax = 'H(Abs) amplitude'
+            else:
+                ax.plot(xx, self.H[x, y, z, component], **plotkw)
+                yax = f'H{component} amplitude'
+
+        if field == 'J':
+            if component == 'Abs':
+                ax.plot(xx, self.J.get_abs()[x, y, z], **plotkw)
+                yax = 'J(Abs) amplitude'
+            else:
+                ax.plot(xx, self.J[x, y, z, component], **plotkw)
+                yax = f'J{component} amplitude'
+                              
+        ax.set_title(f'FIT {field}{component}{cut}')
+        ax.set_xlabel(xax)
+        ax.set_ylabel(yax, color=plotkw['c'])
+        ax.set_xlim(xlims)
+
+        ax.set_xscale(xscale)
+        ax.set_yscale(yscale)
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+        if n is not None:
+            fig.suptitle('$'+field+'_{'+component+'}$ field, timestep='+str(n))
             title += '_'+str(n).zfill(6)
 
         fig.tight_layout()
