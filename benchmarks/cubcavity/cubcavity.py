@@ -7,7 +7,7 @@ sys.path.append('../../')
 
 from solverFIT3D import SolverFIT3D
 from gridFIT3D import GridFIT3D 
-from wake import Wake
+from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
@@ -42,7 +42,7 @@ xt = 0.             # x test position [m]
 yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
 
-wake = Wake(q=q, sigmaz=sigmaz, beta=beta,
+wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
             xsource=xs, ysource=ys, xtest=xt, ytest=yt,
             save=True, logfile=True)
 
@@ -66,17 +66,17 @@ plotkw = {'title':'img/Ez',
             'vmin':-1e4, 'vmax':1e4,
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
-# a - Run full electromagnetic time-domain simulation
+# 1 - Run full electromagnetic time-domain simulation
 if not os.path.exists('Ez.h5'):
-    solver.wakesolve(wakelength=wakelength, #add_space=add_space,
+    solver.wakesolve(wakelength=wakelength, add_space=add_space,
                     plot=False, plot_every=30, save_J=True,
                     **plotkw)
 
-# b - Wake computation from pre-computed Ez field
+# 2 - Wake computation from pre-computed Ez field
 elif not os.path.exists('results/'): 
     wake.solve(Ez_file='Ez.h5')
 
-# c -Load previous results
+# Or Load previous results
 else:
     wake.s, wake.WP = wake.read_txt('results/WP.txt').values()
     wake.f, wake.Z = wake.read_txt('results/Z.txt').values()
@@ -84,28 +84,39 @@ else:
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = False
+plot = True
 if plot:
     # CST wake
     cstWP = wake.read_txt('cst/WP.txt')
     cstZ = wake.read_txt('cst/Z.txt')
+    wake.f = np.abs(wake.f)
 
-    fig, ax = plt.subplots(1,2, figsize=[8,4], dpi=150)
+    fig, ax = plt.subplots(1,2, figsize=[10,4], dpi=150)
     ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
     ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
 
-    ax[1].plot(np.abs(wake.f)*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
+    axx = ax[0].twinx()
+    err = np.abs(wake.WP-np.interp(wake.s*1e3, cstWP[0], cstWP[1]))
+    axx.plot(wake.s*1e3, err, c='grey', ls='-', lw=1.2, alpha=0.3)
+    axx.set_ylabel('Absolute error [-]', color='grey')
+
+    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
     ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
     ax[1].set_xlabel('f [GHz]')
     ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
 
+    axx = ax[1].twinx()
+    err = np.abs(np.abs(wake.Z)-np.interp(wake.f*1e-9, cstZ[0], cstZ[1]))
+    axx.plot(wake.f*1e-9, err, c='grey', ls='-', lw=1.2, alpha=0.3)
+    axx.set_ylabel('Absolute error [-]', color='grey')
+
     fig.suptitle('Benchmark with CST Wakefield Solver')
     fig.tight_layout()
-    fig.savefig('benchmark.png')
+    fig.savefig('results/benchmark.png')
 
     plt.show()
 
@@ -159,7 +170,7 @@ if not os.path.exists('cst/3d/Ez.h5'):
 '''
 
 #-------------- Compare .h5 files -------------
-plot = True
+plot = False
 if plot:
     # E field
     d1 = wake.read_Ez('EzABC.h5',return_value=True)
