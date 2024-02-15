@@ -17,7 +17,7 @@ class SolverFIT3D:
                  use_conductors=False, use_stl=False,
                  bg=[1.0, 1.0]):
         '''
-        TODO
+        TODO Docstring
         '''
 
         # Grid 
