@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 from scipy.constants import c as c_light
 
-class Wake():
+class WakeSolver():
     ''' Class for wake potential and impedance
     calculation from 3D time domain E fields
     '''
