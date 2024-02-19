@@ -57,7 +57,7 @@ solver = SolverFIT3D(grid, wake,
                      use_stl=True, bg='pec')
 
 wakelength = 1. #[m]
-add_space = 15  # no. cells
+add_space = 10  # no. cells
 
 # Plot settings
 if not os.path.exists('img/'): os.mkdir('img/')
@@ -84,7 +84,7 @@ else:
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = True
+plot = False
 if plot:
     # CST wake
     cstWP = wake.read_txt('cst/WP.txt')
@@ -124,7 +124,7 @@ if plot:
 plot = False
 if plot:
     # E field
-    d = wake.read_Ez('EzABC.h5',return_value=True)
+    d = wake.read_Ez('Ez.h5',return_value=True)
     t, z = np.array(d['t']), np.array(d['z'])    
     dt = t[1]-t[0]
     steps = list(d.keys())
@@ -132,16 +132,9 @@ if plot:
     # Beam J
     dd = wake.read_Ez('Jz.h5',return_value=True)
 
-    # CST E field
-    cstfiles = sorted(os.listdir('cst/1d/'))
-
     for n, step in enumerate(steps[:3750:30]):
         fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
         axx = ax.twinx()  
-
-        #E field
-        cst = wake.read_txt('cst/1d/'+cstfiles[n])
-        ax.plot(cst[0]*1e-3, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST')
 
         ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) FIT')
         ax.set_xlabel('z [m]')
@@ -150,6 +143,22 @@ if plot:
         ax.set_xlim(z.min(), z.max())
         ax.legend(loc=1)
 
+        # CST E field
+        try:    
+            cstfiles = sorted(os.listdir('cst/1d/'))
+            cst = wake.read_txt('cst/1d/'+cstfiles[n])
+            ax.plot(cst[0]*1e-3, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST')
+        except:
+            pass
+
+        # WarpX E field
+        try:    
+            warpx = wake.read_Ez('warpx/Ez.h5',return_value=True)
+            ax.plot(warpx['z'], warpx[step][1,1,:], c='b', lw=1.5, ls='dotted', label='Ez(0,0,z) WarpX')
+        except:
+            pass
+
+        # charge distribution
         axx.plot(z, dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
         axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
         axx.set_ylim(-7e6, 7e6)
@@ -168,6 +177,51 @@ if plot:
 if not os.path.exists('cst/3d/Ez.h5'):
     wake.read_cst_3d('cst/3d/')
 '''
+
+#------------- Compare with WarpX --------------
+warpx = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
+        xsource=xs, ysource=ys, xtest=xt, ytest=yt,
+        save=True, results_folder='warpx/')
+
+# Compute wake potential and impedance from Ez.h5 file
+if not os.path.exists('warpx/WP.txt'):
+    warpx.solve(Ez_file='warpx/Ez.h5')
+
+plot = True
+if plot:
+    # warpx wake
+    warpx.s, warpx.WP = wake.read_txt('warpx/WP.txt').values()
+    warpx.f, warpx.Z = wake.read_txt('warpx/Z.txt').values()
+    warpx.f = np.abs(warpx.f)
+
+    # CST wake
+    cstWP = wake.read_txt('cst/WP.txt')
+    cstZ = wake.read_txt('cst/Z.txt')
+    wake.f = np.abs(wake.f)
+
+    # wake potential
+    fig, ax = plt.subplots(1,2, figsize=[10,4], dpi=150)
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
+    ax[0].plot(warpx.s*1e3, warpx.WP, c='grey', ls='dotted', lw=1.5, label='WarpX+Wakis')
+    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[0].set_xlabel('s [mm]')
+    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+    ax[0].legend()
+
+    # impedance
+    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
+    ax[1].plot(warpx.f*1e-9, np.abs(warpx.Z), c='grey', ls='dotted', lw=1.5, label='WarpX+Wakis')
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[1].set_xlabel('f [GHz]')
+    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+    ax[1].legend()
+
+    fig.suptitle('Benchmark with WarpX and CST Wakefield Solver')
+    fig.tight_layout()
+    fig.savefig('warpx/benchmark.png')
+
+    plt.show()
+
 
 #-------------- Compare .h5 files -------------
 plot = False
