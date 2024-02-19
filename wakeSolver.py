@@ -128,6 +128,7 @@ class WakeSolver():
         self.x, self.y, self.z = None, None, None #full simulation domain
 
         #solver init
+        self.wakelength = None
         self.s = None
         self.lambdas = None
         self.WP = None
