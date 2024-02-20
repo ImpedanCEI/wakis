@@ -27,16 +27,13 @@ Output
 
 from pywarpx import picmi
 from pywarpx import libwarpx, fields, callbacks
-import pywarpx.fields as pwxf
+from scipy.constants import c, m_p, e
 import numpy as np
 import numpy.random as random
-import scipy as sc
-from scipy.constants import c, m_p, e
-import pickle as pk
+import matplotlib.pyplot as plt
 import time
 import os
 import h5py
-import sys
 
 from stl import mesh
 
@@ -49,10 +46,10 @@ t0 = time.time()
 # Simulation parameters #
 #=======================#
 
-CFL = 0.5               #Courant-Friedrichs-Levy criterion for stability
+CFL = 0.314          #Courant-Friedrichs-Levy criterion for stability
 NUM_PROC = 1            #number of mpi processors wanted to use
 UNIT = 1e-3             #conversion factor from input to [m]
-Wake_length=10*UNIT   #Wake potential length in s [m]
+Wake_length = 1000*UNIT   #Wake potential length in s [m]
 
 # beam parameters
 q = 1e-9                      #Total beam charge [C]
@@ -75,7 +72,8 @@ ytest = 0.0*UNIT
 #=====================#
 
 # Define stl file name
-stl_file = 'cubcavity.stl'
+#stl_file = 'cubcavity.stl'
+stl_file = '/afs/cern.ch/work/e/edelafue/htcondor/warpx/cubcavity.stl'
 
 # Initialize WarpX EB object
 embedded_boundary = picmi.EmbeddedBoundary(stl_file=stl_file, stl_reverse_normal=True)
@@ -123,7 +121,7 @@ print('[WARPX][INFO] Initialized mesh with ' + str((nx,ny,nz)) + ' number of cel
 xlo, xhi = xtest-2*dx, xtest+2*dx
 ylo, yhi = ytest-2*dy, ytest+2*dy
 zlo, zhi = z.min(), z.max()
-flag_mask_pml = False  #removes the pml cells from the E field monitor
+flag_mask_pml = True  #removes the pml cells from the E field monitor
 
 # mask for the E field extraction
 if flag_mask_pml:
@@ -134,7 +132,7 @@ xmask = np.logical_and(x >= xlo - dx, x <= xhi + dx)
 ymask = np.logical_and(y >= ylo - dy, y <= yhi + dy)
 
 #Injection position [TO OPTIMIZE]
-z_inj=z.min()+5*dz
+z_inj=z.min()+1*dz
 #z_inj=z.min()+n_pml/2*dz
 
 # generate the beam
@@ -174,11 +172,10 @@ solver = picmi.ElectromagneticSolver(grid=grid, method='Yee', cfl=CFL,
 
 # Obtain number of timesteps needed for the wake length
 # time when the bunch enters the cavity
-init_time = 8.53*sigmaz/c + (z.min()+L/2)/c -z_inj/c #[s] injection time + PEC length - Injection length 
+init_time = 8.53*sigmaz/c - 1*dz/c #[s] injection time - Injection length 
 
 # timestep size
 dt = CFL*(1/c)/np.sqrt((1/dx)**2+(1/dy)**2+(1/dz)**2)
-dt = 5.028668017235991e-13
 
 # timesteps needed to simulate
 max_steps=int((Wake_length+init_time*c+(z.max()-z.min()))/dt/c)
@@ -191,7 +188,7 @@ sim = picmi.Simulation(
     max_steps = max_steps,
     warpx_embedded_boundary = embedded_boundary,
     particle_shape = 'cubic', 
-    verbose = 1
+    verbose = 1,
 )
 
 beam_layout = picmi.PseudoRandomLayout(n_macroparticles = 0)
@@ -222,7 +219,7 @@ beam_uz = beam_gamma*c
 beam_beta = np.sqrt(1-1./(beam_gamma**2))
 
 # macroparticle info
-N = 10**7
+N = 10**6
 bunch_charge = q #beam charge in [C] defined by the user
 bunch_physical_particles  = int(bunch_charge/e)
 bunch_macro_particles = N
