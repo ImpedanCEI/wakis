@@ -121,7 +121,7 @@ if plot:
     plt.show()
 
 #--- 1d Ez field ---
-plot = False
+plot = True
 if plot:
     # E field
     d = wake.read_Ez('Ez.h5',return_value=True)
@@ -132,6 +132,10 @@ if plot:
     # Beam J
     dd = wake.read_Ez('Jz.h5',return_value=True)
 
+    # WarpX E field read
+    try: warpx = wake.read_Ez('warpx/Ez.h5',return_value=True)
+    except: pass
+
     for n, step in enumerate(steps[:3750:30]):
         fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
         axx = ax.twinx()  
@@ -141,7 +145,6 @@ if plot:
         ax.set_ylabel('$E_z$ field amplitude [V/m]', color='g')
         ax.set_ylim(-4e4, 4e4)
         ax.set_xlim(z.min(), z.max())
-        ax.legend(loc=1)
 
         # CST E field
         try:    
@@ -152,11 +155,11 @@ if plot:
             pass
 
         # WarpX E field
-        try:    
-            warpx = wake.read_Ez('warpx/Ez.h5',return_value=True)
-            ax.plot(warpx['z'], warpx[step][1,1,:], c='b', lw=1.5, ls='dotted', label='Ez(0,0,z) WarpX')
-        except:
-            pass
+        sstep = '#'+str(int(n*30+300)).zfill(5)
+        try: ax.plot(np.array(warpx['z']), warpx[sstep][1,1,:], c='b', lw=1.5, ls='dotted', label='Ez(0,0,z) WarpX')
+        except: pass
+        
+        ax.legend(loc=1)
 
         # charge distribution
         axx.plot(z, dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
@@ -185,9 +188,9 @@ warpx = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
 
 # Compute wake potential and impedance from Ez.h5 file
 if not os.path.exists('warpx/WP.txt'):
-    warpx.solve(Ez_file='warpx/Ez.h5')
+    warpx.solve(Ez_file='warpx/Ez.h5', wakelength=1.)
 
-plot = True
+plot = False
 if plot:
     # warpx wake
     warpx.s, warpx.WP = wake.read_txt('warpx/WP.txt').values()
