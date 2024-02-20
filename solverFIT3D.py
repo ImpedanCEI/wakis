@@ -11,7 +11,7 @@ from materials import material_lib
 
 class SolverFIT3D:
 
-    def __init__(self, grid, wake=None, cfln=0.5,
+    def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=False, use_stl=False,
@@ -23,8 +23,12 @@ class SolverFIT3D:
         # Grid 
         self.grid = grid
         self.cfln = cfln
-        self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 +
+        if dt is None:
+            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 +
                                             1 / self.grid.dz ** 2))
+        else:
+            self.dt = dt
+
         self.use_conductors = use_conductors
         self.use_stl = use_stl
 
