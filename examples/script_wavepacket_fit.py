@@ -14,6 +14,7 @@ from field import Field
 
 
 # ---------- Domain setup ---------
+
 # Number of mesh cells
 Nx = 50
 Ny = 50
@@ -28,13 +29,12 @@ bc_low=['periodic', 'periodic', 'pec']
 bc_high=['periodic', 'periodic', 'pec']
 
 # set FIT solver
-grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,) 
+grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz) 
 
 solver = SolverFIT3D(grid, bc_low=bc_low, bc_high=bc_high)
 
-# ------------ Time loop ----------------
+# ------------ Source ----------------
 
-# Initial conditions
 def wave_packet(solver, t, wavelength=10, sigma_z=10, sigma_x=5, beta=1.0, f=None):
     '''2d gaussian wave packet
     
@@ -62,7 +62,8 @@ def wave_packet(solver, t, wavelength=10, sigma_z=10, sigma_x=5, beta=1.0, f=Non
     solver.E[:,:,0,'x'] = 1.0*mu_0*c_light*np.cos(w*t)*gaussxy*gausst
 
 
-#Nt = 300
+# ------------ Time loop ----------------
+
 Nt = int((zmax-zmin)/(solver.dt*c_light))*2
 plot2D = False
 plot1D = True 
