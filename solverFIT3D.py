@@ -138,7 +138,7 @@ class SolverFIT3D:
         if self.activate_abc:
             self.update_abc()
 
-    def emsolve(self, Nt, save=False, fields=['E'], components=['Abs'], 
+    def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
             every=1, subdomain=None, plot=False, plot_every=1, **kwargs):
         '''
         Run the simulation and save the selected field components in HDF5 files
@@ -149,7 +149,11 @@ class SolverFIT3D:
         ----------
         Nt: int
             Number of timesteps to run
-        
+        source: func
+            Function defining the time-dependednt source. 
+            It should be in the form `func(solver, t)`
+        save: bool
+            Flag to enable saving the field in HDF5 format
         fields: list, default ['E']
             3D field magnitude ('E', 'H', or 'J') to save
             'Ex', 'Hy', etc., is also accepted and will override 
@@ -207,6 +211,7 @@ class SolverFIT3D:
                 xx, yy, zz = subdomain
             else:
                 xx, yy, zz = slice(0,self.Nx), slice(0,self.Ny), slice(0,self.Nz)
+
         if plot:
             plotkw = {'field':'E', 'component':'z',
                     'plane':'ZY', 'pos':0.5, 'cmap':'rainbow', 
@@ -214,7 +219,11 @@ class SolverFIT3D:
                     'off_screen': True, 'interpolation':'spline36'}
             plotkw.update(kwargs)
 
+        # Time loop
         for n in tqdm(range(Nt)):
+
+            if source is not None: #TODO test
+                source(self, n*self.dt)
 
             if save:
                 for field in hfs.keys():
