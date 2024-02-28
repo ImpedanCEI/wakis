@@ -644,9 +644,9 @@ class SolverFIT3D:
         
     def plot3D(self, field='E', component='z', clim=None, hide_solids=None,
                show_solids=None, add_stl=None, stl_opacity=0.1, stl_colors='white',
-               title=None, cmap='jet', clip_volume=True, clip_normal='-y',
-               clip_box=False, clip_bounds=None, off_screen=False, zoom=0.5, 
-               nan_opacity=1.0, n=None):
+               title=None, cmap='jet', clip_volume=False, clip_normal='-y',
+               clip_box=False, clip_bounds=None, field_on_stl=False, field_opacity=1.0,
+               off_screen=False, zoom=0.5, nan_opacity=1.0, n=None):
         '''
         Built-in 3D plotting using PyVista
         
@@ -675,13 +675,17 @@ class SolverFIT3D:
             Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True
         cmap: str, default 'jet'
             Colormap name to use in the field display
-        clip_volume: bool, default True
+        clip_volume: bool, default False
             Enable an interactive widget to clip out part of the domain, plane normal is defined by 
             `clip_normal` parameter
         clip_normal: str, default '-y'
             Normal direction of the clip_volume interactive plane
         clip box: bool, default False
             Enable a box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
+        field_on_stl : bool, default False
+            Samples the field on the stl file specified in `add_stl`.
+        field_opacity : optional, default 1.0
+            Sets de opacity of the `field_on_stl` plot
         off_screen: bool, default False
             Enable plot rendering off screen, for gif frames generation. 
             Plot will not be rendered if set to True.
@@ -696,6 +700,9 @@ class SolverFIT3D:
 
         if title is None:
             title = field + component +'3d'
+
+        if self.plotter_active and not off_screen:
+            self.plotter_active = False
 
         if not self.plotter_active:
 
@@ -716,7 +723,9 @@ class SolverFIT3D:
                         else:
                             pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
                 else:
-                    print("`add_stl` format not supported")
+                    key = self.grid.stl_solids.keys()[0] 
+                    surf = self.grid.read_stl(key)
+                    pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
 
             pl.camera_position = 'zx'
             pl.camera.azimuth += 30
@@ -806,6 +815,14 @@ class SolverFIT3D:
             ac1 = pl.add_mesh_clip_plane(points, normal=clip_normal, opacity=1.0,
                                          scalars=field+component, cmap=cmap, clim=clim, 
                                          normal_rotation=False, nan_opacity=nan_opacity)
+            
+        elif field_on_stl is True and add_stl is not None:
+            fieldonsurf = surf.sample(points)
+            ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, scalars=field+component, opacity=field_opacity)
+
+        else:
+            print('Plotting option inconsistent')
+
         if n is not None:
             pl.add_title(field+component+f' field, timestep={n}', font='times', font_size=12)
             title += '_'+str(n).zfill(6)
