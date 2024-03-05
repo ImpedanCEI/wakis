@@ -172,7 +172,7 @@ class Field:
     def get_abs(self):
         return np.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
-    def inspect(self, plane='XY', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
+    def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -182,17 +182,17 @@ class Field:
             key=[slice(0,self.Nx), slice(0,self.Ny), int(self.Nz//2)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Ny)
-            xax, yax = 'ny', 'nx'
+            xax, yax = 'nx', 'ny'
 
         elif plane == 'XZ':
             key=[slice(0,self.Nx), int(self.Ny//2), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Nz)
-            xax, yax = 'nz', 'nx'
+            xax, yax = 'nx', 'ny'
         elif plane == 'YZ':
             key=[int(self.Nx//2), slice(0,self.Ny), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
-            extent = (0, self.Ny, 0, self.Nz)
+            extent = (0, self.Nz, 0, self.Ny)
             xax, yax = 'nz', 'ny'
 
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6], dpi=dpi)
@@ -200,9 +200,9 @@ class Field:
 
         im = np.zeros_like(axs)
 
-        im[0] = axs[0].imshow(self.field_x[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_x)), vmax=np.max(np.max(self.field_x)), extent=extent)
-        im[1] = axs[1].imshow(self.field_y[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_y)), vmax=np.max(np.max(self.field_y)), extent=extent)
-        im[2] = axs[2].imshow(self.field_z[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_z)), vmax=np.max(np.max(self.field_z)), extent=extent)
+        im[0] = axs[0].imshow(self.field_x[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_x)), vmax=np.max(np.max(self.field_x)), extent=extent, origin='lower')
+        im[1] = axs[1].imshow(self.field_y[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_y)), vmax=np.max(np.max(self.field_y)), extent=extent, origin='lower')
+        im[2] = axs[2].imshow(self.field_z[x,y,z], cmap=cmap, vmin=-np.max(np.max(self.field_z)), vmax=np.max(np.max(self.field_z)), extent=extent, origin='lower')
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
