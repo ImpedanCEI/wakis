@@ -1,9 +1,14 @@
 '''
 Material library dictionary
 
-Format:
+Format (non-conductive):
 {
     'material key' : [eps_r, mu_r],
+}
+
+Format (conductive):
+{
+    'material key' : [eps_r, mu_r, sigma[S/m]],
 }
 
 * 'material key' in lower case only
@@ -16,5 +21,5 @@ material_lib = {
     'pec' : [np.inf, 1.],
     'vacuum' : [1.0, 1.0],
     'dielectric' : [10., 1.0],
-
+    'metal' : [1.0, 1.0, 10],
 }
