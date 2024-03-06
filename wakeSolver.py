@@ -14,7 +14,7 @@ class WakeSolver():
 
     def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
-                 chargedist=None, ti=None, Ez_file='Ez.h5', 
+                 chargedist=None, ti=None, add_space=0, Ez_file='Ez.h5', 
                  save=True, results_folder='results/',
                  verbose=0, logfile=True):
         '''
@@ -111,6 +111,7 @@ class WakeSolver():
         self.xtest, self.ytest = xtest, ytest
         self.chargedist = chargedist
         self.ti = ti
+        self.add_space = add_space
 
         # Injection time
         if ti is not None:
@@ -225,7 +226,11 @@ class WakeSolver():
         nz = len(self.zf)
         dz = self.zf[2]-self.zf[1]
         zmax = np.max(self.zf)
-        zmin = np.min(self.zf)               
+        zmin = np.min(self.zf)        
+
+        if self.add_space:
+            self.ti = self.ti + self.add_space*dz/self.c
+            ti = self.ti
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -313,6 +318,10 @@ class WakeSolver():
         dz = self.zf[2]-self.zf[1]
         zmax = max(self.zf)
         zmin = min(self.zf)               
+
+        if self.add_space:
+            self.ti = self.ti + self.add_space*dz/self.c
+            ti = self.ti
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -680,6 +689,32 @@ class WakeSolver():
         
         return d
 
+    def load_results(self, folder):
+        '''Load all txt from a given folder
+    
+        The txt files are generated when 
+        the attribute`save = True` is used
+        '''
+        if folder.endswith('/'):
+            folder = folder.split('/')[0]
+
+        _, self.lambdas = self.read_txt(folder+'/lambda.txt').values()
+        _, self.WPx = self.read_txt(folder+'/WPx.txt').values()
+        _, self.WPy = self.read_txt(folder+'/WPy.txt').values()
+        self.s, self.WP = self.read_txt(folder+'/WP.txt').values()
+
+        _, self.lambdaf = self.read_txt(folder+'/spectrum.txt').values()
+        _, self.Zx = self.read_txt(folder+'/Zx.txt').values()
+        _, self.Zy = self.read_txt(folder+'/Zy.txt').values()
+        self.f, self.Z = self.read_txt(folder+'/Z.txt').values()
+
+        self.f = np.abs(self.f)
+        
+    def copy(self):
+        obj = type(self).__new__(self.__class__)
+        obj.__dict__.update(self.__dict__)
+        return obj
+    
     def log(self, txt):
 
         if self.verbose:
