@@ -21,5 +21,5 @@ material_lib = {
     'pec' : [np.inf, 1.],
     'vacuum' : [1.0, 1.0],
     'dielectric' : [10., 1.0],
-    'metal' : [1.0, 1.0, 10],
+    'metal' : [10, 1.0, 10],
 }
