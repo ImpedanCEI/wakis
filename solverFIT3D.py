@@ -94,9 +94,14 @@ class SolverFIT3D:
         if type(bg) is str:
             bg = material_lib[bg.lower()]
 
-        self.eps_bg, self.mu_bg = bg[0]*eps_0, bg[1]*mu_0
+        if len(bg) == 3:
+            self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, bg[2]
+        else:
+            self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, 0.0
+
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.eps_bg) 
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.mu_bg) 
+        self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*self.sigma_bg
 
         if self.use_stl:
             self.apply_stl()
@@ -106,6 +111,7 @@ class SolverFIT3D:
 
         self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Pre-computing
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
@@ -133,10 +139,33 @@ class SolverFIT3D:
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() - self.iDeps*self.J.toarray())
                          )
-        
+                         
+        self.J.fromarray(self.Dsigma*self.E.toarray())
+
         #update ABC
         if self.activate_abc:
             self.update_abc()
+
+    def one_step_bis(self):
+
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
+
+            #if self.use_conductors:
+                #self.set_field_in_conductors_to_0()
+
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*self.tDsiDmuiDaC*self.E.toarray()
+                         )
+
+        self.E.fromarray(self.Dexp*self.E.toarray() +
+                         (1-self.Dexp)*self.itDaiDsigmaDstC*self.H.toarray() -
+                         (1-self.Dexp)*iDsigma)
+        #update ABC
+        if self.activate_abc:
+            self.update_abc()
+
 
     def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
             every=1, subdomain=None, plot=False, plot_every=1, **kwargs):
@@ -616,6 +645,12 @@ class SolverFIT3D:
                 self.ieps += mask * 1./eps 
                 self.imu += mask * 1./mu
 
+                # Conductivity
+                if len(material_lib[mat_key]) == 3:
+                    sigma = material_lib[mat_key][2]
+                    self.sigma += self.sigma * (-1.0*mask)
+                    self.sigma += mask * sigma
+
             else:
                 # From input
                 eps = self.stl_materials[key][0]*eps_0
@@ -629,8 +664,13 @@ class SolverFIT3D:
                 self.ieps += mask * 1./eps
                 self.imu += mask * 1./mu
 
-    def attrcleanup(self):
+                # Conductivity
+                if len(self.stl_materials[key]) == 3:
+                    sigma = self.stl_materials[key][2]
+                    self.sigma += self.sigma * (-1.0*mask)
+                    self.sigma += mask * sigma
 
+    def attrcleanup(self):
         # Fields
         del self.L, self.tL, self.iA, self.itA
         if hasattr(self, 'BC'):
