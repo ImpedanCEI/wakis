@@ -91,6 +91,7 @@ class SolverFIT3D:
         self.apply_bc_to_C() 
 
         # Materials 
+        self.use_conductivity = False
         if type(bg) is str:
             bg = material_lib[bg.lower()]
 
@@ -140,7 +141,8 @@ class SolverFIT3D:
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() - self.iDeps*self.J.toarray())
                          )
                          
-        self.J.fromarray(self.Dsigma*self.E.toarray())
+        if self.use_conductivity:
+            self.J.fromarray(self.Dsigma*self.E.toarray())
 
         #update ABC
         if self.activate_abc:
@@ -650,6 +652,7 @@ class SolverFIT3D:
                     sigma = material_lib[mat_key][2]
                     self.sigma += self.sigma * (-1.0*mask)
                     self.sigma += mask * sigma
+                    self.use_conductivity = True
 
             else:
                 # From input
@@ -669,6 +672,7 @@ class SolverFIT3D:
                     sigma = self.stl_materials[key][2]
                     self.sigma += self.sigma * (-1.0*mask)
                     self.sigma += mask * sigma
+                    self.use_conductivity = True
 
     def attrcleanup(self):
         # Fields
