@@ -12,9 +12,9 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 57
-Ny = 57
-Nz = 109
+Nx = 77
+Ny = 77
+Nz = 129
 dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -23,7 +23,7 @@ stl_shell = 'shell.stl'
 surf = pv.read(stl_shell)
 
 stl_solids = {'cavity': stl_cavity, 'shell': stl_shell}
-stl_materials = {'cavity': 'vacuum', 'shell': [1000, 1.0, 1000]}
+stl_materials = {'cavity': 'vacuum', 'shell': [5, 1.0, 5]}
 
 # Domain bounds
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
@@ -279,6 +279,48 @@ if plot:
     fig.suptitle('Benchmark with CST Wakefield Solver')
     fig.tight_layout()
     fig.savefig('benchmark_addspace.png')
+
+    plt.show()
+
+# compare NxNy
+plot = False
+if plot:
+    # CST wake
+    cstWP = wake.read_txt('cst/WP.txt')
+    cstZ = wake.read_txt('cst/Z.txt')
+
+    fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
+
+    # Wakis wake
+    keys = ['sigma5', 'NxNy67', 'NxNy77', 'NxNyNz+20']
+    res = {}
+    for k in keys:
+        res[k] = wake.copy()
+        res[k].load_results(f'results_{k}/')
+
+    ax[0].plot(res[keys[0]].s, res[keys[0]].WP, c='grey', lw=1.5, alpha=0.4, label='Nx, Ny = 57')
+    ax[0].plot(res[keys[1]].s, res[keys[1]].WP, c='r', lw=1.5, alpha=0.4, label='Nx, Ny = 67')
+    ax[0].plot(res[keys[2]].s, res[keys[2]].WP, c='r', lw=1.5, alpha=0.6, label='Nx, Ny = 77')
+    ax[0].plot(res[keys[3]].s, res[keys[3]].WP, c='r', lw=1.5, label='Nx, Ny, Nz += 20')
+
+    ax[0].plot(cstWP[0]*1e-2, cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[0].set_xlabel('s [m]')
+    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+    ax[0].legend()
+
+    ax[1].plot(res[keys[0]].f*1e-9, np.abs(res[keys[0]].Z), c='grey', lw=1.5, alpha=0.4, label='Nx, Ny = 57')
+    ax[1].plot(res[keys[1]].f*1e-9, np.abs(res[keys[1]].Z), c='b', lw=1.5, alpha=0.4, label='Nx, Ny = 67')
+    ax[1].plot(res[keys[2]].f*1e-9, np.abs(res[keys[2]].Z), c='b', lw=1.5, alpha=0.6, label='Nx, Ny = 77')
+    ax[1].plot(res[keys[3]].f*1e-9, np.abs(res[keys[3]].Z), c='b', lw=1.5, label='Nx, Ny, Nz += 20')
+
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[1].set_xlabel('f [GHz]')
+    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+    ax[1].legend()
+
+    fig.suptitle('Benchmark with CST Wakefield Solver')
+    fig.tight_layout()
+    fig.savefig('benchmark_NxNy.png')
 
     plt.show()
 
