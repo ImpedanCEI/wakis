@@ -12,9 +12,9 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 77
-Ny = 77
-Nz = 129
+Nx = 57
+Ny = 57
+Nz = 109
 dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -23,7 +23,7 @@ stl_shell = 'shell.stl'
 surf = pv.read(stl_shell)
 
 stl_solids = {'cavity': stl_cavity, 'shell': stl_shell}
-stl_materials = {'cavity': 'vacuum', 'shell': [5, 1.0, 5]}
+stl_materials = {'cavity': 'vacuum', 'shell': [10, 1.0, 10]}
 
 # Domain bounds
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
@@ -74,6 +74,7 @@ if run:
     # Run full electromagnetic time-domain simulation
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
                     plot=False, plot_every=30, save_J=False,
+                    use_etd=True,
                     **plotkw)
 
 #-------------- Compare with CST -------------
