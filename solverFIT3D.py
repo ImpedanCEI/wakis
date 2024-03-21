@@ -199,9 +199,9 @@ class SolverFIT3D:
         ----------
         Nt: int
             Number of timesteps to run
-        source: func
-            Function defining the time-dependednt source. 
-            It should be in the form `func(solver, t)`
+        source: source object
+            source object from `sources.py` defining the time-dependednt source. 
+            It should have an update function `source.update(solver, t)`
         save: bool
             Flag to enable saving the field in HDF5 format
         fields: list, default ['E']
@@ -279,7 +279,7 @@ class SolverFIT3D:
         for n in tqdm(range(Nt)):
 
             if source is not None: #TODO test
-                source(self, n*self.dt)
+                source.update(self, n*self.dt)
 
             if save:
                 for field in hfs.keys():
