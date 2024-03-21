@@ -61,22 +61,32 @@ bc_high=['pec', 'pec', 'pec']
 solver = SolverFIT3D(grid, wake, dt=dt,
                      bc_low=bc_low, bc_high=bc_high, 
                      use_stl=True, bg='pec')
-
 # Plot settings
-run = True
-if run:
-    if not os.path.exists('img/'): os.mkdir('img/')
-    plotkw = {'title':'img/Ez', 
-                'add_patch':'cavity', 'patch_alpha':0.3,
-                'vmin':-1e4, 'vmax':1e4,
-                'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
+if not os.path.exists('img/'): os.mkdir('img/')
+plotkw = {'title':'img/Ez', 
+            'add_patch':'cavity', 'patch_alpha':0.3,
+            'vmin':-1e4, 'vmax':1e4,
+            'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
-    # Run full electromagnetic time-domain simulation
+# Run wakefield time-domain simulation
+run = False
+if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
                     plot=False, plot_every=30, save_J=False,
                     use_etd=True,
                     **plotkw)
 
+# Run only electromagnetic time-domain simulation
+runEM = True
+if runEM:
+    from sources import Beam
+    beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
+                xsource=xs, ysource=ys)
+
+    solver.emsolve(Nt=500, source=beam, add_space=add_space,
+                    plot=False, plot_every=30, save_J=False,
+                    use_etd=True, **plotkw)
+    
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
