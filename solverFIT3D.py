@@ -122,14 +122,13 @@ class SolverFIT3D:
         self.step_0 = True
         self.plotter_active = False
 
-        self.attrcleanup()
-
     def one_step(self):
 
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
 
+            self.attrcleanup()
             #if self.use_conductors:
                 #self.set_field_in_conductors_to_0()
 
@@ -140,7 +139,8 @@ class SolverFIT3D:
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() - self.iDeps*self.J.toarray())
                          )
-                         
+        
+        #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
 
@@ -148,29 +148,46 @@ class SolverFIT3D:
         if self.activate_abc:
             self.update_abc()
 
-    def one_step_bis(self):
+    def one_step_etd(self):
 
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
 
-            #if self.use_conductors:
-                #self.set_field_in_conductors_to_0()
+            #cleanup
+            del self.Dsigma
+            del self.itDaiDepsDstC
+
+            #pre-compute
+            a, b = 1.0, self.sigma.toarray()
+            isigma = np.divide(a, b, out=np.zeros_like(b), where=b!=0)
+
+            self.iDsigma = diags(isigma, shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dexp = diags(np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
+                              shape=(3*self.N, 3*self.N), dtype=float)
+            self.oneMinusDexp = diags(1.0-np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
+                              shape=(3*self.N, 3*self.N), dtype=float)
+            self.itDaiDsigmaDstC = self.itDa * self.iDsigma * self.Ds * self.C.transpose()
+
+            del a, b, isigma
+            self.attrcleanup()
+
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
 
         self.E.fromarray(self.Dexp*self.E.toarray() +
-                         (1-self.Dexp)*self.itDaiDsigmaDstC*self.H.toarray() -
-                         (1-self.Dexp)*iDsigma)
+                         (self.oneMinusDexp)*self.itDaiDsigmaDstC*self.H.toarray() -
+                         (self.oneMinusDexp)*self.iDsigma*self.J.toarray()
+                         )
         #update ABC
         if self.activate_abc:
             self.update_abc()
 
 
     def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
-            every=1, subdomain=None, plot=False, plot_every=1, **kwargs):
+            every=1, subdomain=None, plot=False, plot_every=1, use_etd=False, **kwargs):
         '''
         Run the simulation and save the selected field components in HDF5 files
         for every timestep. Each field will be saved in a separate HDF5 file 'Xy.h5'
@@ -250,7 +267,13 @@ class SolverFIT3D:
                     'off_screen': True, 'interpolation':'spline36'}
             plotkw.update(kwargs)
 
-        # Time loop
+        # get update equations
+        if use_etd:
+            update = self.one_step_etd
+        else:
+            update = self.one_step
+
+        # Time loop 
         for n in tqdm(range(Nt)):
 
             if source is not None: #TODO test
@@ -268,7 +291,7 @@ class SolverFIT3D:
                     hfs[field]['#'+str(n).zfill(5)] = d
 
             # Advance
-            self.one_step()
+            update()
 
             # Plot
             if plot and n%plot_every == 0:
@@ -276,7 +299,7 @@ class SolverFIT3D:
 
 
     def wakesolve(self, wakelength, wake=None, 
-                  save_J=False, add_space=None,
+                  save_J=False, add_space=None, use_etd=False,
                   plot=False, plot_every=1, **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
@@ -381,7 +404,7 @@ class SolverFIT3D:
         else: 
             zz = slice(0, self.Nz)
 
-        #hdf5 
+        # hdf5 
         hf = h5py.File('Ez.h5', 'w')
         hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
         hf['t'] = np.arange(0, Nt*self.dt, self.dt)
@@ -390,6 +413,12 @@ class SolverFIT3D:
             hfJ = h5py.File('Jz.h5', 'w')
             hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z[zz]
             hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+
+        # get update equations
+        if use_etd:
+            update = self.one_step_etd
+        else:
+            update = self.one_step
 
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
@@ -403,7 +432,7 @@ class SolverFIT3D:
                 hfJ['#'+str(n).zfill(5)] = self.J[xx, yy, zz, 'z'] 
             
             # Advance
-            self.one_step()
+            update()
             
             # Plot
             if plot and n%plot_every == 0:
@@ -537,6 +566,47 @@ class SolverFIT3D:
         # Absorbing boundary conditions ABC
         if any(True for x in self.bc_low if x.lower() == 'abc'):
             self.activate_abc = True
+
+        # Perfect Matching Layers (PML)
+        if any(True for x in self.bc_low if x.lower() == 'pml'):
+            self.activate_pml = True
+
+    def update_pml(self):
+        '''
+        Apply PML algo to the last `N_pml` cells on E and H 
+        for the selected BCs, to be applied after each timestep
+        '''
+        # np.exp(-self.pmlsigma*self.dt)
+        if self.bc_low[0].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[0:self.N_pml, :, :, d] *= self.pmldampingE
+                self.H[0:self.N_pml, :, :, d] *= self.pmldampingH
+
+        if self.bc_low[1].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, 0:self.N_pml, :, d] *= self.pmldampingE
+                self.H[:, 0:self.N_pml, :, d] *= self.pmldampingH
+                   
+        if self.bc_low[2].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, :, 0:self.N_pml, d] *= self.pmldampingE
+                self.H[:, :, 0:self.N_pml, d] *= self.pmldampingH 
+
+        if self.bc_high[0].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[-self.N_pml:, :, :, d] *= self.pmldampingE
+                self.H[-self.N_pml:, :, :, d] *= self.pmldampingH
+
+        if self.bc_high[1].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, -self.N_pml:, :, d] *= self.pmldampingE
+                self.H[:, -self.N_pml:, :, d] *= self.pmldampingH
+
+        if self.bc_high[2].lower() == 'abc':
+            for d in ['x', 'y', 'z']:
+                self.E[:, :, -self.N_pml:, d] *= self.pmldampingE
+                self.H[:, :, -self.N_pml:, d] *= self.pmldampingH
+
 
     def update_abc(self):
         '''
