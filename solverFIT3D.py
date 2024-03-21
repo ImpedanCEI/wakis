@@ -155,7 +155,6 @@ class SolverFIT3D:
             self.step_0 = False
 
             #cleanup
-            del self.Dsigma
             del self.itDaiDepsDstC
 
             #pre-compute
@@ -181,6 +180,9 @@ class SolverFIT3D:
                          (self.oneMinusDexp)*self.itDaiDsigmaDstC*self.H.toarray() -
                          (self.oneMinusDexp)*self.iDsigma*self.J.toarray()
                          )
+        
+        self.J.fromarray(self.Dsigma*self.E.toarray())
+
         #update ABC
         if self.activate_abc:
             self.update_abc()
