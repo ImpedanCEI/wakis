@@ -21,8 +21,8 @@ for i, key in enumerate(keystoplot):
     Etoplot = np.array(hf[list(hf.keys())[int(key)]])
     Jtoplot = np.array(hf2[list(hf2.keys())[int(key)]])
     axx.plot(z, Etoplot, color=colors[i], ls='none', marker='d', markevery=2, ms=3, label=f'ABC timestep #{int(key)}')
-    ax.plot(z, Jtoplot, color='k', label=f'Jz timestep #{int(key)}', alpha=colorsJ[i])
-    ax.fill_between(z, Jtoplot, color='k', alpha=0.1)
+    ax.plot(z, Jtoplot, label=f'Jz timestep #{int(key)}', color=colors[i], alpha=0.3)
+    ax.fill_between(z, Jtoplot, color=colors[i], alpha=0.05)
 
 hf.close()
 hf2.close()
@@ -36,10 +36,10 @@ for i, key in enumerate(keystoplot):
     axx.plot(z, Etoplot, color=colors[i], label=f'PEC timestep #{int(key)}', alpha=0.8, lw=2)
 
 ax.set_xlabel('$z$ [m]')
-axx.set_ylabel('$E_z$ [V/m]', color='darkgreen', fontweight='bold')
+axx.set_ylabel('$E_z$ [V/m]', color='k', fontweight='bold')
 lims = max(np.abs(plt.ylim()[0]), np.abs(plt.ylim()[0]))
 axx.set_ylim(-1e5, 1e5)
-ax.set_ylabel('Charge distribution [C/m]', color='r', fontweight='bold')
+ax.set_ylabel('Charge distribution [C/m]', color='k', fontweight='bold')
 ax.set_ylim(ymin=-np.max(Jtoplot)*1.5, ymax=np.max(Jtoplot)*1.5)
 axx.legend(loc='lower center', ncol=2)
 
