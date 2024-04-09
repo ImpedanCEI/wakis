@@ -135,15 +135,16 @@ class SolverFIT3D:
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
-
+     
         self.E.fromarray(self.E.toarray() +
-                         self.dt*(self.itDaiDepsDstC * self.H.toarray() - self.iDeps*self.J.toarray())
+                         self.dt*(self.itDaiDepsDstC * self.H.toarray() 
+                                  - self.iDeps*self.J.toarray()
+                                  )
                          )
-        
         #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
-
+     
         #update ABC
         if self.activate_abc:
             self.update_abc()
@@ -170,7 +171,6 @@ class SolverFIT3D:
 
             del a, b, isigma
             self.attrcleanup()
-
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
