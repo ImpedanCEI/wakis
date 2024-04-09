@@ -69,15 +69,15 @@ plotkw = {'title':'img/Ez',
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
 # Run wakefield time-domain simulation
-run = False
+run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
                     plot=False, plot_every=30, save_J=False,
-                    use_etd=True,
+                    use_etd=False,
                     **plotkw)
 
 # Run only electromagnetic time-domain simulation
-runEM = True
+runEM = False
 if runEM:
     from sources import Beam
     beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
