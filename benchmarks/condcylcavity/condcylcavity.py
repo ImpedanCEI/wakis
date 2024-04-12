@@ -36,7 +36,7 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
     
 # ------------ Beam source ----------------
 # Beam parameters
-sigmaz = 10e-2       #[m] -> 2 GHz
+sigmaz = 10e-2      #[m] -> 2 GHz
 q = 1e-9            #[C]
 beta = 1.0          # beam beta TODO
 xs = 0.             # x source position [m]
@@ -46,7 +46,7 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
 
 # Simualtion
-wakelength = 10. #[m]
+wakelength = 100. #[m]
 add_space = 10   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
@@ -63,34 +63,43 @@ solver = SolverFIT3D(grid, wake, dt=dt,
                      use_stl=True, bg='pec')
 # Plot settings
 if not os.path.exists('img/'): os.mkdir('img/')
-plotkw = {'title':'img/Ez', 
-            'add_patch':'cavity', 'patch_alpha':0.3,
-            'vmin':-1e4, 'vmax':1e4,
+plotkw2D = {'title':'img/Ez', 
+            'add_patch':['shell','cavity'], 'patch_alpha':0.3,
+            'vmin':-1e3, 'vmax':1e3,
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
+plotkw3D = {'title':'img/Ez', 
+            'add_stl':'shell',
+            'field_opacity':0.5,}
+            
 # Run wakefield time-domain simulation
-run = False
+run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=True, plot_every=30, save_J=True,
+                    plot=True, plot_every=50, save_J=True,
                     use_etd=False,
-                    **plotkw)
+                    **plotkw2D)
 
 # Run only electromagnetic time-domain simulation
-runEM = True
+runEM = False
 if runEM:
     from sources import Beam
     beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
                 xsource=xs, ysource=ys)
 
-    solver.emsolve(Nt=500, source=beam, add_space=add_space,
-                    plot=True, plot_every=30, save_J=False,
-                    **plotkw)
-    
+    solver.emsolve(Nt=8000, source=beam,
+                   plot2d=True, plot_every=100, 
+                   **plotkw2D)
+
+ # Or, load previous results
+if run is False and runEM is False:
+    wake.solve()
+    #wake.load_results(folder='results/')
+
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = False
+plot = True
 if plot:
     # CST wake
     cstWP = wake.read_txt('cst/WP_wl10000.txt')
