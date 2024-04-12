@@ -320,8 +320,8 @@ class WakeSolver():
         zmin = min(self.zf)               
 
         if self.add_space:
-            self.ti = self.ti + self.add_space*dz/self.c
-            ti = self.ti
+            zmax += self.add_space*dz
+            zmin -= self.add_space*dz
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -448,7 +448,7 @@ class WakeSolver():
             np.savetxt(self.folder+'WPx.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
             np.savetxt(self.folder+'WPy.txt', np.c_[self.s,self.WPx], header='   s [m]'+' '*20+'WP [V/pC]'+'\n'+'-'*48)
 
-    def calc_long_Z(self, samples=1001, **kwargs):
+    def calc_long_Z(self, samples=1001, fmax=None, **kwargs):
         '''
         Obtains the longitudinal impedance from the longitudinal 
         wake potential and the beam charge distribution using a 
@@ -494,7 +494,8 @@ class WakeSolver():
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
-        fmax = 1*self.c/self.sigmaz/3   #max frequency of interest 
+        if fmax is None:
+            fmax = 1*self.c/self.sigmaz/3   #max frequency of interest 
         N = int((self.c/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
 
         # Obtain DFTs
