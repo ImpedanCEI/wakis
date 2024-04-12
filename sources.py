@@ -15,7 +15,8 @@ import numpy as np
 from scipy.constants import mu_0, c as c_light 
 
 class Beam:
-    def __init__(self, xsource=0., ysource=0.,  q=1e-9, sigmaz=None, ti=None):
+    def __init__(self, xsource=0., ysource=0., beta=1.0, 
+                 q=1e-9, sigmaz=None, ti=None):
         '''
         Updates the current J every timestep 
         to introduce a gaussian beam 
@@ -25,6 +26,8 @@ class Beam:
         ---
         xsource, ysource: float, default 0.
             Transverse position of the source [m]
+        beta: float, default 1.0
+            Relativistic beta of the beam [0-1.0]
         q: float, default 1e-9
             Beam charge [C]
         sigmaz: float, default None
@@ -35,6 +38,8 @@ class Beam:
 
         self.xsource, self.ysource = xsource, ysource
         self.sigmaz = sigmaz
+        self.q = q
+        self.beta = beta
         if ti is not None: 
             self.ti = ti
         else:  self.ti = 8.548921333333334*self.sigmaz
@@ -50,7 +55,7 @@ class Beam:
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
         # update 
-        solver.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/self.dx/self.dy
+        solver.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/solver.dx/solver.dy
 
 class PlaneWave:
     def __init__(self,   xs=None, ys=None, nodes=15, f=None, beta=1.0):
