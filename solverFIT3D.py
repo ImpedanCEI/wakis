@@ -232,9 +232,9 @@ class SolverFIT3D:
             * Default kwargs used for 3D plotting:
                 {'field':'E', 'component':'z',
                 'add_stl':None, 'stl_opacity':0.0, 'stl_colors':'white',
-                'title':'Ez', 'cmap':'jet', 'clip_volume':True, 'clip_normal':'-y',
+                'title':'Ez', 'cmap':'jet', 'clip_volume':False, 'clip_normal':'-y',
                 'field_on_stl':True, 'field_opacity':1.0,
-                'off_screen':True, 'zoom':0.5, 'nan_opacity':1.0}
+                'off_screen':True, 'zoom':1.0, 'nan_opacity':1.0}
 
         Raises:
         -------
@@ -281,9 +281,9 @@ class SolverFIT3D:
         if plot3d:
             plotkw = {'field':'E', 'component':'z',
                     'add_stl':None, 'stl_opacity':0.0, 'stl_colors':'white',
-                    'title':'Ez', 'cmap':'jet', 'clip_volume':True, 'clip_normal':'-y',
+                    'title':'Ez', 'cmap':'jet', 'clip_volume':False, 'clip_normal':'-y',
                     'field_on_stl':True, 'field_opacity':1.0,
-                    'off_screen':True, 'zoom':0.5, 'nan_opacity':1.0}
+                    'off_screen':True, 'zoom':1.0, 'nan_opacity':1.0}
             
             plotkw.update(kwargs)
 
@@ -954,6 +954,7 @@ class SolverFIT3D:
                                          normal_rotation=False, nan_opacity=nan_opacity)
             
         elif field_on_stl is True and add_stl is not None:
+            surf = self.grid.read_stl(add_stl)
             fieldonsurf = surf.sample(points)
             ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, scalars=field+component, opacity=field_opacity)
 
