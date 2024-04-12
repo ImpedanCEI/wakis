@@ -236,6 +236,7 @@ class SolverFIT3D:
         -------------
         h5py
         '''
+        self.Nt = Nt
 
         if save:
             try:
@@ -276,7 +277,7 @@ class SolverFIT3D:
             update = self.one_step
 
         # Time loop 
-        for n in tqdm(range(Nt)):
+        for n in tqdm(range(self.Nt)):
 
             if source is not None: #TODO test
                 source.update(self, n*self.dt)
@@ -399,31 +400,31 @@ class SolverFIT3D:
             self.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/self.dx/self.dy
             
         tmax = (wakelength + self.ti*c_light + (self.z.max()-self.z.min()))/c_light #[s]
-        Nt = int(tmax/self.dt)
+        self.Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
         if add_space is not None:
-            zz = slice(add_space, -add_space)
+            zz = slice(0+add_space, self.Nz-add_space)
         else: 
             zz = slice(0, self.Nz)
 
         # hdf5 
         hf = h5py.File('Ez.h5', 'w')
         hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
-        hf['t'] = np.arange(0, Nt*self.dt, self.dt)
+        hf['t'] = np.linspace(0, self.Nt*self.dt, self.Nt+1)
 
         if save_J:
             hfJ = h5py.File('Jz.h5', 'w')
             hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z[zz]
-            hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+            hfJ['t'] = np.linspace(0, self.Nt*self.dt, self.Nt+1)
 
         # get update equations
         if use_etd:
-            update = self.one_step_etd
+            update = self.one_step_etd 
         else:
             update = self.one_step
 
         print('Running electromagnetic time-domain simulation...')
-        for n in tqdm(range(Nt)):
+        for n in tqdm(range(self.Nt)):
 
             # Initial condition
             beam(self, n*self.dt)
@@ -439,6 +440,11 @@ class SolverFIT3D:
             # Plot
             if plot and n%plot_every == 0:
                 self.plot2D(field='E', component='z', n=n, **plotkw)
+
+        # Save last dt
+        hf['#'+str(n+1).zfill(5)] = self.E[xx, yy, zz, 'z'] 
+        if save_J:
+            hfJ['#'+str(n+1).zfill(5)] = self.J[xx, yy, zz, 'z'] 
 
         hf.close()
         if save_J:
