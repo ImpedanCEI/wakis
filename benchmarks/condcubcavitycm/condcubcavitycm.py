@@ -12,9 +12,9 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 57
-Ny = 57
-Nz = 109
+Nx = 57+20
+Ny = 57+20
+Nz = 109+20
 dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -47,7 +47,7 @@ yt = 0.             # y test position [m]
 
 # Simualtion
 wakelength = 10. #[m]
-add_space = 10   # no. cells
+add_space = 30   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
             xsource=xs, ysource=ys, xtest=xt, ytest=yt,

@@ -25,8 +25,8 @@ zmin, zmax = -5e-2, +5e-2
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
 # boundary conditions
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+bc_low=['pec', 'pec', 'abc']
+bc_high=['pec', 'pec', 'abc']
 
 # set FIT solver
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz)
@@ -48,20 +48,25 @@ x, y, z = solver.x, solver.y, solver.z
 ixs, iys = np.abs(x-xs).argmin(), np.abs(y-ys).argmin()
 ixt, iyt = np.abs(x-xt).argmin(), np.abs(y-yt).argmin()
 
-def beam(solver, t, gap=5):
+def beam(solver, t, gap=0):
     # Define gaussian
-    z = solver.z[gap:-gap]
+    if gap == 0:
+        izs = slice(0,Nz)
+    else: 
+        izs = slice(gap,Nz-gap)
+
+    z = solver.z[izs]
     s0 = z.min()-c_light*tinj
     s = z-c_light*t
     profile = 1/np.sqrt(2*np.pi*sigmaz**2)*np.exp(-(s-s0)**2/(2*sigmaz**2))
 
     # Update current
     current = q*c_light*profile/solver.dx/solver.dy
-    solver.J[ixs,iys,gap:-gap,'z'] = current
+    solver.J[ixs,iys,izs,'z'] = current
 
 # ------------ Time loop ----------------
 # Define wake length
-wakelength = 1*1e-3 #[m]
+wakelength = 10*1e-2 #[m]
 
 # Obtain simulation time
 tmax = (wakelength + tinj*c_light + (zmax-zmin))/c_light #[s]
@@ -74,8 +79,8 @@ save = False
 plot = True
 
 if save:
-    hf = h5py.File('hdf5/Ez_inj.h5', 'w')
-    hf2 = h5py.File('hdf5/Jz_inj.h5', 'w')
+    hf = h5py.File('imgInj/Ez_gap0_pec.h5', 'w')
+    hf2 = h5py.File('imgInj/Jz.h5', 'w')
     hf['x'], hf['y'], hf['z'], hf['t'] = x, y, z, t
 
 for n in tqdm(range(Nt)):
@@ -87,8 +92,8 @@ for n in tqdm(range(Nt)):
     solver.one_step()
 
     # Plot 2D
-    if n>(ninj-200) and n%20 == 0 and plot:
-        solver.plot2D(field='E', component='z', plane='ZY', pos=0.5, norm=None, 
+    if n>(ninj-1000) and n%20 == 0 and plot:
+        solver.plot2D(field='E', component='y', plane='ZY', pos=0.5, norm=None, 
                       vmin=-5e5, vmax=5e5, cmap='bwr', title='imgInj/Ez', off_screen=True,  
                       n=n, interpolation='spline36')
     
@@ -102,3 +107,7 @@ if save:
     hf.close()
     hf2.close()
 
+
+# Compare results TODO
+if plot:
+    pass
