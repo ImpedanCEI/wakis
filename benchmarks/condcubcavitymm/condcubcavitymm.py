@@ -12,10 +12,10 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 57
-Ny = 57
-Nz = 109
-dt = 5.707829241e-12 # CST
+Nx = 49+20
+Ny = 49+20
+Nz = 94+20
+dt = 1.181512253e-12 # CST
 
 # Embedded boundaries
 stl_cavity = 'cavity.stl' 
@@ -36,7 +36,7 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
     
 # ------------ Beam source ----------------
 # Beam parameters
-sigmaz = 5e-2       #[m] -> 2 GHz
+sigmaz = 18.5e-3    #[m] -> 2 GHz
 q = 1e-9            #[C]
 beta = 1.0          # beam beta TODO
 xs = 0.             # x source position [m]
@@ -46,8 +46,8 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
 
 # Simualtion
-wakelength = 10. #[m]
-add_space = 10   # no. cells
+wakelength = 1. #[m]
+add_space = 8   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
             xsource=xs, ysource=ys, xtest=xt, ytest=yt,
@@ -55,8 +55,8 @@ wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+bc_low=['pec', 'pec', 'abc']
+bc_high=['pec', 'pec', 'abc']
 
 solver = SolverFIT3D(grid, wake, dt=dt,
                      bc_low=bc_low, bc_high=bc_high, 
@@ -66,14 +66,13 @@ if not os.path.exists('img/'): os.mkdir('img/')
 plotkw = {'title':'img/Ez', 
             'add_patch':'cavity', 'patch_alpha':0.3,
             'vmin':-1e4, 'vmax':1e4,
-            'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
+            'plane': [int(Nx/2), slice(0, Ny), slice(0+add_space, Nz-add_space)]}
 
 # Run wakefield time-domain simulation
 run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=False, plot_every=30, save_J=False,
-                    use_etd=False,
+                    plot=False, plot_every=30, save_J=True,
                     **plotkw)
 
 # Run only electromagnetic time-domain simulation
@@ -86,7 +85,12 @@ if runEM:
     solver.emsolve(Nt=500, source=beam, add_space=add_space,
                     plot=False, plot_every=30, save_J=False,
                     use_etd=True, **plotkw)
-    
+
+# Or, load previous results
+if run is False and runEM is False:
+    #wake.solve()
+    wake.load_results(folder='results/')
+
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
@@ -95,10 +99,13 @@ if plot:
     # CST wake
     cstWP = wake.read_txt('cst/WP.txt')
     cstZ = wake.read_txt('cst/Z.txt')
+
+    #Recompute DFT with same max freq as cst (optional)
     wake.f = np.abs(wake.f)
+    wake.calc_long_Z(fmax=cstZ[0].max()*1e9) #samples=10001)
 
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-    ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
     ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
@@ -162,7 +169,7 @@ if plot:
         plt.clf()
         plt.close(fig)
 
-#-------------- Compare result files -------------
+#-------------- Compare parametric result files -------------
 
 #--- Longitudinal wake and impedance ---
 
