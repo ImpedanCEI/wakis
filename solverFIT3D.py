@@ -189,7 +189,8 @@ class SolverFIT3D:
 
 
     def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
-            every=1, subdomain=None, plot=False, plot_every=1, use_etd=False, **kwargs):
+            every=1, subdomain=None, plot=False, plot_every=1, use_etd=False, 
+            plot3d=False, **kwargs):
         '''
         Run the simulation and save the selected field components in HDF5 files
         for every timestep. Each field will be saved in a separate HDF5 file 'Xy.h5'
@@ -217,15 +218,23 @@ class SolverFIT3D:
             Slice [x,y,z] of the domain to be saved
         plot: bool, default False
             Flag to enable 2D plotting
+        plot3d: bool, default False
+            Flag to enable 3D plotting
         plot_every: int
             Number of timesteps between consecutive plots
         **kwargs:
             Keyword arguments to be passed to the Plot2D function.
-            Default kwargs used: 
+            * Default kwargs used for 2D plotting: 
                 {'field':'E', 'component':'z',
                 'plane':'ZY', 'pos':0.5, 'title':'Ez', 
                 'cmap':'rainbow', 'patch_reverse':True, 
                 'off_screen': True, 'interpolation':'spline36'}
+            * Default kwargs used for 3D plotting:
+                {'field':'E', 'component':'z',
+                'add_stl':None, 'stl_opacity':0.0, 'stl_colors':'white',
+                'title':'Ez', 'cmap':'jet', 'clip_volume':True, 'clip_normal':'-y',
+                'field_on_stl':True, 'field_opacity':1.0,
+                'off_screen':True, 'zoom':0.5, 'nan_opacity':1.0}
 
         Raises:
         -------
@@ -236,7 +245,6 @@ class SolverFIT3D:
         -------------
         h5py
         '''
-        self.Nt = Nt
 
         if save:
             try:
@@ -270,6 +278,15 @@ class SolverFIT3D:
                     'off_screen': True, 'interpolation':'spline36'}
             plotkw.update(kwargs)
 
+        if plot3d:
+            plotkw = {'field':'E', 'component':'z',
+                    'add_stl':None, 'stl_opacity':0.0, 'stl_colors':'white',
+                    'title':'Ez', 'cmap':'jet', 'clip_volume':True, 'clip_normal':'-y',
+                    'field_on_stl':True, 'field_opacity':1.0,
+                    'off_screen':True, 'zoom':0.5, 'nan_opacity':1.0}
+            
+            plotkw.update(kwargs)
+
         # get update equations
         if use_etd:
             update = self.one_step_etd
@@ -277,7 +294,7 @@ class SolverFIT3D:
             update = self.one_step
 
         # Time loop 
-        for n in tqdm(range(self.Nt)):
+        for n in tqdm(range(Nt)):
 
             if source is not None: #TODO test
                 source.update(self, n*self.dt)
@@ -299,6 +316,9 @@ class SolverFIT3D:
             # Plot
             if plot and n%plot_every == 0:
                 self.plot2D(n=n, **plotkw)
+
+            if plot3d and n%plot_every == 0:
+                self.plot3D(n=n, **plotkw)
 
 
     def wakesolve(self, wakelength, wake=None, 
@@ -400,31 +420,31 @@ class SolverFIT3D:
             self.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/self.dx/self.dy
             
         tmax = (wakelength + self.ti*c_light + (self.z.max()-self.z.min()))/c_light #[s]
-        self.Nt = int(tmax/self.dt)
+        Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
         if add_space is not None:
-            zz = slice(0+add_space, self.Nz-add_space)
+            zz = slice(add_space, -add_space)
         else: 
             zz = slice(0, self.Nz)
 
         # hdf5 
         hf = h5py.File('Ez.h5', 'w')
         hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
-        hf['t'] = np.linspace(0, self.Nt*self.dt, self.Nt+1)
+        hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
         if save_J:
             hfJ = h5py.File('Jz.h5', 'w')
             hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z[zz]
-            hfJ['t'] = np.linspace(0, self.Nt*self.dt, self.Nt+1)
+            hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
 
         # get update equations
         if use_etd:
-            update = self.one_step_etd 
+            update = self.one_step_etd
         else:
             update = self.one_step
 
         print('Running electromagnetic time-domain simulation...')
-        for n in tqdm(range(self.Nt)):
+        for n in tqdm(range(Nt)):
 
             # Initial condition
             beam(self, n*self.dt)
@@ -440,11 +460,6 @@ class SolverFIT3D:
             # Plot
             if plot and n%plot_every == 0:
                 self.plot2D(field='E', component='z', n=n, **plotkw)
-
-        # Save last dt
-        hf['#'+str(n+1).zfill(5)] = self.E[xx, yy, zz, 'z'] 
-        if save_J:
-            hfJ['#'+str(n+1).zfill(5)] = self.J[xx, yy, zz, 'z'] 
 
         hf.close()
         if save_J:
