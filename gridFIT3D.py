@@ -148,7 +148,10 @@ class GridFIT3D:
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
-            select = self.grid.select_enclosed_points(surf, tolerance=tol)
+            try:
+                select = self.grid.select_enclosed_points(surf, tolerance=tol)
+            except:
+                select = self.grid.select_enclosed_points(surf, tolerance=tol, check_surface=False)
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
 
     def read_stl(self, key):
