@@ -171,3 +171,69 @@ class GridFIT3D:
         surf = surf.scale(self.stl_scale[key]) 
 
         return surf
+    
+    def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors='white'):
+        '''3D plot using pyvista to visualize 
+        the structured grid and
+        the imported stl geometries
+
+        Parameters
+        ---
+        add_stl: str or list, optional
+            List or str of stl solids to add to the plot by `pv.add_mesh`
+        stl_opacity: float, default 0.1
+            Opacity of the stl surfaces (0 - Transparent, 1 - Opaque)
+        stl_colors: str or list of str, default 'white'
+            Color of the stl surfaces
+        '''
+
+        pl = pv.Plotter()
+        pl.add_mesh(self.grid, show_edges=True, cmap=['white', 'white'], name='grid')
+        
+        def clip(widget):
+            # Plot structured grid
+            b = widget.bounds
+            x = self.x[np.logical_and(self.x>=b[0], self.x<=b[1])]
+            y = self.y[np.logical_and(self.y>=b[2], self.y<=b[3])]
+            z = self.z[np.logical_and(self.z>=b[4], self.z<=b[5])]
+            X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+            grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
+
+            pl.add_mesh(grid, show_edges=True, cmap=['white', 'white'], name='grid')
+            
+            # Plot stl surface(s)
+            if add_stl is not None:
+                if type(add_stl) is str:
+                    key = add_stl
+                    surf = self.read_stl(key)
+                    surf = surf.clip_box(widget.bounds, invert=False)
+                    pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+
+                elif type(add_stl) is list:
+                    for i, key in enumerate(add_stl):
+                        surf = self.read_stl(key)
+                        surf = surf.clip_box(widget.bounds, invert=False)
+                        if type(stl_colors) is list:
+                            pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        else:
+                            pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+            else:
+                for i, key in enumerate(self.stl_solids):
+                    surf = self.read_stl(key)
+                    surf = surf.clip_box(widget.bounds, invert=False)
+                    if type(stl_colors) is list:
+                        pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                    else:
+                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+
+        _ = pl.add_box_widget(callback=clip, rotation_enabled=False)
+
+        # Camera orientation
+        pl.camera_position = 'zx'
+        pl.camera.azimuth += 30
+        pl.camera.elevation += 30
+        pl.background_color = "grey"
+        #pl.camera.zoom(zoom)
+        pl.add_axes()
+        pl.enable_3_lights()
+        pl.show()
