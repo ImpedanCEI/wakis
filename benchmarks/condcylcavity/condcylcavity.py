@@ -15,15 +15,16 @@ from wakeSolver import WakeSolver
 Nx = 40
 Ny = 40
 Nz = 111
-dt = 2.187760221e-12 # CST
+#dt = 2.187760221e-12 # CST
 
 # Embedded boundaries
 stl_cavity = 'cav.stl' 
 stl_shell = 'shell.stl'
 surf = pv.read(stl_shell)
+#surf.plot()
 
 stl_solids = {'cavity': stl_cavity, 'shell': stl_shell}
-stl_materials = {'cavity': 'vacuum', 'shell': [100, 1.0, 100]}
+stl_materials = {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}
 
 # Domain bounds
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
@@ -46,7 +47,7 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
 
 # Simualtion
-wakelength = 100. #[m]
+wakelength = 50. #[m]
 add_space = 10   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
@@ -55,10 +56,10 @@ wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+bc_low=['pec', 'pec', 'abc']
+bc_high=['pec', 'pec', 'abc']
 
-solver = SolverFIT3D(grid, wake, dt=dt,
+solver = SolverFIT3D(grid, wake, #dt=dt,
                      bc_low=bc_low, bc_high=bc_high, 
                      use_stl=True, bg='pec')
 # Plot settings
@@ -76,7 +77,7 @@ plotkw3D = {'title':'img/Ez',
 run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=True, plot_every=50, save_J=True,
+                    plot=False, plot_every=50, save_J=True,
                     use_etd=False,
                     **plotkw2D)
 
@@ -109,9 +110,10 @@ if plot:
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
     ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
     ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
-    ax[0].set_xlabel('s [mm]')
+    ax[0].set_xlabel('s [cm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
+    ax[0].set_xlim(xmax=wakelength*1e2)
 
     ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
     ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
