@@ -63,7 +63,6 @@ class SolverFIT3D:
 
         # Matrices
         N = self.N
-
         self.Px = diags([-1, 1], [0, 1], shape=(N, N), dtype=np.int8)
         self.Py = diags([-1, 1], [0, self.Nx], shape=(N, N), dtype=np.int8)
         self.Pz = diags([-1, 1], [0, self.Nx*self.Ny], shape=(N, N), dtype=np.int8)
@@ -97,6 +96,7 @@ class SolverFIT3D:
 
         if len(bg) == 3:
             self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, bg[2]
+            self.use_conductivity = True
         else:
             self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, 0.0
 
@@ -387,6 +387,8 @@ class SolverFIT3D:
         self.q = self.wake.q
         self.ti = self.wake.ti
         self.sigmaz = self.wake.sigmaz
+        self.beta = self.wake.beta
+        self.v = self.beta*c_light
 
         # source position
         self.xsource, self.ysource = self.wake.xsource, self.wake.ysource
@@ -410,16 +412,16 @@ class SolverFIT3D:
             to introduce a gaussian beam 
             moving in +z direction
             '''
-            s0 = self.z.min() - c_light*self.ti
-            s = self.z - c_light*t
+            s0 = self.z.min() - self.v*self.ti
+            s = self.z - self.v*t
 
             # gaussian
             profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
             # update 
-            self.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/self.dx/self.dy
+            self.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/self.dx/self.dy
             
-        tmax = (wakelength + self.ti*c_light + (self.z.max()-self.z.min()))/c_light #[s]
+        tmax = (wakelength + self.ti*self.v + (self.z.max()-self.z.min()))/self.v #[s]
         Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
         if add_space is not None:
@@ -466,8 +468,6 @@ class SolverFIT3D:
             hfJ.close()
         
         # wake computation 
-        # TODO: allow only longitudinal (?)
-        
         self.wake.solve()
 
         self.wakelength = wakelength
@@ -746,6 +746,9 @@ class SolverFIT3D:
                     self.sigma += self.sigma * (-1.0*mask)
                     self.sigma += mask * sigma
                     self.use_conductivity = True
+                
+                elif self.sigma_bg > 0.0: # assumed sigma = 0
+                    self.sigma += self.sigma * (-1.0*mask)
 
             else:
                 # From input
@@ -766,6 +769,9 @@ class SolverFIT3D:
                     self.sigma += self.sigma * (-1.0*mask)
                     self.sigma += mask * sigma
                     self.use_conductivity = True
+
+                elif self.sigma_bg > 0.0: # assumed sigma = 0
+                    self.sigma += self.sigma * (-1.0*mask)
 
     def attrcleanup(self):
         # Fields
