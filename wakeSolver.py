@@ -105,8 +105,8 @@ class WakeSolver():
         #beam
         self.q = q
         self.sigmaz = sigmaz
-        self.beta = beta # TODO: modify c with beta
-        self.c = c_light 
+        self.beta = beta 
+        self.v = self.beta*c_light
         self.xsource, self.ysource = xsource, ysource
         self.xtest, self.ytest = xtest, ytest
         self.chargedist = chargedist
@@ -117,7 +117,7 @@ class WakeSolver():
         if ti is not None:
             self.ti = ti
         else:
-            ti = 8.548921333333334*self.sigmaz/self.c  #injection time as in CST
+            ti = 8.548921333333334*self.sigmaz/self.v  #injection time as in CST
             self.ti = ti
 
         #field
@@ -229,17 +229,17 @@ class WakeSolver():
         zmin = np.min(self.zf)        
 
         if self.add_space:
-            self.ti = self.ti + self.add_space*dz/self.c
+            self.ti = self.ti + self.add_space*dz/self.v
             ti = self.ti
 
         # Set Wake length and s
         if self.wakelength is not None: 
             wakelength = self.wakelength
         else:
-            wakelength = nt*dt*self.c - (zmax-zmin) - ti*self.c
+            wakelength = nt*dt*self.v - (zmax-zmin) - ti*self.v
             self.wakelength = wakelength
 
-        s = np.arange(-self.ti*self.c, wakelength, dt*self.c) 
+        s = np.arange(-self.ti*self.v, wakelength, dt*self.v) 
 
         self.log('Max simulated time = '+str(round(self.t[-1]*1.0e9,4))+' ns')
         self.log('Wakelength = '+str(round(wakelength,3))+'m')
@@ -263,7 +263,7 @@ class WakeSolver():
         with tqdm(total=len(s)*len(self.zf)) as pbar:
             for n in range(len(s)):    
                 for k in range(nz): 
-                    ts = (self.zf[k]+s[n])/self.c-zmin/self.c-self.t[0]+ti
+                    ts = (self.zf[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
                     WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
                     pbar.update(1)
@@ -327,10 +327,10 @@ class WakeSolver():
         if self.wakelength is not None: 
             wakelength = self.wakelength
         else:
-            wakelength = nt*dt*self.c - (zmax-zmin) - ti*self.c
+            wakelength = nt*dt*self.v - (zmax-zmin) - ti*self.v
             self.wakelength = wakelength
             
-        s = np.arange(-self.ti*self.c, wakelength, dt*self.c) 
+        s = np.arange(-self.ti*self.v, wakelength, dt*self.v) 
 
         self.log(f'* Max simulated time = {np.max(self.t)} s')
         self.log(f'* Wakelength = {wakelength} m')
@@ -355,7 +355,7 @@ class WakeSolver():
                     # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
                     for n in range(len(s)):    
                         for k in range(0, nz): 
-                            ts = (self.zf[k]+s[n])/self.c-zmin/self.c-self.t[0]+ti
+                            ts = (self.zf[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                             it = int(ts/dt)                 #find index for t
                             WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
                         
@@ -495,13 +495,13 @@ class WakeSolver():
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
         if fmax is None:
-            fmax = 1*self.c/self.sigmaz/3   #max frequency of interest 
-        N = int((self.c/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
+            fmax = self.v/self.sigmaz/3   #max frequency of interest 
+        N = int((self.v/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
 
-        # Obtain DFTs
-        lambdafft = np.fft.fft(self.lambdas*self.c, n=N)
+        # Obtain DFTs - is it v or c?
+        lambdafft = np.fft.fft(self.lambdas*self.v, n=N)
         WPfft = np.fft.fft(self.WP*1e12, n=N)
-        ffft = np.fft.fftfreq(len(WPfft), ds/self.c)
+        ffft = np.fft.fftfreq(len(WPfft), ds/self.v)
 
         # Mask invalid frequencies
         mask  = np.logical_and(ffft >= 0 , ffft < fmax)
@@ -533,14 +533,14 @@ class WakeSolver():
 
         # Set up the DFT computation
         ds = self.s[2]-self.s[1]
-        fmax=1*self.c/self.sigmaz/3
-        N=int((self.c/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
+        fmax=1*self.v/self.sigmaz/3
+        N=int((self.v/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
 
         # Obtain DFTs
 
         # Normalized charge distribution λ(w) 
-        lambdafft = np.fft.fft(self.lambdas*self.c, n=N)
-        ffft=np.fft.fftfreq(len(lambdafft), ds/self.c)
+        lambdafft = np.fft.fft(self.lambdas*self.v, n=N)
+        ffft=np.fft.fftfreq(len(lambdafft), ds/self.v)
         mask  = np.logical_and(ffft >= 0 , ffft < fmax)
         lambdaf = lambdafft[mask]*ds
 
