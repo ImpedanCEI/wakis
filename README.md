@@ -1,4 +1,4 @@
-# wakis: _W_ ake and _I_ mpedance _S_ olver
+# `wakis`: (Wak)e and (I)mpedance (S)olver
 
 > The determination of electromagnetic wakefields and their impact on accelerator performance is a significant issue in current accelerator components. These wakefields, which are generated within the accelerator vacuum chamber as a result of the interaction between the structure and a passing beam, can have significant effects on the machine. 
 These effects can be characterized through the beam coupling impedance in the frequency domain and wake potential in the time domain. Accurate evaluation of these properties is essential for predicting dissipated power and maintaining beam stability. 
