@@ -20,7 +20,7 @@ Ny = 150
 Nz = 200
 
 # Embedded boundaries
-stl_file = 'stl/letters_Ingrid.stl'
+stl_file = 'stl/ceiheart.stl'
 surf = pv.read(stl_file)
 
 stl_solids = {'Solid 1': stl_file}
@@ -96,7 +96,7 @@ def plot_E_field(solver, n):
 def plot_H_field(solver, n):
 
     fig, ax = plt.subplots(1,1, figsize=[8,4])
-    vmin, vmax = 0, 3.e3
+    vmin, vmax = 0, 2.e3
     
     im = ax.imshow(solver.H.get_abs()[x, y, z], cmap='jet', extent=extent, origin='lower', vmin=vmin, vmax=vmax)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
@@ -123,7 +123,7 @@ def plot_H_field(solver, n):
 
 #solver.J[int(Nx/2), Ny-1, 1, 'z'] = 1.0*c_light
 
-Nt = 600
+Nt = 800
 for n in tqdm(range(Nt)):
 
     # Initial conditions
@@ -140,8 +140,8 @@ for n in tqdm(range(Nt)):
         solver.J[int(Nx/2), 10, Nz-1-zpos, 'z'] = 0.
 
     # Plot
-    if n%5 == 0:
-        plot_E_field(solver, n)
+    if n%10 == 0:
+        #plot_E_field(solver, n)
         plot_H_field(solver, n)
 
 

@@ -24,7 +24,7 @@ stl_file = 'stl/sphere.stl'
 surf = pv.read(stl_file)
 
 stl_solids = {'Solid 1': stl_file}
-stl_materials = {'Solid 1': 'dielectric'}
+stl_materials = {'Solid 1': 'pec'}
 stl_rotate = [0, 0, 0]
 stl_scale = 1e-3
 
@@ -48,11 +48,11 @@ bc_low=['periodic', 'periodic', 'pec']
 bc_high=['periodic', 'periodic', 'pec']
 
 # set FIT solver
-grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,) 
-#                stl_solids=stl_solids, 
-#                stl_rotate=stl_rotate,
-#                stl_scale=stl_scale,
-#                stl_materials=stl_materials)
+grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
+                stl_solids=stl_solids, 
+                stl_rotate=stl_rotate,
+                stl_scale=stl_scale,
+                stl_materials=stl_materials)
 
 solver = SolverFIT3D(grid, 
                      bc_low=bc_low, bc_high=bc_high, 
@@ -77,8 +77,8 @@ def plane_wave(solver, t, nodes=15, f=None, beta=1.0):
 
 #Nt = 300
 Nt = int((zmax-zmin)/(solver.dt*c_light))+300
-plot2D = False
-plot1D = True 
+plot2D = True
+plot1D = False 
 for n in tqdm(range(Nt)):
 
     # Initial condition
