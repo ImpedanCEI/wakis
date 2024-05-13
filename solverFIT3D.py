@@ -150,7 +150,8 @@ class SolverFIT3D:
             self.update_abc()
 
     def one_step_etd(self):
-
+        '''[TODO] Not working
+        '''
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
@@ -594,41 +595,51 @@ class SolverFIT3D:
         if any(True for x in self.bc_low if x.lower() == 'pml'):
             self.activate_pml = True
 
-    def update_pml(self):
+    def fill_pml_sigmas(self):
         '''
-        Apply PML algo to the last `N_pml` cells on E and H 
-        for the selected BCs, to be applied after each timestep
+        Routine to calculate pml sigmas and apply them 
+        to the conductivity tensor Dsigma (E-field only)
         '''
-        # np.exp(-self.pmlsigma*self.dt)
-        if self.bc_low[0].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[0:self.N_pml, :, :, d] *= self.pmldampingE
-                self.H[0:self.N_pml, :, :, d] *= self.pmldampingH
+        self.s_pml = Field(self.Nx, self.Ny, self.Nz)
+        sx, sy, sz = np.zeros(self.Nx), np.zeros(self.Ny), np.zeros(self.Nz)
+        pml_exp = 2
 
-        if self.bc_low[1].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[:, 0:self.N_pml, :, d] *= self.pmldampingE
-                self.H[:, 0:self.N_pml, :, d] *= self.pmldampingH
-                   
-        if self.bc_low[2].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[:, :, 0:self.N_pml, d] *= self.pmldampingE
-                self.H[:, :, 0:self.N_pml, d] *= self.pmldampingH 
+        if self.bc_low[0].lower() == 'pml':
+            sx[0:self.npml] = 1/(2*self.dt)*((self.x - self.x[self.npml])/(self.npml*self.dx))**pml_exp
+            for i in self.npml:
+                self.s_pml[i, :, :, 'x'] = sx[i]
 
-        if self.bc_high[0].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[-self.N_pml:, :, :, d] *= self.pmldampingE
-                self.H[-self.N_pml:, :, :, d] *= self.pmldampingH
+        if self.bc_low[1].lower() == 'pml':
+            sy[0:self.npml] = 1/(2*self.dt)*((self.y - self.y[self.npml])/(self.npml*self.dy))**pml_exp
+            for j in self.npml:
+                self.s_pml[:, j, :, 'y'] = sy[j]
 
-        if self.bc_high[1].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[:, -self.N_pml:, :, d] *= self.pmldampingE
-                self.H[:, -self.N_pml:, :, d] *= self.pmldampingH
+        if self.bc_low[2].lower() == 'pml':
+            sz[0:self.npml] = 1/(2*self.dt)*((self.z - self.z[self.npml])/(self.npml*self.dz))**pml_exp
+            for k in self.npml:
+                self.s_pml[:, :, k, 'z'] = sz[k]
 
-        if self.bc_high[2].lower() == 'abc':
-            for d in ['x', 'y', 'z']:
-                self.E[:, :, -self.N_pml:, d] *= self.pmldampingE
-                self.H[:, :, -self.N_pml:, d] *= self.pmldampingH
+        if self.bc_high[0].lower() == 'pml':
+            sx[-self.npml:] = 1/(2*self.dt)*((self.x - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
+            for i in self.npml:
+                i +=1
+                self.s_pml[-i, :, :, 'x'] = sx[-i]
+
+        if self.bc_high[1].lower() == 'pml':
+            sy[-self.npml:] = 1/(2*self.dt)*((self.y - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
+            for j in self.npml:
+                j +=1
+                self.s_pml[:, -j, :, 'y'] = sy[-j]
+
+        if self.bc_high[2].lower() == 'pml':
+            sz[-self.npml:] = 1/(2*self.dt)*((self.z - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            for k in self.npml:
+                k +=1
+                self.s_pml[:, :, k, 'z'] = sz[-k]
+        
+        # x-dir pml
+
+        self.Dsigma += diags(self.s_pml.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
 
 
     def update_abc(self):
