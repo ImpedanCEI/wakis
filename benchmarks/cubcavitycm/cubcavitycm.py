@@ -55,10 +55,10 @@ bc_high=['pec', 'pec', 'pec']
 # set Solver object
 solver = SolverFIT3D(grid, wake, dt=dt,
                      bc_low=bc_low, bc_high=bc_high, 
-                     use_stl=True, bg='pec')
+                     use_stl=True, bg='pec', verbose=1)
 
-wakelength = 10. #[m]
-add_space = 10  # no. cells
+wakelength = 2. #[m]
+add_space = 1  # no. cells
 
 # Plot settings
 if not os.path.exists('img/'): os.mkdir('img/')
@@ -67,6 +67,11 @@ plotkw = {'title':'img/Ez',
             'vmin':-1e4, 'vmax':1e4,
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
+solver.wakesolve(wakelength=wakelength, add_space=add_space,
+                    plot=False, plot_every=30, save_J=True,
+                    **plotkw)
+
+'''
 # 1 - Run full electromagnetic time-domain simulation
 if not os.path.exists('Ez.h5'):
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
@@ -81,6 +86,7 @@ elif not os.path.exists('results/'):
 else:
     wake.s, wake.WP = wake.read_txt('results/WP.txt').values()
     wake.f, wake.Z = wake.read_txt('results/Z.txt').values()
+'''
 
 #-------------- Compare with CST -------------
 
@@ -107,12 +113,12 @@ if plot:
 
     fig.suptitle('Benchmark with CST Wakefield Solver')
     fig.tight_layout()
-    fig.savefig('results/benchmark_pecBC.png')
+    fig.savefig('results/benchmark_pmlBC.png')
 
     plt.show()
 
 #--- 1d Ez field ---
-plot = True
+plot = False
 if plot:
     # E field
     d = wake.read_Ez('Ez.h5',return_value=True)
@@ -217,19 +223,19 @@ if plot:
 
 
 #-------------- Compare .h5 files -------------
-plot = False
+plot = True
 if plot:
     # E field
-    d1 = wake.read_Ez('EzABC.h5',return_value=True)
-    d2 = wake.read_Ez('EzPEC.h5',return_value=True)
-    d3 = wake.read_Ez('EzPECadd.h5',return_value=True)
+    d1 = wake.read_Ez('results_pec/Ez.h5',return_value=True)
+    d2 = wake.read_Ez('results_abc/Ez.h5',return_value=True)
+    d3 = wake.read_Ez('results_pml/Ez.h5',return_value=True)
 
     t = np.array(d1['t'])   
     dt = t[1]-t[0]
     steps = list(d1.keys())
 
     # Beam J
-    dd = wake.read_Ez('Jz.h5',return_value=True)
+    dd = wake.read_Ez('results_pec/Jz.h5',return_value=True)
 
     for n, step in enumerate(steps[:3750:30]):
         fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
@@ -238,15 +244,23 @@ if plot:
         # Beam current
         axx.plot(np.array(d1['z']), dd[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
         axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
-        axx.set_ylim(-7e6, 7e6)
+        axx.set_ylim(-8e4, 8e4)
+
+        # CST E field
+        try:    
+            cstfiles = sorted(os.listdir('cst/1dpec/'))
+            cst = wake.read_txt('cst/1dpec/'+cstfiles[n])
+            ax.plot(cst[0]*1e-2, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST')
+        except:
+            pass
 
         # E field
-        ax.plot(np.array(d1['z']) , d1[step][1,1,:], c='b', lw=1.5, label='Ez(0,0,z) ABC bc')
-        ax.plot(np.array(d2['z']) , d2[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) PEC bc')
-        ax.plot(np.array(d3['z']) , d3[step][1,1,:], c='limegreen', lw=1.5, label='Ez(0,0,z) PEC+addspace 15')
+        ax.plot(np.array(d1['z']) , d1[step][1,1,:], c='b', lw=3, alpha=0.5, label='Ez(0,0,z) PEC')
+        ax.plot(np.array(d2['z']) , d2[step][1,1,:], c='darkorange', alpha=0.5, lw=3, label='Ez(0,0,z) ABC')
+        ax.plot(np.array(d3['z']) , d3[step][1,1,:], c='g', lw=3, alpha=0.5, label='Ez(0,0,z) PML')
         ax.set_xlabel('z [m]')
         ax.set_ylabel('$E_z$ field amplitude [V/m]', color='k')
-        ax.set_ylim(-4e4, 4e4)
+        ax.set_ylim(-3e3, 3e3)
         ax.set_xlim(np.array(d1['z']).min(), np.array(d1['z']).max())
         ax.legend(loc=1)
 
