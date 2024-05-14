@@ -1,6 +1,8 @@
 from tqdm import tqdm
 
 import numpy as np
+import time
+
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
 from scipy.sparse import diags, block_diag, hstack, vstack
@@ -15,10 +17,25 @@ class SolverFIT3D:
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_conductors=False, use_stl=False,
-                 bg=[1.0, 1.0]):
+                 bg=[1.0, 1.0], verbose=0):
         '''
         TODO Docstring
         '''
+
+        self.verbose = verbose
+        if verbose:  t0 = time.time()
+
+        # Flags
+        self.step_0 = True
+        self.plotter_active = False
+        self.use_conductors = use_conductors
+        self.use_stl = use_stl
+        self.activate_abc = False        # Will turn true if abc BCs are chosen
+        self.activate_pml = False        # Will turn true if pml BCs are chosen
+        self.use_conductivity = False    # Will turn true if conductive material or pml is added
+
+        if use_stl:
+            self.use_conductors = False
 
         # Grid 
         self.grid = grid
@@ -28,12 +45,6 @@ class SolverFIT3D:
                                             1 / self.grid.dz ** 2))
         else:
             self.dt = dt
-
-        self.use_conductors = use_conductors
-        self.use_stl = use_stl
-
-        if use_stl:
-            self.use_conductors = False
 
         self.Nx = self.grid.nx
         self.Ny = self.grid.ny
@@ -62,6 +73,7 @@ class SolverFIT3D:
         self.J = Field(self.Nx, self.Ny, self.Nz)
 
         # Matrices
+        if verbose: print('Assembling operator matrices...')
         N = self.N
         self.Px = diags([-1, 1], [0, 1], shape=(N, N), dtype=np.int8)
         self.Py = diags([-1, 1], [0, self.Nx], shape=(N, N), dtype=np.int8)
@@ -83,14 +95,15 @@ class SolverFIT3D:
                         ])
                 
         # Boundaries
+        if verbose: print('Appliying boundary conditions...')
         self.bc_low = bc_low
         self.bc_high = bc_high
-        self.activate_abc = False
+        self.npml = 10
 
         self.apply_bc_to_C() 
 
         # Materials 
-        self.use_conductivity = False
+        if verbose: print('Adding material tensors...')
         if type(bg) is str:
             bg = material_lib[bg.lower()]
 
@@ -110,17 +123,21 @@ class SolverFIT3D:
         if self.use_conductors:
             self.apply_conductors()
 
+        # Fill PML BCs
+        if self.activate_pml:
+            if verbose: print('Filling PML sigmas...')
+            self.fill_pml_sigmas()
+
         self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Pre-computing
+        if verbose: print('Pre-computing ...'); 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
-
-        # Flags
-        self.step_0 = True
-        self.plotter_active = False
+        
+        if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
     def one_step(self):
 
@@ -141,6 +158,7 @@ class SolverFIT3D:
                                   - self.iDeps*self.J.toarray()
                                   )
                          )
+        
         #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
@@ -594,53 +612,65 @@ class SolverFIT3D:
         # Perfect Matching Layers (PML)
         if any(True for x in self.bc_low if x.lower() == 'pml'):
             self.activate_pml = True
+            self.use_conductivity = True
 
     def fill_pml_sigmas(self):
         '''
         Routine to calculate pml sigmas and apply them 
-        to the conductivity tensor Dsigma (E-field only)
+        to the conductivity tensor sigma
         '''
-        self.s_pml = Field(self.Nx, self.Ny, self.Nz)
+
+        # Initialize
         sx, sy, sz = np.zeros(self.Nx), np.zeros(self.Ny), np.zeros(self.Nz)
         pml_exp = 2
 
+        # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = 1/(2*self.dt)*((self.x - self.x[self.npml])/(self.npml*self.dx))**pml_exp
-            for i in self.npml:
-                self.s_pml[i, :, :, 'x'] = sx[i]
+            sx[0:self.npml] = 1/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            for i in range(self.npml):
+                self.sigma[i, :, :, 'x'] = sx[i]
 
         if self.bc_low[1].lower() == 'pml':
-            sy[0:self.npml] = 1/(2*self.dt)*((self.y - self.y[self.npml])/(self.npml*self.dy))**pml_exp
-            for j in self.npml:
-                self.s_pml[:, j, :, 'y'] = sy[j]
+            sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
+            for j in range(self.npml):
+                self.sigma[:, j, :, 'y'] = sy[j]
 
         if self.bc_low[2].lower() == 'pml':
-            sz[0:self.npml] = 1/(2*self.dt)*((self.z - self.z[self.npml])/(self.npml*self.dz))**pml_exp
-            for k in self.npml:
-                self.s_pml[:, :, k, 'z'] = sz[k]
+            sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
+            for d in ['x', 'y', 'z']:
+                for k in range(self.npml):
+                    self.sigma[:, :, k, d] = sz[k]
+                    self.ieps[:, :, k, d] = 1/(2*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
-            sx[-self.npml:] = 1/(2*self.dt)*((self.x - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
-            for i in self.npml:
+            sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
+            for i in range(self.npml):
                 i +=1
-                self.s_pml[-i, :, :, 'x'] = sx[-i]
+                self.sigma[-i, :, :, 'x'] = sx[-i]
 
         if self.bc_high[1].lower() == 'pml':
-            sy[-self.npml:] = 1/(2*self.dt)*((self.y - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
-            for j in self.npml:
+            sy[-self.npml:] = 1/(2*self.dt)*((self.y[-self.npml:] - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
+            for j in range(self.npml):
                 j +=1
-                self.s_pml[:, -j, :, 'y'] = sy[-j]
+                self.sigma[:, -j, :, 'y'] = sy[-j]
 
         if self.bc_high[2].lower() == 'pml':
-            sz[-self.npml:] = 1/(2*self.dt)*((self.z - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
-            for k in self.npml:
-                k +=1
-                self.s_pml[:, :, k, 'z'] = sz[-k]
+            sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            for d in ['x', 'y', 'z']:
+                for k in range(self.npml):
+                    k +=1
+                    self.sigma[:, :, -k, d] = sz[-k]
+                    self.ieps[:, :, -k, d] = 1/(2*eps_0) #1/(sz[-k]+1)
         
-        # x-dir pml
+        # Update E conductivity tensor
+        #self.Dsigma += diags(self.S_pml.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        #self.sigma = self.S_pml + self.S_pml*eps_0
+        #self.ieps = self.ieps + self.S_pml*eps_0
+        #del S_pml
 
-        self.Dsigma += diags(self.s_pml.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-
+        # Create H conductivity tensor
+        # self.Dsigmastar = diags(self.S_pml.toarray()*mu_0/eps_0, shape=(3*self.N, 3*self.N), dtype=float)
+        # del S_pml 
 
     def update_abc(self):
         '''
