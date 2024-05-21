@@ -1,6 +1,6 @@
 # `wakis`: (Wak)e and (I)mpedance (S)olver
 
-`wakis` is a 3D Time-domain Electromagnetic solver that solves the Integral form of Maxwell's equations using the Finite Integration Technique numerical method. It computes the longitudinal and transverse wake potential and beam-coupling impedance from the simulated electric and magnetic fields. It is also a multi-purpose solver, capable of simulating planewaves interaction with nano-structures, optical diffraction, and much more!
+`wakis` is a **3D Time-domain Electromagnetic solver** that solves the Integral form of Maxwell's equations using the Finite Integration Technique (FIT) numerical method. It computes the longitudinal and transverse **wake potential and beam-coupling impedance** from the simulated electric and magnetic fields. It is also a multi-purpose solver, capable of simulating planewaves interaction with nano-structures, optical diffraction, and much more!
 
 :rocket: Some of `wakis` features:
 * Material tensors: permittivity $\varepsilon$, permeability $\mu$, conductivity $\sigma$. Possibility of anisotropy.
