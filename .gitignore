@@ -18,3 +18,4 @@ ECT_*
 */results*/*
 *.txt
 *.PNG
+_build/
