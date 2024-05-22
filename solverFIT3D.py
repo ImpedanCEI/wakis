@@ -529,19 +529,19 @@ class SolverFIT3D:
             self.itDa = diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
 
         # Dirichlet PEC: tangential E field = 0 at boundary
-        if any(True for x in self.bc_low if x.lower() == 'electric' or x.lower() == 'pec'):
+        if any(True for x in self.bc_low if x.lower() in ('electric','pec','pml')):
     
-            if self.bc_low[0].lower() == 'electric' or self.bc_low[0].lower() == 'pec':
+            if self.bc_low[0].lower() in ('electric','pec', 'pml'):
                 xlo = 0
-            if self.bc_low[1].lower() == 'electric' or self.bc_low[1].lower() == 'pec':
+            if self.bc_low[1].lower() in ('electric','pec', 'pml'):
                 ylo = 0    
-            if self.bc_low[2].lower() == 'electric' or self.bc_low[2].lower() == 'pec':
+            if self.bc_low[2].lower() in ('electric','pec', 'pml'):
                 zlo = 0   
-            if self.bc_high[0].lower() == 'electric' or self.bc_high[0].lower() == 'pec':
+            if self.bc_high[0].lower() in ('electric','pec', 'pml'):
                 xhi = 0
-            if self.bc_high[1].lower() == 'electric' or self.bc_high[1].lower() == 'pec':
+            if self.bc_high[1].lower() in ('electric','pec', 'pml'):
                 yhi = 0
-            if self.bc_high[2].lower() == 'electric' or self.bc_high[2].lower() == 'pec':
+            if self.bc_high[2].lower() in ('electric','pec', 'pml'):
                 zhi = 0
 
             # Assemble matrix
@@ -636,11 +636,12 @@ class SolverFIT3D:
                 self.sigma[:, j, :, 'y'] = sy[j]
 
         if self.bc_low[2].lower() == 'pml':
-            sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
+            #sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
+            sz[0:self.npml] = 2*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
             for d in ['x', 'y', 'z']:
                 for k in range(self.npml):
                     self.sigma[:, :, k, d] = sz[k]
-                    self.ieps[:, :, k, d] = 1/(2*eps_0) 
+                    if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.npml])*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
             sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
@@ -655,12 +656,14 @@ class SolverFIT3D:
                 self.sigma[:, -j, :, 'y'] = sy[-j]
 
         if self.bc_high[2].lower() == 'pml':
-            sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            #sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            sz[-self.npml:] = 2*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
             for d in ['x', 'y', 'z']:
                 for k in range(self.npml):
                     k +=1
                     self.sigma[:, :, -k, d] = sz[-k]
-                    self.ieps[:, :, -k, d] = 1/(2*eps_0) #1/(sz[-k]+1)
+                    self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.npml:])*eps_0)
+                    #if sz[-k] > 0. : self.ieps[:, :, -k, d] = 1/(sz[-k]*eps_0) #1/(sz[-k]+1)
         
         # Update E conductivity tensor
         #self.Dsigma += diags(self.S_pml.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
