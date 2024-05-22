@@ -229,8 +229,8 @@ class WakeSolver():
         zmin = np.min(self.zf)        
 
         if self.add_space:
-            self.ti = self.ti + self.add_space*dz/self.v
-            ti = self.ti
+            zmax += self.add_space*dz
+            zmin -= self.add_space*dz
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -238,7 +238,7 @@ class WakeSolver():
         else:
             wakelength = nt*dt*self.v - (zmax-zmin) - ti*self.v
             self.wakelength = wakelength
-
+            
         s = np.arange(-self.ti*self.v, wakelength, dt*self.v) 
 
         self.log('Max simulated time = '+str(round(self.t[-1]*1.0e9,4))+' ns')
@@ -252,14 +252,21 @@ class WakeSolver():
         if self.Ezt is None:
             self.log('Assembling Ez field...')
             Ezt = np.zeros((nz,nt))     #Assembly Ez field
-            for n in range(nt):
-                Ez = self.Ez_hf[keys[n]]
-                Ezt[:, n] = Ez[Ez.shape[0]//2+1,Ez.shape[1]//2+1,:]
+            Ez = self.Ez_hf[keys[0]]
+
+            if len(Ez.shape) == 3:
+                for n in range(nt):
+                    Ez = self.Ez_hf[keys[n]]
+                    Ezt[:, n] = Ez[Ez.shape[0]//2+1,Ez.shape[1]//2+1,:]
+            
+            elif len(Ez.shape) == 1:
+                for n in range(nt):
+                    Ezt[:, n] = self.Ez_hf[keys[n]]
 
             self.Ezt = Ezt
 
         # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
-        self.log('Calculating longitudinal wake potential WP(s)...')
+        print('Calculating longitudinal wake potential WP(s)...')
         with tqdm(total=len(s)*len(self.zf)) as pbar:
             for n in range(len(s)):    
                 for k in range(nz): 
@@ -316,8 +323,8 @@ class WakeSolver():
         if self.zf is None: self.zf = self.z
         nz = len(self.zf)
         dz = self.zf[2]-self.zf[1]
-        zmax = max(self.zf)
-        zmin = min(self.zf)               
+        zmax = np.max(self.zf)
+        zmin = np.min(self.zf)               
 
         if self.add_space:
             zmax += self.add_space*dz
