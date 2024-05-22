@@ -13,7 +13,6 @@ ECT_*
 *.pdf
 *.h5
 *.log
-*.txt
 *.dat
 */hdf5*
 */results*/*
