@@ -16,4 +16,5 @@ ECT_*
 *.dat
 */hdf5*
 */results*/*
+*/results*/*.txt
 *.PNG
