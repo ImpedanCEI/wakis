@@ -15,6 +15,8 @@
 * GPU acceleration: _coming soon_
 
 ## How to use
+:book: Documentation, powered by `sphinx`, is available at [wakis.readthedocs.io](wakis.readthedocs.io) 
+
 Check :file_folder: `benchmarks/` for beam-coupling impedance calculations & comparisons to the commercial tool CST® Wakefield solver:
 * PEC cubic cavity below cutoff (mm) and above cutoff (cm)
 * Conductive cubic cavity below cutoff
@@ -24,9 +26,7 @@ Check :file_folder: `benchmarks/` for beam-coupling impedance calculations & com
 Check :file_folder: `examples/` for different physical applications
 * Planewave interacting with a PEC or dielectric sphere
 * Gaussian wavepacket travelling through vacuum / dielectric
-* Custom perturbation interacting with PEC geometry
-
-Documentation will be soon available in [wakis.readthedocs.io]()
+* Custom perturbation interacting with PEC geometry 
 
 For specific needs, please contact the developer :woman_technologist: :wave:
 * elena.de.la.fuente.garcia@cern.ch
