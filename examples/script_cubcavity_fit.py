@@ -5,7 +5,6 @@ import pyvista as pv
 import h5py
 from tqdm import tqdm
 from scipy.constants import c as c_light
-from scipy.constants import epsilon_0
 
 sys.path.append('../')
 
@@ -69,7 +68,7 @@ def beam(solver, t):
 
 # ------------ Time loop ----------------
 # Define wake length
-wakelength = 1*1e-3 #[m]
+wakelength = 1000*1e-3 #[m]
 
 # Obtain simulation time
 tmax = (wakelength + tinj*c_light + (zmax-zmin))/c_light #[s]
@@ -78,12 +77,12 @@ t = np.arange(0, Nt*solver.dt, solver.dt)
 ninj = int(tinj/solver.dt)
 
 # Prepare save files
-save = False
+save = True
 plot = False
 
 if save:
-    hf = h5py.File('hdf5/Ez_abc2.h5', 'w')
-    hf2 = h5py.File('hdf5/Jz_abc2.h5', 'w')
+    hf = h5py.File('results/Ez.h5', 'w')
+    hf2 = h5py.File('results/Jz.h5', 'w')
     hf['x'], hf['y'], hf['z'], hf['t'] = x, y, z, t
 
 for n in tqdm(range(Nt)):
@@ -94,17 +93,17 @@ for n in tqdm(range(Nt)):
     # Advance
     solver.one_step()
 
-    # Plot 2D
+    # Plot 2D on-the-fly
     if n>ninj and n%10 == 0 and plot:
         solver.plot2D(field='E', component='y', plane='ZY', pos=0.5, norm=None, 
                       vmin=-5e5, vmax=5e5, cmap='rainbow', patch_alpha=0.5, 
                       add_patch='Cavity', patch_reverse=True, title='imgCav/Ey', off_screen=True,  
                       n=n, interpolation='spline36')
     
-    # Save
+    # Save in hdf5 format (needed for Impedance)
     if save:
         hf['#'+str(n).zfill(5)]=solver.E[ixt, iyt, :, 'z'] 
-        hf2['#'+str(n).zfill(5)]=solver.J[ixt, iyt, :, 'z'] 
+        #hf2['#'+str(n).zfill(5)]=solver.J[ixt, iyt, :, 'z'] 
 
 # Close save file
 if save:
@@ -112,13 +111,36 @@ if save:
     hf2.close()
 
 # Plot 3D built-in
-'''
-solver.plot3D(field='E', component='y', clim=None,  hide_solids=None, show_solids=None, 
-               add_stl='Cavity', stl_opacity=0.1, stl_colors='white', nan_opacity=1.0,
-               title=None, cmap='rainbow', clip_volume=False, clip_normal='-y',
-               clip_box=True, clip_bounds=None, off_screen=False, zoom=1.0, n=n)
-'''
+plot3d = False
+if plot3d:
+    solver.plot3D(field='E', component='Abs', clim=None, add_stl='Cavity', stl_opacity=0.0, 
+                stl_colors='white', field_on_stl=True, nan_opacity=1.0, field_opacity=1.0,
+                cmap='rainbow', off_screen=False, zoom=1.0, n=n)
 
-solver.plot3D(field='E', component='y', clim=None, add_stl='Cavity', stl_opacity=0.0, 
-               stl_colors='white', field_on_stl=True, nan_opacity=1.0, field_opacity=1.0,
-               cmap='rainbow', off_screen=False, zoom=1.0, n=n)
+# ------------ Beam-coupling Impedance ----------------
+from wakeSolver import WakeSolver
+
+# Initialize wake solver with beam information
+wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta, ti=tinj,
+            xsource=xs, ysource=ys, xtest=xt, ytest=yt,
+            save=True, logfile=True, Ez_file='results/Ez.h5')
+
+# Compute beam-coupling impedance and wake potential
+wake.calc_long_WP()
+wake.calc_long_Z(samples=1001)
+
+plot = True
+if plot:
+    fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5)
+    ax[0].set_xlabel('s [mm]')
+    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+
+    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5)
+    ax[1].set_xlabel('f [GHz]')
+    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+
+    fig.tight_layout()
+    fig.savefig('results/longitudinal.png')
+
+    plt.show()

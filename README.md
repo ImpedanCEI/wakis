@@ -17,7 +17,7 @@
 * GPU acceleration: _coming soon_
 
 ## How to use
-:book: Documentation, powered by `sphinx`, is available at [wakis.readthedocs.io](wakis.readthedocs.io) 
+:book: Documentation, powered by `sphinx`, is available at [wakis.readthedocs.io](https://wakis.readthedocs.io/en/latest/index.html)
 
 Check :file_folder: `benchmarks/` for beam-coupling impedance calculations & comparisons to the commercial tool CST® Wakefield solver:
 * PEC cubic cavity below cutoff (mm) and above cutoff (cm)
