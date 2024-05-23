@@ -72,7 +72,7 @@ geometry.plot() # add pyvista **kwargs to make a fancier plot
 ```
 ![geometry plot example using a few pyvista **kwargs](img/geometry_plot.png)
 
-```{tip}
+```{seealso}
 Check [PyVista's documentation](https://docs.pyvista.org/version/stable/user-guide/simple.html#plotting) for more advanced 3d plotting
 ```
 
@@ -85,10 +85,11 @@ stl_translate = {'cavity': [1., 0, 0], 'shell': [1., 0, 0]} # displacement in [m
 ```
 
 ### Associating a material to each solid
-Each `stl` solid can be associated with a material by indicating `[eps, mu, conductivity]`. In `materials.py`, the most used materials are available in the material library:
+Each `stl` solid can be associated with a material by indicating `[eps, mu, conductivity]`. In `materials.py`, the most used materials are available in the material library. The user can specify a value for the relative permittivity $\varepsilon$, the relative permeability $\mu$ and the value for the conductivity $\sigma$ in [S/m] or use the material name from the libary:
 
 ```python
-# Indicate permittivity, permeability and conductivity [eps, mu, conductivity] 
+# Indicate relative permittivity, relative permeability and conductivity [S/m]
+# [eps_r, mu_r, conductivity] 
 # or the material name from the library:
 stl_materials = {'cavity': 'vacuum',       # equivalent to [1.0, 1.0, 0]
                 'shell': [1e3, 1.0, 1e3]}  # equivalent to a 'lossy metal'
@@ -127,11 +128,116 @@ grid.inspect(add_stl=['cavity', 'shell'] #default is all stl solids
 
  ![Gif showing how the grid.inspect() method works](img/grid_inspect.gif)
 
+`wakis` python's API is fully exposed, so all the `grid` class parameters relevant for the simulation can be accessed as class attributes and modified once the class has been instantiated. E.g., `grid.dx` gives the mesh step size in x direction, `grid.N` gives the total number of cells. Attributes can be checked by typing `grid.` and then pressing `TAB` when running on `ipython`.
+
+
+## Setting up the electromagnetic solver
+
+Once the simulation domain has been defined through the geometry and the grid, the electromagnetic (EM) solver can be created. The solver implemented in `wakis` uses the Finite Integration Technique (FIT) [^1]. The recipe on how to instantiate the `SolverFIT3D` class is given below:
+
+```python
+solver = SolverFIT3D(grid=grid,     # pass grid object
+                     dt=dt,         # (OPTIONAL) define timestep
+                     cfl=0.5,       # Default if no dt is defined
+                     bc_low=bc_low, 
+                     bc_high=bc_high, 
+                     use_stl=True,     # Enables or disables geometry import
+                     bg='vacuum',      # Background material 
+                     )
+
+```
+
+### Simulation timestep
+The simulation timestep is calculated following the CFL condition, that mainly depends on the cell size. A default value of 0.5 ensures simulation stability:
+```
+# Extract of SolverFIT3D __init__
+self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 +
+                                            1 / self.grid.dz ** 2))
+```
+
+### Boundary conditions
+The required parameters `bc_low` and `bc_high` allow to choose the 6 boundary conditions for our simulation box. For the lower-end boundaries bc_low = [x-, y-, z-] and for the high-end boundaries bc_high = [x+, y+, z+] is used. The supported values to give for -/+ boundaries are:
+
+* `pec` stands for Perfect Electric Conductor: it is a Dirichlet boundary conditions that forces the tangent electric $E$ field at the boundary to be 0. 
+* `pmc` stands for Perfect Magnetic Conductor: similarly to pec, it is a Dirichlet boundary conditions that forces the tangent magnetic $H$ field at the boundary to be 0.
+* `periodic`: The field values of the high-end boundary are passed to the lower-end boundary, simulating a periodic structure where the fields re-enter the simulaiton domain.
+* `abc` First order extrapolation (FOEXTRAP) absorbing boundary condition (ABC)[^2]: a tipe of Dirichlet absorbing boundary condition that allows to absorb longitudinally propagating fields when they reach the boundary. Only works under specific circunstamces.
+* `pml` Perfect Matching Layer: A more advanced type of ABC, capable of absorbing electromagnetic waves propagating in a wider range of propagation angles [^3]. This boundary conditions are needed e.g., for simulating accelerator beampipe transitions and RF cavities above beampipe cutoff. *Currently under development*
+
+An example of the boundary conditions that are typically used for the pillbox cavity example are:
+
+```python
+# boundary conditions
+bc_low=['pec', 'pec', 'pml']  #or z=`pec` if below cutoff
+bc_high=['pec', 'pec', 'pml'] #or z=`pec` if below cutoff
+```
+### Accessing `solver`'s fields, matrices and simulation parameters
+Similarly to the `grid` object from `GridFIT3D`, `wakis`'s `SolverFIT3D` class is fully exposed. This means that once the `solver` object is instantiated, all the parameters of the EM solver can be accessed as class atributtes `solver.attr` and modifyed. E.g., one can modify the simulation timestep after the instantiation by doing:
+
+```python
+solver.dt = 1e-9 #[s]
+```
+Once the solver has been instantiated, the electromagnetic fields electric $E$, magnetic $H$ and current $J$ can be accessed and modified to e.g., add initial conditions to the simulation. The fields are 3D vectorial matrices of sizes [Nx, Ny, Nz]x3. The times 3 comes from their vectorial nature, since there are values for each simulation cell in $x$, $y$, and $z$ direction. Below an example on how to access the electric field component $E_z$ to add an initial condition to the field:
+
+```python
+# modify the lower left bottom corner (cell [0,0,0]) of the simulation domain.
+solver.E[0,0,0,'z'] = c_light 
+
+# modify the x component of H for a XY plane at a particular z 
+iz = Nz//3
+solver.H[:, :, iz, 'x'] = np.ones((Nx, Ny))
+
+# modify the y component of the J on the z axis at a particular x, y
+ix, iy = Nx//2, Ny//2
+solver.J[ix, iy, :,'y']
+
+# get the absolute value of the electric field
+E_abs = solver.E.get_abs() #size [Nx, Ny, Nz]
+```
+
+The routines `inspect()` for 2D and `inspect3d()` allow for quick visualization of the field values:
+``` python
+solver.E.inspect(plane='YZ',            # 2d plane, cut at the domain center
+                 cmap='bwr',            # colormap
+                 dpi=100,               # plot DPI value (pixel resolution)
+                 # also, the plane can be specified as a 2D slice in x,y,z
+                 # e.g., for the YZ plane at x = Nx//2
+                 x=Nx//2, 
+                 y=slice(0,Ny), 
+                 z=slice(0,Nz) 
+                )
+
+```
+
+The same applies for the material tensors for permittivity $\varepsilon$, permeability $\mu$, and conductivity $\sigma$. For computational cost reasons, the values saved in memory correspont to $\varepsilon^{-1}$ and $\mu^{-1}$.  To access a specific value or a slice of values (and modify them if desired):
+
+```python
+# permittibity(^-1) tensor in x direction
+solver.ieps[:, :, :, 'x']
+
+# permittibity(^-1) tensor in y direction
+solver.imu[:, :, :, 'y']
+
+# Modify first 10 cells in x of the conductivity tensor:
+for d in ['x', 'y', 'z']:
+    solver.sigma[:10, :, :, d] = np.ones(10)*1e3 #S/m 
+```
+
+Since `wakis` supports anisotropy, the tensors are 3D matrices of sizes [Nx, Ny, Nz]x3 since there are values for each simulation cell in $x$, $y$, and $z$ direction. Similarly, one can inspect the values given to the tensors by using e.g., `solver.sigma.inspect()`
+
+
+```{hint}
+Material tensors $\varepsilon$, $\mu$, and $\sigma$, and electromagnetic fields $E$, $H$ and $J$ are created as `Field` objects, the class in `field.py`. This class allows for optimized access to matrix values, conversion to array format using the lexicograpihc index and inspection methods ìnspect()` via 2D plots to confirm that the tensor are built correctly before running the simulation.
+```
+### Running a simulation
+
 ```{caution}
 This guide is in development at the moment. More content will come very soon!
 ```
-## Adding electromagnetic sources
 
-## Electromagnetic solver setup
+## Adding time-dependent sources
 
-## Running a simulation
+
+
+
+## Using `wakis` as a EM+Wakefield solver
