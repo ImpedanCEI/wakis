@@ -125,7 +125,7 @@ grid.inspect(add_stl=['cavity', 'shell'] #default is all stl solids
              stl_colors=['blue', 'red']) #default is `white`
 ```
 
- ![Gif showing how the grid.inspect() method works](grid_inspect.gif)
+ ![Gif showing how the grid.inspect() method works](img/grid_inspect.gif)
 
 ```{caution}
 This guide is in development at the moment. More content will come very soon!
