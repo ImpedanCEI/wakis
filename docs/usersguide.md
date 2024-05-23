@@ -177,6 +177,8 @@ Similarly to the `grid` object from `GridFIT3D`, `wakis`'s `SolverFIT3D` class i
 ```python
 solver.dt = 1e-9 #[s]
 ```
+
+#### Electromagnetic fields `E`, `J`, `H`
 Once the solver has been instantiated, the electromagnetic fields electric $E$, magnetic $H$ and current $J$ can be accessed and modified to e.g., add initial conditions to the simulation. The fields are 3D vectorial matrices of sizes [Nx, Ny, Nz]x3. The times 3 comes from their vectorial nature, since there are values for each simulation cell in $x$, $y$, and $z$ direction. Below an example on how to access the electric field component $E_z$ to add an initial condition to the field:
 
 ```python
@@ -209,6 +211,8 @@ solver.E.inspect(plane='YZ',            # 2d plane, cut at the domain center
 
 ```
 
+#### Material tensors `ieps`, `imu`, `sigma`
+
 The same applies for the material tensors for permittivity $\varepsilon$, permeability $\mu$, and conductivity $\sigma$. For computational cost reasons, the values saved in memory correspont to $\varepsilon^{-1}$ and $\mu^{-1}$.  To access a specific value or a slice of values (and modify them if desired):
 
 ```python
@@ -223,7 +227,7 @@ for d in ['x', 'y', 'z']:
     solver.sigma[:10, :, :, d] = np.ones(10)*1e3 #S/m 
 ```
 
-Since `wakis` supports anisotropy, the tensors are 3D matrices of sizes [Nx, Ny, Nz]x3 since there are values for each simulation cell in $x$, $y$, and $z$ direction. Similarly, one can inspect the values given to the tensors by using e.g., `solver.sigma.inspect()`
+Since `wakis` supports anisotropy, the tensors are 3D matrices of sizes `[Nx, Ny, Nz]x3` since there are values for each simulation cell in $x$, $y$, and $z$ direction. Similarly, one can inspect the values given to the tensors by using e.g., `solver.sigma.inspect()`
 
 
 ```{hint}
