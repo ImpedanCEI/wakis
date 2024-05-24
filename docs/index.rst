@@ -1,4 +1,4 @@
-wakis
+wakis Documentation
 -----
 
 3D Time-domain **Wak**\e and **I**\mpedance **S**\olver
@@ -19,10 +19,13 @@ Some of ``wakis`` features:
 The source code is available in the `wakis GitHub repository <https://github.com/ImpedanCEI/wakis>`_.
 
 
-Table of contents
-^^^^^^^^^^^^^^^^^
+.. toctree::
+   :hidden:
+
+   index
 
 .. toctree::
+   :caption: Table of contents
    :maxdepth: 3
 
    installation

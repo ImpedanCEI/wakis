@@ -235,6 +235,32 @@ Material tensors $\varepsilon$, $\mu$, and $\sigma$, and electromagnetic fields 
 ```
 ### Running a simulation
 
+Once the domain and geometry are defined in `grid` and the fields and internal operators have been instantiated with `solver`, an electromagnetic time-domain simulation can be run provided some initial conditions. The simplest way to run the code, step-by-step, is by calling the routine `solver.one_setp()`:
+```python
+# Run one step (advance from t=0 to t=dt)
+solver.one_step()
+
+# Run a number of timesteps while modifying the fields
+hf = h5py.File('results/Ex.h5', 'w')
+Nt = 100
+for n in tqdm(range(Nt)):
+
+    # [OPTIONAL] Modify field
+    #source(t) can be any function, see next section
+    solver.E[:, :, :, 'x'] = source(n*dt) 
+
+    # Advance
+    solver.one_step()
+
+    # [OPTIONAL] Plot 2D on-the-fly
+    solver.plot2D(field='E', component='x', plane='ZY', pos=0.5, # 
+                  cmap='rainbow', title='img/Ex', off_screen=True,  
+                  n=n, interpolation='spline36')
+    
+    # [OPTIONAL] Save in hdf5 format 
+    hf['#'+str(n).zfill(5)]=solver.E[Nx//2, :, :, 'x'] 
+```
+
 ```{caution}
 This guide is in development at the moment. More content will come very soon!
 ```
