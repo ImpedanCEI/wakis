@@ -1,5 +1,5 @@
-``wakis`` API
--------------
+``wakis`` API Reference
+-----------------------
 
 Overview of ``wakis`` internal classes and functions, generated from the internal docstrings.
 

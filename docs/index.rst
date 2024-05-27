@@ -1,7 +1,7 @@
-wakis Documentation
+Welcome to ``wakis`` documentation
 -----
 
-3D Time-domain **Wak**\e and **I**\mpedance **S**\olver
+> **wakis**: 3D Time-domain **Wak**\e and **I**\mpedance **S**\olver
 
 ``wakis`` is a **3D Time-domain Electromagnetic solver** that solves the Integral form of Maxwell's equations using the Finite Integration Technique (FIT) numerical method. It computes the longitudinal and transverse **wake potential and beam-coupling impedance** from the simulated electric and magnetic fields. It is hence focused on simulations for particle accelerator components, but it is also a multi-purpose solver; capable of simulating planewaves interaction with nano-structures, optical diffraction, and much more!
 
@@ -16,13 +16,7 @@ Some of ``wakis`` features:
 * Optimized memory consumption
 * GPU acceleration: *coming soon*
 
-The source code is available in the `wakis GitHub repository <https://github.com/ImpedanCEI/wakis>`_.
-
-
-.. toctree::
-   :hidden:
-
-   index
+The source code is available in the ``wakis`` `GitHub repository <https://github.com/ImpedanCEI/wakis>`_.
 
 .. toctree::
    :caption: Table of contents
