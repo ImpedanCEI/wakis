@@ -1,4 +1,4 @@
-# Installation guide
+# ⚡ Installation guide
 
 This section covers how to install `wakis` package for developers and users. 
 

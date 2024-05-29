@@ -1,4 +1,4 @@
-# User's Guide
+# 📚 User's Guide
 
 This section aims to showcase `wakis`capabilities together with useful recipes to use in the simulation scripts.
 

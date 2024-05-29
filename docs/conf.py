@@ -43,13 +43,16 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx_copybutton',
               #'sphinxemoji',
               'myst_parser', #for markdown
+              'sphinx_design',
+              'sphinx_last_updated_by_git', 
 ] 
 
 autodoc_preserve_defaults = True #preserves default args as in source code
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
-myst_enable_extensions = ["dollarmath","html_admonition", "colon_fence"]
+#myst_enable_extensions = ["dollarmath","html_admonition", "colon_fence"]
+myst_enable_extensions = ["deflist"]
 
 # The suffix of source filenames.
 
@@ -80,6 +83,12 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_static_path = ['img']
+html_logo = "img/logo_pinkwhite_v2.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
