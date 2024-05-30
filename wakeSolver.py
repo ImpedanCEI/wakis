@@ -146,6 +146,7 @@ class WakeSolver():
         self.save = save
         self.logfile = logfile
         self.folder = results_folder
+        
         if not os.path.exists(self.folder): 
             os.mkdir(self.folder)
         
@@ -248,6 +249,11 @@ class WakeSolver():
         WP = np.zeros_like(s)
         keys = list(self.Ez_hf.keys())
 
+        # check for rounding errors
+        if nt > len(keys)-4: 
+            nt = len(keys)-4
+            self.log('*** rounding error in number of timesteps')
+
         # Assembly Ez field
         if self.Ezt is None:
             self.log('Assembling Ez field...')
@@ -348,6 +354,11 @@ class WakeSolver():
         WP_3d = np.zeros((i0*2+1,j0*2+1,len(s)))
         Ezt = np.zeros((nz,nt))
         keys = list(self.Ez_hf.keys())
+
+        # check for rounding errors
+        if nt > len(keys)-4: 
+            nt = len(keys)-4
+            self.log('*** rounding error in number of timesteps')
 
         print('Calculating longitudinal wake potential WP(s)')
         with tqdm(total=len(s)*(i0*2+1)*(j0*2+1)) as pbar:
