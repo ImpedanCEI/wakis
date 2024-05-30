@@ -52,7 +52,7 @@ autodoc_preserve_defaults = True #preserves default args as in source code
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 #myst_enable_extensions = ["dollarmath","html_admonition", "colon_fence"]
-myst_enable_extensions = ["deflist"]
+myst_enable_extensions = ["deflist", "dollarmath"]
 
 # The suffix of source filenames.
 
