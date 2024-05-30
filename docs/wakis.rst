@@ -3,6 +3,10 @@
 
 Overview of ``wakis`` internal classes and functions, generated from the internal docstrings [#f1]_.
 
+.. image:: img/flowchart.png
+  :alt: wakis flowchart
+
+
 .. toctree::
    :maxdepth: 3
 
