@@ -87,7 +87,9 @@ html_static_path = ['img']
 html_logo = "img/logo_pinkwhite_v2.png"
 html_theme_options = {
     'logo_only': True,
+    'home_page_in_toc': True,
     'display_version': False,
+    'collapse_navigation': False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
