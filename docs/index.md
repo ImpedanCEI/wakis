@@ -3,7 +3,7 @@ sd_hide_title: true
 ---
 # 🔎 Overview
 
-# Welcome to `wakis` documentation
+## Welcome to `wakis` documentation
 
 > **wakis**: 3D Time-domain **Wak**e and **I**mpedance **S**olver
 
@@ -26,6 +26,7 @@ The source code is available in the `wakis` [GitHub repository](https://github.c
 :caption: Table of Contents
 :maxdepth: 3
 
+index.md
 installation.md
 usersguide.md
 physicsguide.md
