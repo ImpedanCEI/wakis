@@ -12,9 +12,9 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 57
-Ny = 57
-Nz = 109
+Nx = 55
+Ny = 55
+Nz = 108
 #dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -39,7 +39,7 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
 
 # ------------ Beam source ----------------
 # Beam parameters
-beta = 1.0          # beam relativistic beta 
+beta = 0.5          # beam relativistic beta 
 sigmaz = beta*6e-2  # [m] -> multiplied by beta to have f_max cte
 q = 1e-9            # [C]
 xs = 0.             # x source position [m]
@@ -49,7 +49,7 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/(beta*c)  # injection time offset [s] 
 
 # Simualtion
-wakelength = 5. #[m]
+wakelength = 21  #[m]
 add_space = 10   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
@@ -75,7 +75,7 @@ plotkw = {'title':'img/Ez',
 run = False
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=False, plot_every=30, save_J=True,
+                    plot=False, plot_every=30, save_J=False,
                     use_etd=False,
                     **plotkw)
 
@@ -90,26 +90,31 @@ if runEM:
                     plot=False, plot_every=30, save_J=False,
                     use_etd=True, **plotkw)
     
+
+# Run only wake solve
+runWake = True
+wake.solve(Ez_file = 'Ez.h5')
+
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = False
+plot = True
 if plot:
 
     # CST wake
-    cstWP = wake.read_txt('cst/WP.txt')
-    cstZ = wake.read_txt('cst/Z.txt')
+    #cstWP = wake.read_txt('cst/WP.txt')
+    #cstZ = wake.read_txt('cst/Z.txt')
     wake.f = np.abs(wake.f)
 
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
     ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
-    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    #ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
 
     ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
-    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    #ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
     ax[1].set_xlabel('f [GHz]')
     ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
@@ -254,7 +259,7 @@ if plot:
 
 
 #-------------- Compare .h5 files -------------
-plot = True
+plot = False
 if plot:
     # E field
     keys = ['beta1_wl5', 'beta0.8_wl5', 'beta0.6_wl5']
