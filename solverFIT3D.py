@@ -4,6 +4,8 @@ import numpy as np
 import time
 
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
+from scipy.sparse import csc_matrix as sparse_mat
+from scipy.sparse import diags, hstack, vstack
 
 from field import Field
 from materials import material_lib
@@ -36,15 +38,12 @@ class SolverFIT3D:
             self.use_conductors = False
 
         # GPU implementation
-        from scipy.sparse import csc_matrix as sparse_mat
-        from scipy.sparse import diags, hstack, vstack
-        
         if self.use_gpu:
             try:
                 from cupyx.scipy.sparse import csc_matrix as sparse_mat
                 from cupyx.scipy.sparse import diags, hstack, vstack
-            except:
-                print('cupyx could not be imported, please CUDA check installation')
+            except ImportError:
+                print('cupyx could not be imported, please check CUDA installation')
                 self.use_gpu = False
 
         # Grid 
