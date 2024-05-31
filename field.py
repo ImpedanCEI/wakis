@@ -24,7 +24,9 @@ class Field:
                 import cupy as xp
             except:
                 raise Exception('cupy could not be imported, please CUDA check installation')
-
+        else:
+            import numpy as xp
+            
         if use_ones:
             self.field_x = xp.ones((Nx, Ny, Nz), dtype=self.dtype)
             self.field_y = xp.ones((Nx, Ny, Nz), dtype=self.dtype)
