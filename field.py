@@ -21,21 +21,22 @@ class Field:
 
         if self.on_gpu:
             try: 
-                import cupy as xp
-            except:
-                raise Exception('cupy could not be imported, please CUDA check installation')
+                import cupy as xp_gpu
+                self.xp = xp_gpu
+            except ImportError:
+                print('cupy could not be imported, please CUDA check installation')
         else:
-            import numpy as xp
+            self.xp = xp
             
         if use_ones:
-            self.field_x = xp.ones((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_y = xp.ones((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_z = xp.ones((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_x = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_y = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_z = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
 
         else:
-            self.field_x = xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_y = xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_z = xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_x = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_y = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.field_z = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
 
     def __getitem__(self, key):
 
@@ -154,10 +155,10 @@ class Field:
                 'z:\n' + self.field_z.__str__()
 
     def toarray(self):
-        return xp.concatenate((
-                xp.reshape(self.field_x, self.N, order='F'),
-                xp.reshape(self.field_y, self.N, order='F'),
-                xp.reshape(self.field_z, self.N, order='F')
+        return self.xp.concatenate((
+                self.xp.reshape(self.field_x, self.N, order='F'),
+                self.xp.reshape(self.field_y, self.N, order='F'),
+                self.xp.reshape(self.field_z, self.N, order='F')
             ))
 
     def fromarray(self, arr):
@@ -165,9 +166,9 @@ class Field:
             raise ValueError('Can only assign 1d array to a Field')
         if len(arr) != 3*self.N:
             raise ValueError('Can only assign to a field an array of size 3*Nx*Ny*Nz')
-        self.field_x = xp.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
-        self.field_y = xp.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
-        self.field_z = xp.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        self.field_x = self.xp.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        self.field_y = self.xp.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        self.field_z = self.xp.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
 
     def compute_ijk(self, n):
         if n > (self.N):
@@ -208,11 +209,11 @@ class Field:
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6], dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
 
-        im = xp.zeros_like(axs)
+        im = self.xp.zeros_like(axs)
 
-        im[0] = axs[0].imshow(self.field_x[x,y,z], cmap=cmap, vmin=-xp.max(xp.max(self.field_x)), vmax=xp.max(xp.max(self.field_x)), extent=extent, origin='lower')
-        im[1] = axs[1].imshow(self.field_y[x,y,z], cmap=cmap, vmin=-xp.max(xp.max(self.field_y)), vmax=xp.max(xp.max(self.field_y)), extent=extent, origin='lower')
-        im[2] = axs[2].imshow(self.field_z[x,y,z], cmap=cmap, vmin=-xp.max(xp.max(self.field_z)), vmax=xp.max(xp.max(self.field_z)), extent=extent, origin='lower')
+        im[0] = axs[0].imshow(self.field_x[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_x)), vmax=self.xp.max(self.xp.max(self.field_x)), extent=extent, origin='lower')
+        im[1] = axs[1].imshow(self.field_y[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_y)), vmax=self.xp.max(self.xp.max(self.field_y)), extent=extent, origin='lower')
+        im[2] = axs[2].imshow(self.field_z[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_z)), vmax=self.xp.max(self.xp.max(self.field_z)), extent=extent, origin='lower')
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
@@ -251,7 +252,7 @@ class Field:
         if ymax is None: ymax = self.Ny
         if zmax is None: zmax = self.Nz
 
-        x,y,z = xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
+        x,y,z = self.xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
         axs = []
 
         # field x
@@ -262,10 +263,10 @@ class Field:
             else:
                 ax = fig.add_subplot(1, 1, 1, projection='3d')
             
-            vmin, vmax = -xp.max(xp.abs(arr)), +xp.max(xp.abs(arr))
+            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
             norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
             colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=xp.ones_like(arr), facecolors=colors)
+            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
@@ -281,10 +282,10 @@ class Field:
             else:
                 ax = fig.add_subplot(1, 1, 1, projection='3d')
             
-            vmin, vmax = -xp.max(xp.abs(arr)), +xp.max(xp.abs(arr))
+            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
             norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
             colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=xp.ones_like(arr), facecolors=colors)
+            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
@@ -300,10 +301,10 @@ class Field:
             else:
                 ax = fig.add_subplot(1, 1, 1, projection='3d')
 
-            vmin, vmax = -xp.max(xp.abs(arr)), +xp.max(xp.abs(arr))
+            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
             norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
             colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=xp.ones_like(arr), facecolors=colors)
+            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
@@ -345,7 +346,7 @@ class Field2D:
         self.N = Nx*Ny
         self.dtype = dtype
 
-        self.field = xp.zeros((Nx, Ny), dtype=self.dtype)
+        self.field = self.xp.zeros((Nx, Ny), dtype=self.dtype)
 
     def __getitem__(self, key):
 
