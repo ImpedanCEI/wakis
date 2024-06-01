@@ -67,7 +67,7 @@ class Field:
             i, j, k = self.compute_ijk(key)
 
             if self.on_gpu:
-                field[i, j, k].get()
+                return field[i, j, k].get()
             else:
                 return field[i, j, k]
 
