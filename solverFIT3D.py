@@ -37,9 +37,6 @@ class SolverFIT3D:
         if use_stl:
             self.use_conductors = False
 
-        # GPU implementation
-        self.conditional_import_gpu_modules()
-
         # Grid 
         self.grid = grid
         self.cfln = cfln
@@ -91,10 +88,10 @@ class SolverFIT3D:
         self.itDa = diags(self.itA.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Curl matrix
-        self.C = self.vstack([
-                            self.hstack([self.sparse_mat((N,N)), -self.Pz, self.Py]),
-                            self.hstack([self.Pz, self.sparse_mat((N,N)), -self.Px]),
-                            self.hstack([-self.Py, self.Px, self.sparse_mat((N,N))])
+        self.C = vstack([
+                            hstack([sparse_mat((N,N)), -self.Pz, self.Py]),
+                            hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
+                            hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ])
                 
         # Boundaries
@@ -131,15 +128,25 @@ class SolverFIT3D:
             if verbose: print('Filling PML sigmas...')
             self.fill_pml_sigmas()
 
-        self.iDeps = self.diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDmu = self.diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.Dsigma = self.diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Pre-computing
-        if verbose: print('Pre-computing ...'); 
+        if verbose: print('Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
+        # Move to GPU
+        if verbose: print('Moving to GPU...') 
+        if use_gpu:
+            try:
+                from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
+                self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
+                self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
+            except ImportError:
+                print('*** cupyx could not be imported, please check CUDA installation')
+
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
     def one_step(self):
@@ -184,10 +191,10 @@ class SolverFIT3D:
             a, b = 1.0, self.sigma.toarray()
             isigma = np.divide(a, b, out=np.zeros_like(b), where=b!=0)
 
-            self.iDsigma = self.diags(isigma, shape=(3*self.N, 3*self.N), dtype=float)
-            self.Dexp = self.diags(np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
+            self.iDsigma = diags(isigma, shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dexp = diags(np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
                               shape=(3*self.N, 3*self.N), dtype=float)
-            self.oneMinusDexp = self.diags(1.0-np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
+            self.oneMinusDexp = diags(1.0-np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
                               shape=(3*self.N, 3*self.N), dtype=float)
             self.itDaiDsigmaDstC = self.itDa * self.iDsigma * self.Ds * self.C.transpose()
 
@@ -209,28 +216,6 @@ class SolverFIT3D:
         if self.activate_abc:
             self.update_abc()
 
-    def conditional_import_gpu_modules(self):
-        if self.use_gpu:
-            try:
-                from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
-                from cupyx.scipy.sparse import diags as gpu_diags, hstack as gpu_hstack, vstack as gpu_vstack
-                self.sparse_mat = gpu_sparse_mat
-                self.diags = gpu_diags
-                self.hstack = gpu_hstack
-                self.vstack = gpu_vstack
-
-            except ImportError:
-                print('cupyx could not be imported, please check CUDA installation')
-                self.use_gpu = False
-                self.sparse_mat = sparse_mat
-                self.diags = diags
-                self.hstack = hstack
-                self.vstack = vstack
-        else:
-            self.sparse_mat = sparse_mat
-            self.diags = diags
-            self.hstack = hstack
-            self.vstack = vstack
 
     def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
             every=1, subdomain=None, plot=False, plot_every=1, use_etd=False, 
@@ -550,8 +535,8 @@ class SolverFIT3D:
                 self.itA[:, :, -1, 'x'] = self.iA[:, :, 0, 'x']
                 self.itA[:, :, -1, 'y'] = self.iA[:, :, 0, 'y']
 
-            self.tDs = self.diags(self.tL.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-            self.itDa = self.diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.tDs = diags(self.tL.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.itDa = diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
 
         # Dirichlet PEC: tangential E field = 0 at boundary
         if any(True for x in self.bc_low if x.lower() in ('electric','pec','pml')):
@@ -583,7 +568,7 @@ class SolverFIT3D:
                     self.BC[:, :, 0, d] = zlo
                     self.BC[:, :, -1, d] = zhi
             
-            self.Dbc = self.diags(self.BC.toarray(),
+            self.Dbc = diags(self.BC.toarray(),
                             shape=(3*self.N, 3*self.N), 
                             dtype=np.int8
                             )
@@ -622,7 +607,7 @@ class SolverFIT3D:
                     self.BC[:, :, 0, d] = zlo
                     self.BC[:, :, -1, d] = zhi
 
-            self.Dbc = self.diags(self.BC.toarray(),
+            self.Dbc = diags(self.BC.toarray(),
                             shape=(3*self.N, 3*self.N), 
                             dtype=np.int8
                             )

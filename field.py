@@ -24,7 +24,7 @@ class Field:
                 import cupy as xp_gpu
                 self.xp = xp_gpu
             except ImportError:
-                print('cupy could not be imported, please CUDA check installation')
+                print('*** cupy could not be imported, please CUDA check installation')
         else:
             self.xp = xp
             
