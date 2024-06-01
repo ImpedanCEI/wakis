@@ -72,6 +72,9 @@ class Field:
 
     def __setitem__(self, key, value):
 
+        if self.on_gpu:
+            value = self.xp.asarray(value)
+
         if type(key) is tuple:
             if len(key) != 4:
                 raise IndexError('Need 3 indexes and component to access the field')
