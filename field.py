@@ -65,7 +65,12 @@ class Field:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
 
             i, j, k = self.compute_ijk(key)
-            return field[i, j, k]
+            val = field[i, j, k]
+
+            if self.on_gpu:
+                val = val.get()
+                
+            return val
 
         else:
             raise ValueError('key must be a 3-tuple or an integer')
