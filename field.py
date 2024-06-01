@@ -44,11 +44,20 @@ class Field:
             if len(key) != 4:
                 raise IndexError('Need 3 indexes and component to access the field')
             if key[3] == 0 or key[3] == 'x':
-                return self.field_x[key[0], key[1], key[2]]
+                if self.on_gpu:
+                    return self.field_x[key[0], key[1], key[2]].get()
+                else:
+                    return self.field_x[key[0], key[1], key[2]]
             elif key[3] == 1 or key[3] == 'y':
-                return self.field_y[key[0], key[1], key[2]]
+                if self.on_gpu:
+                    return self.field_y[key[0], key[1], key[2]].get()
+                else:
+                    return self.field_y[key[0], key[1], key[2]]
             elif key[3] == 2 or key[3] == 'z':
-                return self.field_z[key[0], key[1], key[2]]
+                if self.on_gpu:
+                    return self.field_z[key[0], key[1], key[2]].get()
+                else:
+                    return self.field_z[key[0], key[1], key[2]]
             else:
                 raise IndexError('Component id not valid')
 
@@ -188,7 +197,10 @@ class Field:
         return i, j, k
 
     def get_abs(self):
-        return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
+        if self.on_gpu:
+            return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2).get()
+        else:
+            return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
     def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
         import matplotlib.pyplot as plt
