@@ -40,8 +40,9 @@ class SolverFIT3D:
         # GPU implementation
         if self.use_gpu:
             try:
-                from cupyx.scipy.sparse import csc_matrix as sparse_mat
+                from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
                 from cupyx.scipy.sparse import diags as gpu_diags, hstack as gpu_hstack, vstack as gpu_vstack
+                self.sparse_mat = gpu_sparse_mat
                 self.diags = gpu_diags
                 self.hstack = gpu_hstack
                 self.vstack = gpu_vstack
@@ -55,7 +56,7 @@ class SolverFIT3D:
             self.diags = diags
             self.hstack = hstack
             self.vstack = vstack
-            
+
         # Grid 
         self.grid = grid
         self.cfln = cfln
