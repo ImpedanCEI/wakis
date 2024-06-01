@@ -42,20 +42,13 @@ class SolverFIT3D:
             try:
                 from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
                 from cupyx.scipy.sparse import diags as gpu_diags, hstack as gpu_hstack, vstack as gpu_vstack
-                self.sparse_mat = gpu_sparse_mat
-                self.diags = gpu_diags
-                self.hstack = gpu_hstack
-                self.vstack = gpu_vstack
+                sparse_mat = gpu_sparse_mat
+                diags = gpu_diags
+                hstack = gpu_hstack
+                vstack = gpu_vstack
             except ImportError:
                 print('cupyx could not be imported, please check CUDA installation')
                 self.use_gpu = False
-                self.diags = diags
-                self.hstack = hstack
-                self.vstack = vstack
-        else:
-            self.diags = diags
-            self.hstack = hstack
-            self.vstack = vstack
 
         # Grid 
         self.grid = grid
