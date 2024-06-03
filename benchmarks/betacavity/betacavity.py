@@ -12,9 +12,9 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 57
-Ny = 57
-Nz = 109
+Nx = 55
+Ny = 55
+Nz = 108
 #dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -39,7 +39,7 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
 
 # ------------ Beam source ----------------
 # Beam parameters
-beta = 1.0          # beam relativistic beta 
+beta = 0.5          # beam relativistic beta 
 sigmaz = beta*6e-2  # [m] -> multiplied by beta to have f_max cte
 q = 1e-9            # [C]
 xs = 0.             # x source position [m]
@@ -49,7 +49,7 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/(beta*c)  # injection time offset [s] 
 
 # Simualtion
-wakelength = 5. #[m]
+wakelength = 21  #[m]
 add_space = 10   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
@@ -75,7 +75,7 @@ plotkw = {'title':'img/Ez',
 run = False
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=False, plot_every=30, save_J=True,
+                    plot=False, plot_every=30, save_J=False,
                     use_etd=False,
                     **plotkw)
 
@@ -90,28 +90,33 @@ if runEM:
                     plot=False, plot_every=30, save_J=False,
                     use_etd=True, **plotkw)
     
+
+# Run only wake solve
+runWake = True
+wake.solve(Ez_file = 'Ez.h5')
+
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = False
+plot = True
 if plot:
 
     # CST wake
-    cstWP = wake.read_txt('cst/WP.txt')
-    cstZ = wake.read_txt('cst/Z.txt')
+    #cstWP = wake.read_txt('cst/WP.txt')
+    #cstZ = wake.read_txt('cst/Z.txt')
     wake.f = np.abs(wake.f)
 
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
     ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
-    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    #ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
 
     ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
-    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    #ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
     ax[1].set_xlabel('f [GHz]')
-    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
 
     fig.suptitle('Benchmark with CST Wakefield Solver')
@@ -143,7 +148,7 @@ if plot:
     ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.2, label='Re(Z) CST')
     ax[1].plot(cstZ[0], cstZ[2], c='k', ls=':', lw=1.2, label='Im(Z) CST')
     ax[1].set_xlabel('f [GHz]')
-    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
 
     fig.suptitle('Benchmark with CST Wakefield Solver')
@@ -169,10 +174,10 @@ if plot:
         fig, ax = plt.subplots(1,1, figsize=[6,4], dpi=150)
         axx = ax.twinx()  
 
-        ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label='Ez(0,0,z) FIT | $\sigma$ = 5 S/m')
+        ax.plot(z, d[step][1,1,:], c='g', lw=1.5, label=r'Ez(0,0,z) FIT | $\sigma$ = 5 S/m')
         ax.plot(z, dd[step][1,1,:], c='grey', lw=1.5, label='Ez(0,0,z) FIT | PEC')
         ax.set_xlabel('z [m]')
-        ax.set_ylabel('$E_z$ field amplitude [V/m]', color='g')
+        ax.set_ylabel(r'$E_z$ field amplitude [V/m]', color='g')
         ax.set_ylim(-3e3, 3e3)
         ax.set_xlim(z.min(), z.max())
         
@@ -180,7 +185,7 @@ if plot:
         try:    
             cstfiles = sorted(os.listdir('cst/1d/'))
             cst = wake.read_txt('cst/1d/'+cstfiles[n])
-            ax.plot(cst[0]*1e-2, cst[1], c='k', lw=1.5, ls='--', label='Ez(0,0,z) CST | $\sigma$ = 10 S/m')
+            ax.plot(cst[0]*1e-2, cst[1], c='k', lw=1.5, ls='--', label=r'Ez(0,0,z) CST | $\sigma$ = 10 S/m')
         except:
             pass
 
@@ -188,7 +193,7 @@ if plot:
 
         # charge distribution
         axx.plot(z, current[step][1,1,:], c='r', lw=1.0, label='lambda λ(z)')
-        axx.set_ylabel('$J_z$ beam current [C/m]', color='r')
+        axx.set_ylabel(r'$J_z$ beam current [C/m]', color='r')
         axx.set_ylim(-8e4, 8e4)
 
         fig.suptitle('timestep='+str(n*20))
@@ -242,7 +247,7 @@ if plot:
     ax[1].plot(cstZ[keys[2]][0], cstZ[keys[2]][1], c='tab:green', ls='--', lw=1.5, label=r'CST $\beta = 0.6$')
     
     ax[1].set_xlabel('f [GHz]')
-    ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='k')
+    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='k')
     ax[1].legend()
     ax[1].margins(x=0.01, tight=True)
 
@@ -254,7 +259,7 @@ if plot:
 
 
 #-------------- Compare .h5 files -------------
-plot = True
+plot = False
 if plot:
     # E field
     keys = ['beta1_wl5', 'beta0.8_wl5', 'beta0.6_wl5']
@@ -289,7 +294,7 @@ if plot:
         ax.plot(np.array(d2['z']) , d2[step][1,1,:], c='tab:blue', lw=2.5, alpha=0.6, label=r'Ez(0,0,z) $\beta=0.8$')
         ax.plot(np.array(d3['z']) , d3[step][1,1,:], c='tab:green', lw=2.5, alpha=0.6, label=r'Ez(0,0,z) $\beta=0.6$')
         ax.set_xlabel('z [m]')
-        ax.set_ylabel('$E_z$ field amplitude [V/m]', color='k')
+        ax.set_ylabel(r'$E_z$ field amplitude [V/m]', color='k')
         ax.set_ylim(-1e4, 1e4)
         ax.set_xlim(np.array(d1['z']).min(), np.array(d1['z']).max())
         ax.legend(loc=1, frameon=False)

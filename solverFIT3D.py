@@ -5,8 +5,7 @@ import time
 
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
-from scipy.sparse import diags, block_diag, hstack, vstack
-from scipy.sparse.linalg import inv
+from scipy.sparse import diags, hstack, vstack
 
 from field import Field
 from materials import material_lib
@@ -16,7 +15,7 @@ class SolverFIT3D:
     def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_conductors=False, use_stl=False,
+                 use_conductors=False, use_stl=False, use_gpu=False,
                  bg=[1.0, 1.0], verbose=0):
         '''
         TODO Docstring
@@ -30,6 +29,7 @@ class SolverFIT3D:
         self.plotter_active = False
         self.use_conductors = use_conductors
         self.use_stl = use_stl
+        self.use_gpu = use_gpu
         self.activate_abc = False        # Will turn true if abc BCs are chosen
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
@@ -68,9 +68,9 @@ class SolverFIT3D:
         self.wake = wake
 
         # Fields
-        self.E = Field(self.Nx, self.Ny, self.Nz)
-        self.H = Field(self.Nx, self.Ny, self.Nz)
-        self.J = Field(self.Nx, self.Ny, self.Nz)
+        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
 
         # Matrices
         if verbose: print('Assembling operator matrices...')
@@ -133,10 +133,23 @@ class SolverFIT3D:
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Pre-computing
-        if verbose: print('Pre-computing ...'); 
+        if verbose: print('Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
+        # Move to GPU
+        if verbose: print('Moving to GPU...') 
+        if use_gpu:
+            try:
+                from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
+                self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
+                self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
+                self.iDeps = gpu_sparse_mat(self.iDeps)
+                self.Dsigma = gpu_sparse_mat(self.Dsigma)
+                
+            except ImportError:
+                print('*** cupyx could not be imported, please check CUDA installation')
+
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
     def one_step(self):
