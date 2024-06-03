@@ -25,9 +25,9 @@ class Field:
         self.dtype = dtype
         self.on_gpu = use_gpu
 
-        self.field_x = None
-        self.field_y = None
-        self.field_z = None
+        self._field_x = None
+        self._field_y = None
+        self._field_z = None
 
         if self.on_gpu:
             if imported_cupy:
@@ -38,9 +38,9 @@ class Field:
             self.xp = xp
             
         if use_ones:
-            self.array = self.xp.ones(self.N*3, dtype=self.dtype)
+            self.array = self.xp.ones(self.N*3, dtype=self.dtype, order='F')
         else:
-            self.array = self.xp.zeros(self.N*3, dtype=self.dtype)
+            self.array = self.xp.zeros(self.N*3, dtype=self.dtype, order='F')
 
         self.fill_components()
 
@@ -59,6 +59,43 @@ class Field:
         self.array[0:self.N] = self.field_x
         self.array[self.N: 2*self.N] = self.field_y
         self.array[2*self.N:3*self.N] = self.field_z
+
+    @property
+    def field_x(self):
+        return self._field_x
+
+    @property
+    def field_y(self):
+        return self._field_y
+    
+    @property
+    def field_z(self):
+        return self._field_z
+
+    @field_x.setter
+    def field_x(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'x')
+            self.fill_components()
+        else:
+            self._field_x = value
+            self.fill_array()
+
+    @field_y.setter
+    def field_y(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'y')
+        else:
+            self._field_y = value
+            self.fill_array()
+
+    @field_z.setter
+    def field_z(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'z')
+        else:
+            self._field_z = value
+            self.fill_array()
 
     def toarray(self):
         return self.array
@@ -83,7 +120,7 @@ class Field:
             self.array[2*self.N:3*self.N] = self.xp.reshape(mat, self.N, order='F')
         else:
             raise IndexError('Component id not valid')
-        
+    
     def __getitem__(self, key):
 
         if type(key) is tuple:
@@ -169,7 +206,7 @@ class Field:
         elif len(other.shape) > 1:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
-                mulField.from_matrix(mulField.to_matrix(d) * other, d)
+                mulField.from_matrix(self.to_matrix(d) * other, d)
 
         # other is 1d array 
         else:
@@ -192,7 +229,7 @@ class Field:
         if len(other.shape) > 1:
             divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
-                divField.from_matrix(divField.to_matrix(d) / other, d)
+                divField.from_matrix(self.to_matrix(d) / other, d)
 
         # other is constant or 1d array 
         else:
@@ -222,7 +259,7 @@ class Field:
         elif len(other.shape) > 1:
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
-                addField.from_matrix(addField.to_matrix(d) + other, d)
+                addField.from_matrix(self.to_matrix(d) + other, d)
 
         # other is constant or 1d array 
         else:
