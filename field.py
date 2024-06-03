@@ -43,9 +43,9 @@ class Field:
         '''Fill components from
         collapsed array
         '''
-        self.field_x = self.array[0:self.N]
-        self.field_y = self.array[self.N: 2*self.N]
-        self.field_z = self.array[2*self.N:3*self.N]
+        self._field_x = self.array[0:self.N]
+        self._field_y = self.array[self.N: 2*self.N]
+        self._field_z = self.array[2*self.N:3*self.N]
 
     def fill_array(self):
         '''Fill collapsed array from
