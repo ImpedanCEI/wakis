@@ -160,13 +160,18 @@ class Field:
         if dtype is None:
             dtype = self.dtype
 
+        # other is number
+        if type(other) is float or type(other) is int:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            mulField.array = self.array * other
+
         # other is matrix 
-        if len(other.shape) > 1:
+        elif len(other.shape) > 1:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
                 mulField.from_matrix(mulField.to_matrix(d) * other, d)
 
-        # other is constant or 1d array 
+        # other is 1d array 
         else:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             mulField.array = self.array * other
@@ -177,7 +182,12 @@ class Field:
 
         if dtype is None:
             dtype = self.dtype
-            
+
+        # other is number
+        if type(other) is float or type(other) is int:
+            divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            divField.array = self.array / other
+
         # other is matrix
         if len(other.shape) > 1:
             divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
@@ -219,7 +229,7 @@ class Field:
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             addField.array = self.array + other
 
-        return mulField
+        return addField
 
     def __repr__(self):
         self.fill_components()
