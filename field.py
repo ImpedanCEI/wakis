@@ -19,10 +19,6 @@ class Field:
         self.dtype = dtype
         self.on_gpu = use_gpu
 
-        self._field_x = None
-        self._field_y = None
-        self._field_z = None
-
         if self.on_gpu:
             try: 
                 import cupy as xp_gpu
@@ -37,60 +33,38 @@ class Field:
         else:
             self.array = self.xp.zeros(self.N*3, dtype=self.dtype, order='F')
 
-        self.fill_components()
-
-    def fill_components(self):
-        '''Fill components from
-        collapsed array
-        '''
-        self._field_x = self.array[0:self.N]
-        self._field_y = self.array[self.N: 2*self.N]
-        self._field_z = self.array[2*self.N:3*self.N]
-
-    def fill_array(self):
-        '''Fill collapsed array from
-        filed components x, y, z
-        '''
-        self.array[0:self.N] = self.field_x
-        self.array[self.N: 2*self.N] = self.field_y
-        self.array[2*self.N:3*self.N] = self.field_z
-
     @property
     def field_x(self):
-        return self._field_x
+        return self.array[0:self.N]
 
     @property
     def field_y(self):
-        return self._field_y
+        return self.array[self.N: 2*self.N]
     
     @property
     def field_z(self):
-        return self._field_z
+        return self.array[2*self.N:3*self.N]
 
     @field_x.setter
     def field_x(self, value):
         if len(value.shape) > 1:
             self.from_matrix(value, 'x')
-            self.fill_components()
         else:
-            self._field_x = value
-            self.fill_array()
+            self.array[0:self.N] = value
 
     @field_y.setter
     def field_y(self, value):
         if len(value.shape) > 1:
             self.from_matrix(value, 'y')
         else:
-            self._field_y = value
-            self.fill_array()
+            self.array[self.N: 2*self.N] = value
 
     @field_z.setter
     def field_z(self, value):
         if len(value.shape) > 1:
             self.from_matrix(value, 'z')
         else:
-            self._field_z = value
-            self.fill_array()
+            self.array[2*self.N:3*self.N] = value
 
     def toarray(self):
         return self.array
@@ -178,7 +152,7 @@ class Field:
 
         elif type(key) is int:
             if key <= self.N:
-                self.array = value
+                self.array[key] = value
             else:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
             
@@ -239,16 +213,11 @@ class Field:
             dtype = self.dtype
         
         if type(other) is Field:
-
-            self.fill_components()
-            other.fill_components()
             
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             addField.field_x = self.field_x + other.field_x
             addField.field_y = self.field_y + other.field_y
             addField.field_z = self.field_z + other.field_z  
-
-            addField.fill_array()
             
         # other is matrix 
         elif len(other.shape) > 1:
@@ -264,13 +233,11 @@ class Field:
         return addField
 
     def __repr__(self):
-        self.fill_components()
         return 'x:\n' + self.field_x.__repr__() + '\n'+  \
                 'y:\n' + self.field_y.__repr__() + '\n'+ \
                 'z:\n' + self.field_z.__repr__()
 
     def __str__(self):
-        self.fill_components()
         return 'x:\n' + self.field_x.__str__() + '\n'+  \
                 'y:\n' + self.field_y.__str__() + '\n'+ \
                 'z:\n' + self.field_z.__str__()
