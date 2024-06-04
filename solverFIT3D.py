@@ -10,6 +10,12 @@ from scipy.sparse import diags, hstack, vstack
 from field import Field
 from materials import material_lib
 
+try:
+    from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
+    imported_cupyx = True
+except ImportError:
+    imported_cupyx = False
+
 class SolverFIT3D:
 
     def __init__(self, grid, wake=None, cfln=0.5, dt=None,
@@ -140,14 +146,16 @@ class SolverFIT3D:
         # Move to GPU
         if verbose: print('Moving to GPU...') 
         if use_gpu:
-            try:
-                from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
+            if imported_cupyx:
+            #try:
+                #from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
                 self.iDeps = gpu_sparse_mat(self.iDeps)
                 self.Dsigma = gpu_sparse_mat(self.Dsigma)
                 
-            except ImportError:
+            #except ImportError:
+            else:
                 print('*** cupyx could not be imported, please check CUDA installation')
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')

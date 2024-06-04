@@ -1,5 +1,11 @@
 import numpy as xp
 
+try:
+    import cupy as xp_gpu
+    imported_cupy = True
+except ImportError:
+    imported_cupy = False
+
 class Field:
     '''
     Class to switch from 3D to collapsed notation by
@@ -20,10 +26,12 @@ class Field:
         self.on_gpu = use_gpu
 
         if self.on_gpu:
-            try: 
-                import cupy as xp_gpu
+            #try: 
+                #import cupy as xp_gpu
+            if imported_cupy:
                 self.xp = xp_gpu
-            except ImportError:
+            #except ImportError:
+            else:
                 print('*** cupy could not be imported, please CUDA check installation')
         else:
             self.xp = xp
