@@ -16,7 +16,7 @@ class WakeSolver():
                  xsource=0., ysource=0., xtest=0., ytest=0., 
                  chargedist=None, ti=None, add_space=0, Ez_file='Ez.h5', 
                  save=True, results_folder='results/',
-                 verbose=0, logfile=True):
+                 verbose=0, logfile=False):
         '''
         Parameters
         ----------
@@ -53,7 +53,7 @@ class WakeSolver():
             - Charge distribution: lambda.txt, spectrum.txt
         verbose: bool, default 0
             Controls the level of verbose in the terminal output
-        logfile: bool, default True
+        logfile: bool, default False
             Creates a `wake.log` file with the summary of the input parameters
             and calculations performed 
 
@@ -508,7 +508,10 @@ class WakeSolver():
             self.calc_lambdas()
         elif self.lambdas is None and self.chargedist is None:
             self.calc_lambdas_analytic()
-            self.log('Using analytic charge distribution λ(s) since no data was provided')
+            try:
+                self.log('Using analytic charge distribution λ(s) since no data was provided')
+            except: #ascii encoder error handling
+                self.log('Using analytic charge distribution since no data was provided')
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
@@ -739,7 +742,7 @@ class WakeSolver():
         if self.verbose:
             print('\x1b[2;37m'+txt+'\x1b[0m')
 
-        if not self.log:
+        if not self.logfile:
             return
 
         title = 'wake'
