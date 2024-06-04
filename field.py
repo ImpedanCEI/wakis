@@ -26,8 +26,11 @@ class Field:
         self.on_gpu = use_gpu
 
         if self.on_gpu:
+            #try: 
+                #import cupy as xp_gpu
             if imported_cupy:
                 self.xp = xp_gpu
+            #except ImportError:
             else:
                 print('*** cupy could not be imported, please CUDA check installation')
         else:

@@ -147,10 +147,14 @@ class SolverFIT3D:
         if verbose: print('Moving to GPU...') 
         if use_gpu:
             if imported_cupyx:
+            #try:
+                #from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
                 self.iDeps = gpu_sparse_mat(self.iDeps)
-                self.Dsigma = gpu_sparse_mat(self.Dsigma)                
+                self.Dsigma = gpu_sparse_mat(self.Dsigma)
+                
+            #except ImportError:
             else:
                 print('*** cupyx could not be imported, please check CUDA installation')
 
