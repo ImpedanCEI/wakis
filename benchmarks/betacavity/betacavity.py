@@ -26,16 +26,20 @@ stl_solids = {'cavity': stl_cavity, 'pipe': stl_pipe}
 stl_materials = {'cavity': 'vacuum', 'pipe':  'vacuum'}
 background = [100, 1.0, 100] # lossy metal [ε_r, µ_r, σ]
 
+#Geometry
+stl_scale = {'cavity': 1.0, 'pipe': [1.0, 1.0, 2.0]}
+
 # Domain bounds
-surf = pv.read(stl_cavity) + pv.read(stl_pipe)
+surf = pv.read(stl_cavity) + pv.read(stl_pipe).scale([1.0, 1.0, 2.0])
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
 # Set grid and geometry
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
                 stl_solids=stl_solids, 
-                stl_materials=stl_materials)
-#grid.inspect()
+                stl_materials=stl_materials,
+                stl_scale=stl_scale)
+grid.inspect()
 
 # ------------ Beam source ----------------
 # Beam parameters
