@@ -308,6 +308,10 @@ class Field:
 
         for d in [0,1,2]:
             field = self.to_matrix(d)
+            
+            if self.on_gpu:
+                field = field.get()
+
             im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
 
         for i, ax in enumerate(axs):
