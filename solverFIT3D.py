@@ -402,6 +402,8 @@ class SolverFIT3D:
         except:
             raise('Python package `h5py` is needed to save field data in HDF5 format')
         
+        self.Ez_file = self.wake.Ez_file
+
         # beam parameters
         self.q = self.wake.q
         self.ti = self.wake.ti
@@ -449,7 +451,7 @@ class SolverFIT3D:
             zz = slice(0, self.Nz)
 
         # hdf5 
-        hf = h5py.File('Ez.h5', 'w')
+        hf = h5py.File(self.Ez_file, 'w')
         hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
         hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
