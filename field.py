@@ -34,15 +34,67 @@ class Field:
             self.xp = xp
             
         if use_ones:
-            self.field_x = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_y = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_z = self.xp.ones((Nx, Ny, Nz), dtype=self.dtype)
-
+            self.array = self.xp.ones(self.N*3, dtype=self.dtype, order='F')
         else:
-            self.field_x = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_y = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
-            self.field_z = self.xp.zeros((Nx, Ny, Nz), dtype=self.dtype)
+            self.array = self.xp.zeros(self.N*3, dtype=self.dtype, order='F')
 
+    @property
+    def field_x(self):
+        return self.array[0:self.N]
+
+    @property
+    def field_y(self):
+        return self.array[self.N: 2*self.N]
+    
+    @property
+    def field_z(self):
+        return self.array[2*self.N:3*self.N]
+
+    @field_x.setter
+    def field_x(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'x')
+        else:
+            self.array[0:self.N] = value
+
+    @field_y.setter
+    def field_y(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'y')
+        else:
+            self.array[self.N: 2*self.N] = value
+
+    @field_z.setter
+    def field_z(self, value):
+        if len(value.shape) > 1:
+            self.from_matrix(value, 'z')
+        else:
+            self.array[2*self.N:3*self.N] = value
+
+    def toarray(self):
+        return self.array
+
+    def fromarray(self, array):
+        self.array = array
+
+    def to_matrix(self, key):
+        if key == 0 or key == 'x':
+            return self.xp.reshape(self.array[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        if key == 1 or key == 'y':
+            return self.xp.reshape(self.array[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+        if key == 2 or key == 'z':
+            return self.xp.reshape(self.array[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+
+    def from_matrix(self, mat, key):
+        if key == 0 or key == 'x':
+            self.array[0:self.N] = self.xp.reshape(mat, self.N, order='F')
+        elif key == 1 or key == 'y':
+            self.array[self.N: 2*self.N] = self.xp.reshape(mat, self.N, order='F')
+        elif key == 2 or key == 'z':
+            self.array[2*self.N:3*self.N] = self.xp.reshape(mat, self.N, order='F')
+        else:
+            raise IndexError('Component id not valid')
+    
     def __getitem__(self, key):
 
         if type(key) is tuple:
@@ -50,40 +102,42 @@ class Field:
                 raise IndexError('Need 3 indexes and component to access the field')
             if key[3] == 0 or key[3] == 'x':
                 if self.on_gpu:
-                    return self.field_x[key[0], key[1], key[2]].get()
+                    field = self.xp.reshape(self.array[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]].get()
                 else:
-                    return self.field_x[key[0], key[1], key[2]]
+                    field = self.xp.reshape(self.array[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]]
             elif key[3] == 1 or key[3] == 'y':
                 if self.on_gpu:
-                    return self.field_y[key[0], key[1], key[2]].get()
+                    field = self.xp.reshape(self.array[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]].get()
                 else:
-                    return self.field_y[key[0], key[1], key[2]]
+                    field = self.xp.reshape(self.array[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]]
             elif key[3] == 2 or key[3] == 'z':
                 if self.on_gpu:
-                    return self.field_z[key[0], key[1], key[2]].get()
+                    field = self.xp.reshape(self.array[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]].get()
                 else:
-                    return self.field_z[key[0], key[1], key[2]]
+                    field = self.xp.reshape(self.array[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
+                    return field[key[0], key[1], key[2]]
             else:
                 raise IndexError('Component id not valid')
 
         elif type(key) is int:
             if key <= self.N:
-                field = self.field_x
-            elif self.N < key <= 2*self.N:
-                field = self.field_y
-                key -= self.N
-            elif 2*self.N < key <= 3*self.N:
-                field = self.field_z
-                key -= 2*self.N
+                if self.on_gpu:
+                    return self.array[key].get()
+                else:
+                    return self.array[key]
             else:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
-
-            i, j, k = self.compute_ijk(key)
-
+            
+        elif type(key) is slice:
             if self.on_gpu:
-                return field[i, j, k].get()
+                return self.array[key].get()
             else:
-                return field[i, j, k]
+                return self.array[key]
 
         else:
             raise ValueError('key must be a 3-tuple or an integer')
@@ -96,30 +150,19 @@ class Field:
         if type(key) is tuple:
             if len(key) != 4:
                 raise IndexError('Need 3 indexes and component to access the field')
-            if key[3] == 0 or key[3] == 'x':
-                self.field_x[key[0], key[1], key[2]] = value
-            elif key[3] == 1 or key[3] == 'y':
-                self.field_y[key[0], key[1], key[2]] = value
-            elif key[3] == 2 or key[3] == 'z':
-                self.field_z[key[0], key[1], key[2]] = value
             else:
-                raise IndexError('Component id not valid')
+                field = self.to_matrix(key[3])
+                field[key[0], key[1], key[2]] = value
+                self.from_matrix(field, key[3])
 
         elif type(key) is int:
             if key <= self.N:
-                field = self.field_x
-            elif self.N < key <= 2*self.N:
-                field = self.field_y
-                key -= self.N
-            elif 2*self.N < key <= 3*self.N:
-                field = self.field_z
-                key -= 2*self.N
+                self.array[key] = value
             else:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
-
-            i, j, k = self.compute_ijk(key)
-            field[i, j, k] = value
-
+            
+        elif type(key) is slice:
+                self.array[key] = value   
         else:
             raise IndexError('key must be a 3-tuple or an integer')
 
@@ -128,10 +171,21 @@ class Field:
         if dtype is None:
             dtype = self.dtype
 
-        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
-        mulField.field_x = self.field_x * other
-        mulField.field_y = self.field_y * other
-        mulField.field_z = self.field_z * other
+        # other is number
+        if type(other) is float or type(other) is int:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            mulField.array = self.array * other
+
+        # other is matrix 
+        elif len(other.shape) > 1:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            for d in ['x', 'y', 'z']:
+                mulField.from_matrix(self.to_matrix(d) * other, d)
+
+        # other is 1d array 
+        else:
+            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            mulField.array = self.array * other
 
         return mulField
 
@@ -139,13 +193,24 @@ class Field:
 
         if dtype is None:
             dtype = self.dtype
-            
-        mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
-        mulField.field_x = self.field_x / other
-        mulField.field_y = self.field_y / other
-        mulField.field_z = self.field_z / other
 
-        return mulField
+        # other is number
+        if type(other) is float or type(other) is int:
+            divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            divField.array = self.array / other
+
+        # other is matrix
+        if len(other.shape) > 1:
+            divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            for d in ['x', 'y', 'z']:
+                divField.from_matrix(self.to_matrix(d) / other, d)
+
+        # other is constant or 1d array 
+        else:
+            divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            divField.array = self.array / other
+
+        return divField
 
     def __add__(self, other, dtype=None):
 
@@ -153,17 +218,24 @@ class Field:
             dtype = self.dtype
         
         if type(other) is Field:
-            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
-            mulField.field_x = self.field_x + other.field_x
-            mulField.field_y = self.field_y + other.field_y
-            mulField.field_z = self.field_z + other.field_z  
-        else:
-            mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
-            mulField.field_x = self.field_x + other
-            mulField.field_y = self.field_y + other
-            mulField.field_z = self.field_z + other
+            
+            addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            addField.field_x = self.field_x + other.field_x
+            addField.field_y = self.field_y + other.field_y
+            addField.field_z = self.field_z + other.field_z  
+            
+        # other is matrix 
+        elif len(other.shape) > 1:
+            addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            for d in ['x', 'y', 'z']:
+                addField.from_matrix(self.to_matrix(d) + other, d)
 
-        return mulField
+        # other is constant or 1d array 
+        else:
+            addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
+            addField.array = self.array + other
+
+        return addField
 
     def __repr__(self):
         return 'x:\n' + self.field_x.__repr__() + '\n'+  \
@@ -175,22 +247,6 @@ class Field:
                 'y:\n' + self.field_y.__str__() + '\n'+ \
                 'z:\n' + self.field_z.__str__()
 
-    def toarray(self):
-        return self.xp.concatenate((
-                self.xp.reshape(self.field_x, self.N, order='F'),
-                self.xp.reshape(self.field_y, self.N, order='F'),
-                self.xp.reshape(self.field_z, self.N, order='F')
-            ))
-
-    def fromarray(self, arr):
-        if len(arr.shape) > 1:
-            raise ValueError('Can only assign 1d array to a Field')
-        if len(arr) != 3*self.N:
-            raise ValueError('Can only assign to a field an array of size 3*Nx*Ny*Nz')
-        self.field_x = self.xp.reshape(arr[0:self.N], (self.Nx, self.Ny, self.Nz), order='F')
-        self.field_y = self.xp.reshape(arr[self.N: 2*self.N], (self.Nx, self.Ny, self.Nz), order='F')
-        self.field_z = self.xp.reshape(arr[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
-
     def compute_ijk(self, n):
         if n > (self.N):
             raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
@@ -201,11 +257,26 @@ class Field:
 
         return i, j, k
 
-    def get_abs(self):
-        if self.on_gpu:
-            return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2).get()
-        else:
-            return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
+    def get_abs(self, as_matrix=True):
+        '''Computes the absolute or magnitude
+        out of the field components
+        '''
+        if as_matrix:
+            if self.on_gpu:
+                return xp.sqrt(self.to_matrix('x')**2 + 
+                            self.to_matrix('y')**2 + 
+                            self.to_matrix('z')**2 ).get()
+            else:
+                return xp.sqrt(self.to_matrix('x')**2 + 
+                            self.to_matrix('y')**2 + 
+                            self.to_matrix('z')**2 )
+
+        else: # 1d array
+            self.fill_components()
+            if self.on_gpu:
+                return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2).get()
+            else:
+                return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
     def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
         import matplotlib.pyplot as plt
@@ -235,9 +306,13 @@ class Field:
 
         im = self.xp.zeros_like(axs)
 
-        im[0] = axs[0].imshow(self.field_x[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_x)), vmax=self.xp.max(self.xp.max(self.field_x)), extent=extent, origin='lower')
-        im[1] = axs[1].imshow(self.field_y[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_y)), vmax=self.xp.max(self.xp.max(self.field_y)), extent=extent, origin='lower')
-        im[2] = axs[2].imshow(self.field_z[x,y,z], cmap=cmap, vmin=-self.xp.max(self.xp.max(self.field_z)), vmax=self.xp.max(self.xp.max(self.field_z)), extent=extent, origin='lower')
+        for d in [0,1,2]:
+            field = self.to_matrix(d)
+            
+            if self.on_gpu:
+                field = field.get()
+
+            im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
@@ -353,64 +428,3 @@ class Field:
         
         if show:
             plt.show()
-
-class Field2D:
-    '''
-    Class to switch from 2D to collapsed notation by
-    defining the __getitem__ magic method
-
-    linear numbering:
-    n = 1 + (i-1) + (j-1)*Nx
-    len(n) = Nx*Ny
-    '''
-    def __init__(self, Nx, Ny, dtype=float):
-
-        self.Nx = Nx
-        self.Ny = Ny
-        self.N = Nx*Ny
-        self.dtype = dtype
-
-        self.field = self.xp.zeros((Nx, Ny), dtype=self.dtype)
-
-    def __getitem__(self, key):
-
-        if type(key) is tuple:
-            if len(key) != 2:
-                raise ValueError('Need 3 indexes to access the field')
-            return self.field[key[0], key[1]]
-
-        elif type(key) is int:
-            i, j = self.compute_ij(key)
-            return self.field[i, j]
-
-        else:
-            raise ValueError('key must be a 3-tuple or an integer')
-
-    def __setitem__(self, key, value):
-
-        if type(key) is tuple:
-            if len(key) != 2:
-                raise ValueError('Need 3 indexes to access the field')
-            self.field[key[0], key[1]] = value
-
-        elif type(key) is int:
-            i, j = self.compute_ij(key)
-            self.field[i, j] = value
-
-        else:
-            raise ValueError('key must be a 3-tuple or an integer')
-
-    def __repr__(self):
-        return self.field.__repr__()
-
-    def __str__(self):
-        return self.field.__str__()
-
-    def compute_ij(self, n):
-        if n > (self.N):
-            raise ValueError('Lexico-graphic index cannot be higher than product of dimensions')
-
-        i = n%self.Nx
-        j = n//self.Nx
-
-        return i, j

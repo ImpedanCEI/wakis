@@ -150,7 +150,7 @@ class SolverFIT3D:
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
                 self.iDeps = gpu_sparse_mat(self.iDeps)
-                self.Dsigma = gpu_sparse_mat(self.Dsigma)                
+                self.Dsigma = gpu_sparse_mat(self.Dsigma)
             else:
                 print('*** cupyx could not be imported, please check CUDA installation')
 

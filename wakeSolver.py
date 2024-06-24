@@ -509,9 +509,9 @@ class WakeSolver():
         elif self.lambdas is None and self.chargedist is None:
             self.calc_lambdas_analytic()
             try:
-                self.log('Using analytic charge distribution λ(s) since no data was provided')
+                self.log('! Using analytic charge distribution λ(s) since no data was provided')
             except: #ascii encoder error handling
-                self.log('Using analytic charge distribution since no data was provided')
+                self.log('! Using analytic charge distribution since no data was provided')
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])

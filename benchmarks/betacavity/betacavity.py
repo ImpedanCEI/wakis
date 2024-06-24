@@ -14,7 +14,7 @@ from wakeSolver import WakeSolver
 # Number of mesh cells
 Nx = 55
 Ny = 55
-Nz = 108
+Nz = 108*2
 #dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
@@ -26,16 +26,20 @@ stl_solids = {'cavity': stl_cavity, 'pipe': stl_pipe}
 stl_materials = {'cavity': 'vacuum', 'pipe':  'vacuum'}
 background = [100, 1.0, 100] # lossy metal [ε_r, µ_r, σ]
 
+#Geometry
+stl_scale = {'cavity': 1.0, 'pipe': [1.0, 1.0, 2.0]}
+
 # Domain bounds
-surf = pv.read(stl_cavity) + pv.read(stl_pipe)
+surf = pv.read(stl_cavity) + pv.read(stl_pipe).scale(stl_scale['pipe'])
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
 # Set grid and geometry
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
                 stl_solids=stl_solids, 
-                stl_materials=stl_materials)
-#grid.inspect()
+                stl_materials=stl_materials,
+                stl_scale=stl_scale)
+grid.inspect()
 
 # ------------ Beam source ----------------
 # Beam parameters
@@ -49,12 +53,13 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/(beta*c)  # injection time offset [s] 
 
 # Simualtion
-wakelength = 21  #[m]
-add_space = 10   # no. cells
+wakelength = 10  #[m]
+add_space = 54   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
             xsource=xs, ysource=ys, xtest=xt, ytest=yt,
-            add_space=add_space, save=True, logfile=True)
+            add_space=add_space, #Ez_file='results/Ez.h5', 
+            save=True, logfile=True)
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -72,10 +77,10 @@ plotkw = {'title':'img/Ez',
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
 # Run wakefield time-domain simulation
-run = False
+run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=False, plot_every=30, save_J=False,
+                    plot=True, plot_every=30, save_J=False,
                     use_etd=False,
                     **plotkw)
 
@@ -92,8 +97,9 @@ if runEM:
     
 
 # Run only wake solve
-runWake = True
-wake.solve(Ez_file = 'Ez.h5')
+runWake = False
+if runWake:
+    wake.solve(Ez_file = 'Ez.h5')
 
 #-------------- Compare with CST -------------
 
@@ -102,19 +108,19 @@ plot = True
 if plot:
 
     # CST wake
-    #cstWP = wake.read_txt('cst/WP.txt')
-    #cstZ = wake.read_txt('cst/Z.txt')
+    cstWP = wake.read_txt('cst/CSTwake.txt')
+    cstZ = wake.read_txt('cst/CSTZ.txt')
     wake.f = np.abs(wake.f)
 
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
     ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
-    #ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
 
     ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
-    #ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
     ax[1].set_xlabel('f [GHz]')
     ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
