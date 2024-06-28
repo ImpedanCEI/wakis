@@ -34,13 +34,20 @@ class GridFIT3D:
         Scaling value to apply to the stl model to convert to [m]
         - if float, it will be applied to all stl in `stl_solids`
         - if dict, it must contain the same keys as `stl_solids` 
-          
+    tol: float, default 1e-3
+        Tolerance factor for stl import, used in grid.select_enclosed_points.
+        Importing tolerance is computed by: tol*min(dx,dy,dz). 
+    verbose: int or bool, default 1
+        Enable verbose ouput on the terminal
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, stl_solids=None, stl_materials=None, 
-                stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0):
+                stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
+                verbose=1, tol=1e-3):
         
+        self.verbose = verbose
+
         # domain limits
         self.xmin = xmin
         self.xmax = xmax
@@ -70,7 +77,11 @@ class GridFIT3D:
         self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
         self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
 
+        #tolerance for stl import tol*min(dx,dy,dz)
+        self.tol = tol 
+
         # grid
+        if verbose: print('Generating grid...')
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -115,6 +126,8 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
 
+        if self.verbose: print('Importing stl solids...')
+
         if type(self.stl_solids) is not dict:
             if type(self.stl_solids) is str:
                 self.stl_solids = {'Solid 1' : self.stl_solids}
@@ -142,7 +155,7 @@ class GridFIT3D:
                 stl_translate[key] = self.stl_translate
             self.stl_translate = stl_translate
 
-        tol = np.min([self.dx, self.dy, self.dz])*1e-3
+        tol = np.min([self.dx, self.dy, self.dz])*self.tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)

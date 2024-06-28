@@ -16,10 +16,42 @@ class SolverFIT3D:
     def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_conductors=False, use_stl=False,
-                 bg=[1.0, 1.0], verbose=0):
+                 use_conductors=False, use_stl=False, use_gpu=False,
+                 bg=[1.0, 1.0], verbose=1):
         '''
-        TODO Docstring
+        Class holding the 3D time-domain electromagnetic solver 
+        algorithm based on the Finite Integration Technique (FIT)
+
+        Parameters
+        ----------
+        grid: GridFIT3D object
+            Instance of GridFIT3D class containing the simulation mesh and the 
+            imported geometry
+        wake: WakeSolver object, optional
+            Instance of WakeSolver class containing the beam parameters. Needed to 
+            run a wakefield simulation to compute wake potential and impedance
+        cfln: float, default 0.5
+            Convergence condition by Courant–Friedrichs–Lewy, used to compute the
+            simulation timestep
+        dt: float, optional
+            Simulation timestep. If not None, it overrides the cfln-based timestep
+        bc_low: list, default ['Periodic', 'Periodic', 'Periodic']
+            Domain box boundary conditions for X-, Y-, Z-
+        bc_high: list, default ['Periodic', 'Periodic', 'Periodic']
+            Domain box boundary conditions for X+, Y+, Z+
+        use_conductors: bool, default False
+            If true, enables geometry import based on elements from `conductors.py`
+        use_stl: bool, default False
+            If true, activates all the solids and materials passed to the `grid` object
+        use_gpu: bool, default False, 
+            Using cupyx, enables GPU accelerated computation of every timestep
+        bg: list, default [1.0, 1.0]
+            Background material for the simulation box [eps_r, mu_r, sigma]. Default is vacuum.
+            It supports any material from the material library in `materials.py`, of a 
+            custom list of floats. If conductivity (sigma) is passed, 
+            it enables flag: use_conductivity
+        verbose: int or bool, default True
+            Enable verbose ouput on the terminal if 1 or True
         '''
 
         self.verbose = verbose
