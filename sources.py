@@ -58,7 +58,7 @@ class Beam:
         solver.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/solver.dx/solver.dy
 
 class PlaneWave:
-    def __init__(self,   xs=None, ys=None, nodes=15, f=None, beta=1.0):
+    def __init__(self, xs=None, ys=None, zs=0, nodes=15, f=None, beta=1.0):
         '''
         Updates the fields E and H every timestep 
         to introduce a planewave excitation at the given 
@@ -67,18 +67,23 @@ class PlaneWave:
         Parameters
         ---
         xs, ys: slice, default 0:N
-            Transverse positions of the source [m]
+            Transverse positions of the source (indexes)
+        zs: int or slice, default 0
+            Injection position in z 
         nodes: float, default 15
             Number of nodes between z.min and z.max
         f: float, default nodes/T
             Frequency of the plane wave [Hz]. It overrides nodes param.
         beta: float, default 1.
             Relativistic beta
+
+        # TODO: support different directions
         '''
         # Check inputs and update self
         self.nodes = nodes
         self.beta = beta
         self.xs, self.ys = xs, ys
+        self.zs = zs
         self.f = f
         self.is_first_update = True
      
@@ -91,13 +96,14 @@ class PlaneWave:
             if self.f is None:
                 T = (solver.z.max()-solver.z.min())/c_light
                 self.f = self.nodes/T
+
             self.vp = self.beta*c_light  # wavefront velocity beta*c
             self.w = 2*np.pi*self.f           # ang. frequency  
             self.kz = self.w/c_light     # wave number   
             self.is_first_update = False
 
-        solver.H[self.xs,self.ys,0,'y'] = -1.0 * np.cos(self.w*t) 
-        solver.E[self.xs,self.ys,0,'x'] = 1.0 * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
+        solver.H[self.xs,self.ys,self.zs,'y'] = -1.0 * np.cos(self.w*t) 
+        solver.E[self.xs,self.ys,self.zs,'x'] = 1.0 * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
 
 class WavePacket:
     def __init__(self, xs=None, ys=None, 
@@ -162,3 +168,64 @@ class WavePacket:
         # Update
         self.H[self.xs,self.ys,0,'y'] = -1.0*np.cos(self.w*t)*gaussxy*gausst
         self.E[self.xs,self.ys,0,'x'] = 1.0*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
+
+class Dipole:
+    def __init__(self, field='E', component='z',
+                xs=None, ys=None, zs=None, 
+                nodes=10, f=None, amplitude=1.0):
+        '''
+        Updates the fields E and H every timestep 
+        to introduce a planewave excitation at the given 
+        xs, ys slice, moving in z+ direction
+
+        Parameters
+        ---
+        field: str, default 'E'
+            Field to add to source to. Supports component e.g. 'Ex'
+        component: str, default 'z'
+            If not specified in field, component of the field to add the source to
+        xs, ys, zs: int or slice, default N/2
+            Positions of the source (indexes)
+        nodes: float, default 15
+            Number of nodes between z.min and z.max
+        f: float, default nodes/T
+            Frequency of the plane wave [Hz]. It overrides nodes param.
+        '''
+        # Check inputs and update self
+        self.nodes = nodes
+        self.xs, self.ys, self.zs = xs, ys, zs
+        self.f = f
+        self.field = field
+        self.component = component
+        self.amplitude = amplitude
+
+        if len(field) == 2: #support for e.g. field='Ex'
+            self.component = field[1]
+            self.field = field[0]
+
+        self.is_first_update = True
+
+     
+    def update(self, solver, t):
+        if self.is_first_update:
+            if self.xs is None:
+                self.xs = int(solver.Nx/2)
+            if self.ys is None:
+                self.ys = int(solver.Ny/2)
+            if self.zs is None:
+                self.zs = int(solver.Nz/2)
+            if self.f is None:
+                T = (solver.z.max()-solver.z.min())/c_light
+                self.f = self.nodes/T
+            
+            self.w = 2*np.pi*self.f
+            self.is_first_update = False
+
+        if self.field == 'E':
+            solver.E[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+        elif self.field == 'H':
+            solver.H[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+        elif self.field == 'J':
+            solver.J[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+        else:
+            print(f'Field "{self.field}" not valid, should be "E", "H" or "J"]')
