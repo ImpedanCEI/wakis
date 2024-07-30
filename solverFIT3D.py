@@ -176,8 +176,8 @@ class SolverFIT3D:
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
         # Move to GPU
-        if verbose: print('Moving to GPU...') 
         if use_gpu:
+            if verbose: print('Moving to GPU...') 
             if imported_cupyx:
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
