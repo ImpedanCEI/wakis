@@ -188,6 +188,36 @@ class SolverFIT3D:
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
+    def update_tensors(self, tensor='ieps'):
+        '''Update tensor matrices after 
+        Field ieps, imu or sigma have been modified 
+        and pre-compute the time-stepping matrices
+
+        Params
+        ------
+        tensor : str, default 'all'
+            Name of the tensor to update: 'ieps', 'imu', 'sigma' 
+            for permitivity, permeability and conductivity, respectively. 
+            If left to default 'all', all thre tensors will be recomputed. 
+        '''
+        if self.verbose: print(f'Re-computing tensor "{tensor}"...') 
+
+        if tensor == 'ieps': 
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor =='imu':
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor == 'sigma':
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor == 'all':
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+
+        if self.verbose: print('Re-Pre-computing ...') 
+        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
+        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.step_0 = False
+
     def one_step(self):
 
         if self.step_0:
