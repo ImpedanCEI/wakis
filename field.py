@@ -356,7 +356,7 @@ class Field:
 
         # field x
         if plot_x:
-            arr = self.field_x[0:int(xmax),0:int(ymax),0:int(zmax)]
+            arr = self.to_matrix('x')[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 1, projection='3d')
             else:
@@ -369,13 +369,13 @@ class Field:
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
-            fig.colorbar(m, shrink=0.5, aspect=10)
+            #fig.colorbar(m, shrink=0.5, aspect=10)
             ax.set_title(f'Field x')
             axs.append(ax)
 
         # field y
         if plot_y:
-            arr = self.field_y[0:int(xmax),0:int(ymax),0:int(zmax)]
+            arr = self.to_matrix('y')[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 2, projection='3d')
             else:
@@ -388,13 +388,13 @@ class Field:
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
-            fig.colorbar(m, shrink=0.5, aspect=10)
+            #fig.colorbar(m, shrink=0.5, aspect=10)
             ax.set_title(f'Field y')
             axs.append(ax)
 
         # field z
         if plot_z:
-            arr = self.field_z[0:int(xmax),0:int(ymax),0:int(zmax)]
+            arr = self.to_matrix('z')[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
                 ax = fig.add_subplot(1, 3, 3, projection='3d')
             else:
@@ -407,7 +407,7 @@ class Field:
             
             m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
             m.set_array([])
-            fig.colorbar(m, shrink=0.5, aspect=10)
+            #fig.colorbar(m, shrink=0.5, aspect=10)
             ax.set_title(f'Field z')
             axs.append(ax)
 
