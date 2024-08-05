@@ -421,7 +421,7 @@ class SolverFIT3D:
 
     def wakesolve(self, wakelength, wake=None, 
                   save_J=False, add_space=None, use_etd=False,
-                  plot=False, plot_every=1, **kwargs):
+                  plot=False, plot_every=1, plot_until=None, **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
         wake potential WP(s) and impedance Z(s). 
@@ -545,6 +545,8 @@ class SolverFIT3D:
         else:
             update = self.one_step
 
+        if plot_until is None: plot_until = self.Nt
+
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
 
@@ -560,8 +562,11 @@ class SolverFIT3D:
             update()
             
             # Plot
-            if plot and n%plot_every == 0:
-                self.plot2D(field='E', component='z', n=n, **plotkw)
+            if plot:
+                if n%plot_every == 0 and n<plot_until and n>int(self.ti/self.dt):
+                    self.plot2D(field='E', component='z', n=n, **plotkw)
+                else:
+                    pass
 
         hf.close()
         if save_J:
