@@ -418,6 +418,9 @@ class SolverFIT3D:
             if plot3d and n%plot_every == 0:
                 self.plot3D(n=n, **plotkw)
 
+        # End
+        for hf in hfs:
+            hf.close()
 
     def wakesolve(self, wakelength, wake=None, 
                   save_J=False, add_space=None, use_etd=False,
@@ -524,7 +527,7 @@ class SolverFIT3D:
         tmax = (wakelength + self.ti*self.v + (self.z.max()-self.z.min()))/self.v #[s]
         Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
-        if add_space is not None:
+        if add_space is not None and add_space !=0:
             zz = slice(add_space, -add_space)
         else: 
             zz = slice(0, self.Nz)
