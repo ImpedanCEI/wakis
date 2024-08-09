@@ -289,17 +289,21 @@ class Field:
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Ny)
             xax, yax = 'nx', 'ny'
+            transpose = True
 
         elif plane == 'XZ':
             key=[slice(0,self.Nx), int(self.Ny//2), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
-            extent = (0, self.Nx, 0, self.Nz)
-            xax, yax = 'nx', 'ny'
+            extent = (0, self.Nz, 0, self.Nx)
+            xax, yax = 'nz', 'nx'
+            transpose = False
+
         elif plane == 'YZ':
             key=[int(self.Nx//2), slice(0,self.Ny), slice(0,self.Nz)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nz, 0, self.Ny)
             xax, yax = 'nz', 'ny'
+            transpose = False
 
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6], dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
@@ -312,7 +316,11 @@ class Field:
             if self.on_gpu:
                 field = field.get()
 
-            im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
+            if transpose:
+                im[d] = axs[d].imshow(field[x,y,z].T, cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
+
+            else:
+                im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
