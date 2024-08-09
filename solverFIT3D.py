@@ -548,7 +548,7 @@ class SolverFIT3D:
         else:
             update = self.one_step
 
-        if plot_until is None: plot_until = self.Nt
+        if plot_until is None: plot_until = Nt
 
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
@@ -696,6 +696,11 @@ class SolverFIT3D:
 
         # Absorbing boundary conditions ABC
         if any(True for x in self.bc_low if x.lower() == 'abc'):
+            # maybe we need this for abc to work?
+            self.tL[-1, :, :, 'x'] = self.L[0, :, :, 'x']
+            self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
+            self.itA[-1, :, :, 'z'] = self.iA[0, :, :, 'z']
+
             self.activate_abc = True
 
         # Perfect Matching Layers (PML)
@@ -715,9 +720,19 @@ class SolverFIT3D:
 
         # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = 1/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
-            for i in range(self.npml):
-                self.sigma[i, :, :, 'x'] = sx[i]
+            sx[0:self.npml] = self.npml*5*eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            #sx[0:self.npml] = 20*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            print(f'sx min: {sx.min()}')
+            print(f'sx max: {sx.max()}')
+            for d in ['x', 'y', 'z']:
+                for i in range(self.npml):
+                    #if d == 'x':
+                    #    self.sigma[i, :, :, d] = 1/sx[i]
+                    #else:
+                    self.sigma[i, :, :, d] = sx[i]
+                    if sx[i] > 0: self.ieps[i, :, :, d] = 1/(5*eps_0)
+                    #if sx[i] > 0.001 : self.ieps[i, :, :, d] = 1/(np.mean(sx[:self.npml])*eps_0)
+                    #if sx[i] > 1 : self.ieps[i, :, :, d] = 1/(sx[i]*eps_0)
 
         if self.bc_low[1].lower() == 'pml':
             sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
@@ -787,7 +802,7 @@ class SolverFIT3D:
 
         if self.bc_high[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[-1, :, :, d] = self.E[-2, :, :, d]
+                self.E[-1, :, :, d] = -self.E[-2, :, :, d]
                 self.H[-1, :, :, d] = self.H[-2, :, :, d] 
 
         if self.bc_high[1].lower() == 'abc':
