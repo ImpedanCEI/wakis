@@ -278,7 +278,8 @@ class WakeSolver():
                 for k in range(nz): 
                     ts = (self.zf[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
-                    WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
+                    if it < nt:
+                        WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
                     pbar.update(1)
 
         WP = WP/(self.q*1e12)     # [V/pC]
