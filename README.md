@@ -1,4 +1,5 @@
-# `wakis`
+<img src="https://indico.cern.ch/event/1444664/attachments/2910987/5107232/wakis-logo-white-background.png" alt="wakis-logo-light-background" width="240">
+
 > **Wak**e and **I**mpedance **S**olver
 
 [![Documentation Status](https://readthedocs.org/projects/wakis/badge/?version=latest)](https://wakis.readthedocs.io/en/latest/?badge=latest)
@@ -7,6 +8,7 @@
 
 ## About
 :rocket: Some of `wakis` features:
+* Wake potential and impedance calculations for particle beams with different relativistic $\beta$
 * Material tensors: permittivity $\varepsilon$, permeability $\mu$, conductivity $\sigma$. Possibility of anisotropy.
 * CAD geometry importer (`.stl` format) for definition of embedded boundaries and material regions, based on [pyvista](https://github.com/pyvista/pyvista) 
 * Boundary conditions: PEC, PMC, Periodic, ABC-FOEXTRAP
@@ -14,7 +16,8 @@
 * 100% python, fully exposed API (material tensors, fields $E$, $H$, $J$). Matrix operators based on `numpy` and `scipy.sparse` routines ensure fast calculations.
 * 1d, 2d, 3d built-in plotting on-the-fly
 * Optimized memory consumption
-* GPU acceleration: _coming soon_
+* GPU acceleration using cupy/cupyx
+* Perfect matching layer (PML) *coming soon!*
 
 ## How to use
 :book: Documentation, powered by `sphinx`, is available at [wakis.readthedocs.io](https://wakis.readthedocs.io/en/latest/index.html)
