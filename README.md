@@ -62,14 +62,6 @@ git clone https://github.com/ImpedanCEI/FITwakis.git
 _Coming soon_
 
 
-<table style="border-collapse: collapse; width: 100%; height: 30.3828px;" border="1"><colgroup><col style="width: 33.2997%;"><col style="width: 33.2997%;"><col style="width: 33.2997%;"></colgroup>
-<tbody>
-<tr style="height: 30.3828px;">
-<td style="height: 30.3828px;"><img src="https://indico.cern.ch/event/1383771/attachments/2805685/4895678/H_3D.gif" alt=""></td>
-<td style="height: 30.3828px;"><img style="display: block; margin-left: auto; margin-right: auto;" src="https://indico.cern.ch/event/1383771/attachments/2805685/4895677/abc_abs.gif"></td>
-<td style="height: 30.3828px;"><img src="https://indico.cern.ch/event/1383771/attachments/2805685/4895682/H2d_ZX_ABCz+.gif" alt=""></td>
-</tr>
-</tbody>
-</table>
+
 
 
