@@ -5,11 +5,16 @@ import time
 
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
-from scipy.sparse import diags, block_diag, hstack, vstack
-from scipy.sparse.linalg import inv
+from scipy.sparse import diags, hstack, vstack
 
 from field import Field
 from materials import material_lib
+
+try:
+    from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
+    imported_cupyx = True
+except ImportError:
+    imported_cupyx = False
 
 class SolverFIT3D:
 
@@ -62,6 +67,7 @@ class SolverFIT3D:
         self.plotter_active = False
         self.use_conductors = use_conductors
         self.use_stl = use_stl
+        self.use_gpu = use_gpu
         self.activate_abc = False        # Will turn true if abc BCs are chosen
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
@@ -100,9 +106,9 @@ class SolverFIT3D:
         self.wake = wake
 
         # Fields
-        self.E = Field(self.Nx, self.Ny, self.Nz)
-        self.H = Field(self.Nx, self.Ny, self.Nz)
-        self.J = Field(self.Nx, self.Ny, self.Nz)
+        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
 
         # Matrices
         if verbose: print('Assembling operator matrices...')
@@ -165,11 +171,52 @@ class SolverFIT3D:
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
         # Pre-computing
-        if verbose: print('Pre-computing ...'); 
+        if verbose: print('Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
+        # Move to GPU
+        if use_gpu:
+            if verbose: print('Moving to GPU...') 
+            if imported_cupyx:
+                self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
+                self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
+                self.iDeps = gpu_sparse_mat(self.iDeps)
+                self.Dsigma = gpu_sparse_mat(self.Dsigma)
+            else:
+                print('*** cupyx could not be imported, please check CUDA installation')
+
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
+
+    def update_tensors(self, tensor='ieps'):
+        '''Update tensor matrices after 
+        Field ieps, imu or sigma have been modified 
+        and pre-compute the time-stepping matrices
+
+        Params
+        ------
+        tensor : str, default 'all'
+            Name of the tensor to update: 'ieps', 'imu', 'sigma' 
+            for permitivity, permeability and conductivity, respectively. 
+            If left to default 'all', all thre tensors will be recomputed. 
+        '''
+        if self.verbose: print(f'Re-computing tensor "{tensor}"...') 
+
+        if tensor == 'ieps': 
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor =='imu':
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor == 'sigma':
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+        elif tensor == 'all':
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+
+        if self.verbose: print('Re-Pre-computing ...') 
+        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
+        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.step_0 = False
 
     def one_step(self):
 
@@ -371,10 +418,13 @@ class SolverFIT3D:
             if plot3d and n%plot_every == 0:
                 self.plot3D(n=n, **plotkw)
 
+        # End
+        for hf in hfs:
+            hf.close()
 
     def wakesolve(self, wakelength, wake=None, 
                   save_J=False, add_space=None, use_etd=False,
-                  plot=False, plot_every=1, **kwargs):
+                  plot=False, plot_every=1, plot_until=None, **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
         wake potential WP(s) and impedance Z(s). 
@@ -477,7 +527,7 @@ class SolverFIT3D:
         tmax = (wakelength + self.ti*self.v + (self.z.max()-self.z.min()))/self.v #[s]
         Nt = int(tmax/self.dt)
         xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
-        if add_space is not None:
+        if add_space is not None and add_space !=0:
             zz = slice(add_space, -add_space)
         else: 
             zz = slice(0, self.Nz)
@@ -498,6 +548,8 @@ class SolverFIT3D:
         else:
             update = self.one_step
 
+        if plot_until is None: plot_until = Nt
+
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
 
@@ -513,8 +565,11 @@ class SolverFIT3D:
             update()
             
             # Plot
-            if plot and n%plot_every == 0:
-                self.plot2D(field='E', component='z', n=n, **plotkw)
+            if plot:
+                if n%plot_every == 0 and n<plot_until and n>int(self.ti/self.dt):
+                    self.plot2D(field='E', component='z', n=n, **plotkw)
+                else:
+                    pass
 
         hf.close()
         if save_J:
@@ -641,6 +696,11 @@ class SolverFIT3D:
 
         # Absorbing boundary conditions ABC
         if any(True for x in self.bc_low if x.lower() == 'abc'):
+            # maybe we need this for abc to work?
+            self.tL[-1, :, :, 'x'] = self.L[0, :, :, 'x']
+            self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
+            self.itA[-1, :, :, 'z'] = self.iA[0, :, :, 'z']
+
             self.activate_abc = True
 
         # Perfect Matching Layers (PML)
@@ -660,9 +720,19 @@ class SolverFIT3D:
 
         # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = 1/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
-            for i in range(self.npml):
-                self.sigma[i, :, :, 'x'] = sx[i]
+            sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            #sx[0:self.npml] = 20*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            print(f'sx min: {sx.min()}')
+            print(f'sx max: {sx.max()}')
+            for d in ['x', 'y', 'z']:
+                for i in range(self.npml):
+                    #if d == 'x':
+                    #    self.sigma[i, :, :, d] = 1/sx[i]
+                    #else:
+                    self.sigma[i, :, :, d] = sx[i]
+                    #if sx[i] > 0: self.ieps[i, :, :, d] = 1/(5*self.npml*eps_0)
+                    #if sx[i] > 0.001 : self.ieps[i, :, :, d] = 1/(np.mean(sx[:self.npml])*eps_0)
+                    if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
             sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
@@ -732,7 +802,7 @@ class SolverFIT3D:
 
         if self.bc_high[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[-1, :, :, d] = self.E[-2, :, :, d]
+                self.E[-1, :, :, d] = -self.E[-2, :, :, d]
                 self.H[-1, :, :, d] = self.H[-2, :, :, d] 
 
         if self.bc_high[1].lower() == 'abc':

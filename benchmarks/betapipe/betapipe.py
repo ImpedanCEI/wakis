@@ -12,25 +12,24 @@ from wakeSolver import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 55
-Ny = 55
-Nz = 108*2
+Nx = 25
+Ny = 25
+Nz = 150
 #dt = 5.707829241e-12 # CST
 
 # Embedded boundaries
-stl_cavity = 'cavity.stl' 
-stl_pipe = 'beampipe.stl'
+stl_pipe = 'squarepipe.stl'
 
 # Materials
-stl_solids = {'cavity': stl_cavity, 'pipe': stl_pipe}
-stl_materials = {'cavity': 'vacuum', 'pipe':  'vacuum'}
-background = [100, 1.0, 100] # lossy metal [ε_r, µ_r, σ]
+stl_solids = {'pipe': stl_pipe}
+stl_materials = {'pipe':  'vacuum'}
+background = 'pec' # lossy metal [ε_r, µ_r, σ]
 
 #Geometry
-stl_scale = {'cavity': 1.0, 'pipe': [1.0, 1.0, 2.0]}
+stl_scale = {'pipe': [1.0, 1.0, 1.0]}
 
 # Domain bounds
-surf = pv.read(stl_cavity) + pv.read(stl_pipe).scale(stl_scale['pipe'])
+surf = pv.read(stl_pipe).scale(stl_scale['pipe'])
 xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 
@@ -39,27 +38,28 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
                 stl_solids=stl_solids, 
                 stl_materials=stl_materials,
                 stl_scale=stl_scale)
-grid.inspect()
+#grid.inspect()
 
 # ------------ Beam source ----------------
 # Beam parameters
-beta = 0.5          # beam relativistic beta 
-sigmaz = beta*6e-2  # [m] -> multiplied by beta to have f_max cte
+beta = 0.4        # beam relativistic beta 
+sigmaz = beta*18.5e-3 # [m] -> multiplied by beta to have f_max cte
 q = 1e-9            # [C]
 xs = 0.             # x source position [m]
 ys = 0.             # y source position [m]
 xt = 0.             # x test position [m]
 yt = 0.             # y test position [m]
-# [DEFAULT] tinj = 8.53*sigmaz/(beta*c)  # injection time offset [s] 
+tinj = 8.54*sigmaz/(np.sqrt(beta)*beta*c)  # injection time offset [s] 
 
 # Simualtion
-wakelength = 10  #[m]
-add_space = 54   # no. cells
+wakelength = 1  #[m]
+add_space = 10   # no. cells
+results_folder = f'results_beta{beta}_add{add_space}_inj/'
 
-wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
+wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta, ti=tinj,
             xsource=xs, ysource=ys, xtest=xt, ytest=yt,
-            add_space=add_space, #Ez_file='results/Ez.h5', 
-            save=True, logfile=True)
+            add_space=add_space, results_folder=results_folder,
+            Ez_file='Ez.h5', save=True, logfile=False)
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -70,31 +70,20 @@ solver = SolverFIT3D(grid, wake,
                      bc_low=bc_low, bc_high=bc_high, 
                      use_stl=True, bg=background)
 # Plot settings
-if not os.path.exists('img/'): os.mkdir('img/')
-plotkw = {'title':'img/Ez', 
-            'add_patch':'cavity', 'patch_alpha':0.3,
+img_folder = results_folder+'img/'
+if not os.path.exists(img_folder): os.mkdir(img_folder)
+plotkw = {'title': img_folder+'Ez', 
+            #'add_patch':'pipe', 'patch_alpha':0.3,
             'vmin':-1e4, 'vmax':1e4,
-            'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
+            'plane': [int(Nx/2), slice(0, Ny), slice(0, Nz)]}
 
 # Run wakefield time-domain simulation
 run = True
 if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=True, plot_every=30, save_J=False,
-                    use_etd=False,
-                    **plotkw)
-
-# Run only electromagnetic time-domain simulation
-runEM = False
-if runEM:
-    from sources import Beam
-    beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
-                xsource=xs, ysource=ys)
-
-    solver.emsolve(Nt=500, source=beam, add_space=add_space,
-                    plot=False, plot_every=30, save_J=False,
-                    use_etd=True, **plotkw)
-    
+                    plot=False, plot_every=50, plot_until=7000,
+                    save_J=False,
+                    **plotkw)    
 
 # Run only wake solve
 runWake = False
@@ -106,62 +95,83 @@ if runWake:
 #--- Longitudinal wake and impedance ---
 plot = True
 if plot:
+    #results_folder = f'results_beta{beta}_add0_inj/'
+    #wake.load_results(results_folder)
 
     # CST wake
-    cstWP = wake.read_txt('cst/CSTwake.txt')
-    cstZ = wake.read_txt('cst/CSTZ.txt')
+    cstWP = wake.read_txt(f'cst/WP_beta{beta}.txt')
+    cstZ = wake.read_txt(f'cst/Z_beta{beta}.txt')
     wake.f = np.abs(wake.f)
 
     fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-    ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='FIT+Wakis')
-    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.5, label='CST')
-    ax[0].set_xlabel('s [mm]')
-    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
-    ax[0].legend()
-
-    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='FIT+Wakis')
-    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label='CST')
-    ax[1].set_xlabel('f [GHz]')
-    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
-    ax[1].legend()
-
-    fig.suptitle('Benchmark with CST Wakefield Solver')
-    fig.tight_layout()
-    fig.savefig('results/benchmark.png')
-
-    plt.show()
-
-#--- Longitudinal wake and impedance ---
-plot = False
-if plot:
-    key = '_beta0.6_wl5'
-    results = f'results{key}/'
-    wake.load_results(results)
-    # CST wake
-    cstWP = wake.read_txt(f'cst/W{key}.txt')
-    cstZ = wake.read_txt(f'cst/cZ{key}.txt')
-    wake.f = np.abs(wake.f)
-
-    fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-    ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='wakis')
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='wakis')
     ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.2, label='CST')
     ax[0].set_xlabel('s [mm]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
     ax[0].legend()
 
     ax[1].plot(wake.f*1e-9, np.real(wake.Z), c='b', lw=1.5, label='Re(Z) wakis')
-    ax[1].plot(wake.f*1e-9, np.imag(wake.Z), c='royalblue', lw=1.3, label='Im(Z) wakis')
+    ax[1].plot(wake.f*1e-9, np.imag(wake.Z), c='cyan', lw=1.3, label='Im(Z) wakis')
+    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, alpha=0.5, label='Abs(Z) wakis')
     ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.2, label='Re(Z) CST')
     ax[1].plot(cstZ[0], cstZ[2], c='k', ls=':', lw=1.2, label='Im(Z) CST')
+    ax[1].plot(cstZ[0], np.abs(cstZ[1]+1.j*cstZ[2]), c='k', ls='-', lw=1.2, alpha=0.5, label='Abs(Z) CST')
     ax[1].set_xlabel('f [GHz]')
     ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
     ax[1].legend()
 
     fig.suptitle('Benchmark with CST Wakefield Solver')
     fig.tight_layout()
-    fig.savefig(f'{results}benchmarkReIm.png')
+    fig.savefig(f'{results_folder}benchmarkReImAbs.png')
 
     plt.show()
+
+#--- Longitudinal wake and impedance w/ error ---
+plot = True
+if plot:
+    #results_folder = f'results_beta{beta}_add0_inj/'
+    #wake.load_results(results_folder)
+
+    # CST wake
+    cstWP = wake.read_txt(f'cst/WP_beta{beta}.txt')
+    cstZ = wake.read_txt(f'cst/Z_beta{beta}.txt')
+    wake.f = np.abs(wake.f)
+
+    fig, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
+    ax[0].plot(wake.s*1e3, wake.WP, c='r', lw=1.5, label='wakis')
+    ax[0].plot(cstWP[0], cstWP[1], c='k', ls='--', lw=1.2, label='CST')
+    ax[0].set_xlabel('s [mm]')
+    ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+    
+
+    ax[1].plot(wake.f*1e-9, np.real(wake.Z), c='b', lw=1.5, label='Re(Z) wakis')
+    ax[1].plot(wake.f*1e-9, np.imag(wake.Z), c='cyan', lw=1.3, label='Im(Z) wakis')
+    ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, alpha=0.5, label='Abs(Z) wakis')
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.2, label='Re(Z) CST')
+    ax[1].plot(cstZ[0], cstZ[2], c='k', ls=':', lw=1.2, label='Im(Z) CST')
+    ax[1].plot(cstZ[0], np.abs(cstZ[1]+1.j*cstZ[2]), c='k', ls='-', lw=1.2, alpha=0.5, label='Abs(Z) CST')
+    ax[1].set_xlabel('f [GHz]')
+    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='b')
+
+    err = wake.copy()
+    err.WP = np.interp(wake.s, cstWP[0]*1e-3, cstWP[1]) - wake.WP
+    err.lambdas = None
+    err.calc_long_Z()
+
+    ax[0].plot(err.s*1e3, err.WP, c='g', lw=1.5, label='error')
+    ax[1].plot(err.f*1e-9, np.real(err.Z), c='g', lw=1.5, label='Re(Z) error')
+    ax[1].plot(err.f*1e-9, np.imag(err.Z), c='limegreen', lw=1.3, label='Im(Z) error')
+    ax[1].plot(err.f*1e-9, np.abs(err.Z), c='g', lw=1.5, alpha=0.5, label='Abs(Z) error')
+
+    ax[0].legend()
+    ax[1].legend()
+
+    fig.suptitle('Benchmark with CST Wakefield Solver')
+    fig.tight_layout()
+    fig.savefig(f'{results_folder}benchmarkReImAbs_error.png')
+
+    plt.show()
+
 
 #--- 1d Ez field ---
 plot = False
@@ -169,6 +179,7 @@ if plot:
     # E field
     d = wake.read_Ez('results_sigma5/Ez.h5',return_value=True)
     dd = wake.read_Ez('results_pec/Ez.h5',return_value=True)
+
     t, z = np.array(d['t']), np.array(d['z'])    
     dt = t[1]-t[0]
     steps = list(d.keys())
@@ -217,50 +228,49 @@ if plot:
 plot = False
 if plot:
 
-    fig, ax = plt.subplots(1,2, figsize=[12,4.5], dpi=170)
+    fig, ax = plt.subplots(1,2, figsize=[12,4.5], dpi=150)
 
     # Read data
-    keys = ['beta1_wl5', 'beta0.8_wl5', 'beta0.6_wl5']
-    res, cstWP, cstZ = {}, {}, {}
-    for k in keys:
+    beta = '0.4'
+    keys = ['1', '10', '20', '30', '40', '50']
+    colors = plt.cm.jet(np.linspace(0.1,0.9,len(keys)))
+    res = {} 
+    for i, k in enumerate(keys):
         # Wakis wake
         res[k] = wake.copy()
-        res[k].load_results(f'results_{k}/')
-        # CST wake
-        cstWP[k] = wake.read_txt(f'cst/W_{k}.txt')
-        cstZ[k] = wake.read_txt(f'cst/cZ_{k}.txt')
-        cstZ[k][1] = np.abs(cstZ[k][1] + 1.j*cstZ[k][2])
+        res[k].load_results(f'results_beta{beta}_add{k}/')
 
-    ax[0].plot(res[keys[0]].s, res[keys[0]].WP, c='tab:red', lw=2., alpha=0.5, label=r'$\beta = 1.0$')
-    ax[0].plot(res[keys[1]].s, res[keys[1]].WP, c='tab:blue', lw=2., alpha=0.5, label=r'$\beta = 0.8$')
-    ax[0].plot(res[keys[2]].s, res[keys[2]].WP, c='tab:green', lw=2., alpha=0.5, label=r'$\beta = 0.6$')
+        ax[0].plot(res[k].s, res[k].WP, c=colors[i], lw=1.5, alpha=0.8, label=r'$\beta=0.4$'+f' add={k}')
+        ax[1].plot(res[k].f*1e-9, np.real(res[k].Z), c=colors[i], lw=1.5, alpha=0.8, label=r'Re: $\beta=0.4$'+f' add={k}')
+        ax[1].plot(res[k].f*1e-9, np.imag(res[k].Z), c=colors[i], lw=1.5, ls=':', alpha=1.0, label=r'Im: $\beta=0.4$'+f' add={k}')
+    
+    # CST wake
+    cstWP = wake.read_txt(f'cst/WP_beta{beta}.txt')
+    cstZ = wake.read_txt(f'cst/Z_beta{beta}.txt')
 
-    ax[0].plot(cstWP[keys[0]][0]*1e-2, cstWP[keys[0]][1], c='tab:red', ls='--', lw=1.5, label=r'CST $\beta = 1.0$')
-    ax[0].plot(cstWP[keys[1]][0]*1e-2, cstWP[keys[1]][1], c='tab:blue', ls='--', lw=1.5, label=r'CST $\beta = 0.8$')
-    ax[0].plot(cstWP[keys[2]][0]*1e-2, cstWP[keys[2]][1], c='tab:green', ls='--', lw=1.5, label=r'CST $\beta = 0.6$')
-
+    ax[0].plot(cstWP[0]*1e-3, cstWP[1], c='k', ls='--', lw=1.5, label=r'CST $\beta = 0.4$')
+    ax[1].plot(cstZ[0], cstZ[1], c='k', ls='--', lw=1.5, label=r'CST Re: $\beta = 0.4$')
+    ax[1].plot(cstZ[0], cstZ[2], c='k', ls=':', lw=1.5, label=r'CST Im: $\beta = 0.4$')
+    
     ax[0].set_xlabel('s [m]')
     ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='k')
+    #ax[0].set_yscale('symlog')
+    ax[0].set_ylim(-30, 30)
     ax[0].legend()
     ax[0].margins(x=0.01, tight=True)
 
-    ax[1].plot(res[keys[0]].f*1e-9, np.abs(res[keys[0]].Z), c='tab:red', lw=2., alpha=0.5, label=r'$\beta = 1.0$')
-    ax[1].plot(res[keys[1]].f*1e-9, np.abs(res[keys[1]].Z), c='tab:blue', lw=2., alpha=0.5, label=r'$\beta = 0.8$')
-    ax[1].plot(res[keys[2]].f*1e-9, np.abs(res[keys[2]].Z), c='tab:green', lw=2., alpha=0.5, label=r'$\beta = 0.6$')
-
-    ax[1].plot(cstZ[keys[0]][0], cstZ[keys[0]][1], c='tab:red', ls='--', lw=1.5, label=r'CST $\beta = 1.0$')
-    ax[1].plot(cstZ[keys[1]][0], cstZ[keys[1]][1], c='tab:blue', ls='--', lw=1.5, label=r'CST $\beta = 0.8$')
-    ax[1].plot(cstZ[keys[2]][0], cstZ[keys[2]][1], c='tab:green', ls='--', lw=1.5, label=r'CST $\beta = 0.6$')
-    
     ax[1].set_xlabel('f [GHz]')
-    ax[1].set_ylabel(r'Longitudinal impedance [Abs][$\Omega$]', color='k')
-    ax[1].legend()
+    ax[1].set_ylabel(r'Longitudinal impedance [Re/Im][$\Omega$]', color='k')
+    #ax[1].set_yscale('symlog')
+    box = ax[1].get_position()
+    ax[1].set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    ax[1].legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax[1].margins(x=0.01, tight=True)
 
     fig.suptitle('Benchmark with CST Wakefield Solver')
-    fig.tight_layout()
+    #fig.tight_layout()
     
-    fig.savefig('benchmark_beta.png')
+    fig.savefig(f'benchmark_addspace_beta{beta}.png')
     plt.show()
 
 
