@@ -16,7 +16,7 @@ from sources import Pulse
 # Number of mesh cells
 Nx = 200
 Ny = 200
-Nz = 100
+Nz = 20
 
 # Domain bounds: box 10cmx10cmx30cm
 xmin, xmax, ymin, ymax, zmin, zmax = -Nx/2, Nx/2, -Ny/2, Ny/2, -Nz/2, Nz/2
@@ -29,17 +29,17 @@ bc_high=['pec', 'pec', 'pec']
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz) 
 
 # set solver
-solver = SolverFIT3D(grid, dt=0.25*grid.dx/c_light,
+solver = SolverFIT3D(grid, dt=0.5*grid.dx/c_light,
                      bc_low=bc_low, bc_high=bc_high)
 
 # set source
 source = Pulse(field='Ez', 
-               xs=int(Nx/2), ys=int(Ny/2), zs=int(Nz/2),
+               xs=int(Nx/2), ys=int(Ny/2), zs=slice(0,Nz), #zs=int(Nz/2),
                shape='harris', L=50*solver.dx)
 
 # ------------ Time loop ----------------
 
-Nt = 400 
+Nt = 200 
 plot = False
 for n in tqdm(range(Nt)):
     # Advance
@@ -60,7 +60,7 @@ for n in tqdm(range(Nt)):
 
 
 # Save
-hf = h5py.File('EzPML_ref.h5', 'w')
+hf = h5py.File('Ez.h5', 'w')
 hf['x'], hf['y'], hf['z'] = solver.x, solver.y, solver.z
 hf['t'] = np.arange(0, Nt*solver.dt, solver.dt)
 hf['Ez'] = solver.E[:,:,int(Nz/2),'z']
