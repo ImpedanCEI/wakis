@@ -720,7 +720,7 @@ class SolverFIT3D:
 
         # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = self.npml*5*eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
             #sx[0:self.npml] = 20*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
             print(f'sx min: {sx.min()}')
             print(f'sx max: {sx.max()}')
@@ -730,9 +730,9 @@ class SolverFIT3D:
                     #    self.sigma[i, :, :, d] = 1/sx[i]
                     #else:
                     self.sigma[i, :, :, d] = sx[i]
-                    if sx[i] > 0: self.ieps[i, :, :, d] = 1/(5*eps_0)
+                    #if sx[i] > 0: self.ieps[i, :, :, d] = 1/(5*self.npml*eps_0)
                     #if sx[i] > 0.001 : self.ieps[i, :, :, d] = 1/(np.mean(sx[:self.npml])*eps_0)
-                    #if sx[i] > 1 : self.ieps[i, :, :, d] = 1/(sx[i]*eps_0)
+                    if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
             sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
