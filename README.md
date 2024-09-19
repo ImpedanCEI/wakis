@@ -51,10 +51,16 @@ This section explains how to set up the environment to start using `wakis` 3d el
 #### Developers: Download wakis repository from Github
 ```
 # SSH:
-git clone git@github.com:ImpedanCEI/FITwakis.git
+git clone git@github.com:ImpedanCEI/wakis.git
 
 # or HTTPS:
-git clone https://github.com/ImpedanCEI/FITwakis.git
+git clone https://github.com/ImpedanCEI/wakis.git
+
+# Create python environment
+cd wakis/
+conda create --name wakis-env python=3.9
+conda activate wakis-env
+pip install -r requirements.txt
 ```
 
 #### Users: pip install from PyPI
