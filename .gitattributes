@@ -1,0 +1,4 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+# Remove ipynb from language statistics
+*.ipynb linguist-vendored
