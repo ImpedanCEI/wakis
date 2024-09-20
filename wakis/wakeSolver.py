@@ -152,8 +152,9 @@ class WakeSolver():
         self.logfile = logfile
         self.folder = results_folder
         
-        if not os.path.exists(self.folder): 
-            os.mkdir(self.folder)
+        if self.save:
+            if not os.path.exists(self.folder): 
+                os.mkdir(self.folder)
         
         # create log
         if self.log:
