@@ -84,7 +84,7 @@ pygments_style = 'sphinx'
 #
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['img']
-html_logo = "img/wakis-logo-pinkwhite.svg"
+html_logo = "img/wakis-logo-pinkwhite.png"
 html_theme_options = {
     'logo_only': True,
     'home_page_in_toc': True,
