@@ -30,5 +30,5 @@ index.md
 installation.md
 usersguide.md
 physicsguide.md
-wakis.md
+wakis.rst
 ```

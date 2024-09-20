@@ -1,7 +1,7 @@
-sources module
+plotting module
 ==============
 
-.. automodule:: wakis.sources
+.. automodule:: wakis.plotting
    :members:
    :undoc-members:
    :show-inheritance:

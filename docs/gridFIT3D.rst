@@ -1,7 +1,7 @@
 gridFIT3D module
 ================
 
-.. automodule:: gridFIT3D
+.. automodule:: wakis.gridFIT3D
    :members:
    :undoc-members:
    :show-inheritance:

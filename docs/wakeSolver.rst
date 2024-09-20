@@ -1,7 +1,7 @@
 wakeSolver module
 =================
 
-.. automodule:: wakeSolver
+.. automodule:: wakis.wakeSolver
    :members:
    :undoc-members:
    :show-inheritance:
