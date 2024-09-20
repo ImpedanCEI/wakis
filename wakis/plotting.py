@@ -17,7 +17,7 @@ class PlotMixin:
         Built-in 3D plotting using PyVista
         
         Parameters:
-        ----------
+        -----------
         field: str, default 'E'
             3D field magnitude ('E', 'H', or 'J') to plot
             To plot a component 'Ex', 'Hy' is also accepted
@@ -209,7 +209,7 @@ class PlotMixin:
         Built-in 3D plotting using PyVista
         
         Parameters:
-        ----------
+        -----------
         field: str, default 'E'
             3D field magnitude ('E', 'H', or 'J') to plot
             To plot a component 'Ex', 'Hy' is also accepted
@@ -217,13 +217,24 @@ class PlotMixin:
             3D field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
             if a component is defined in field
         clim: list, optional
-            Colorbar limits for the field plot [min, max]                field_on_stl : bool, default False
-            Samples the field on the stl file specified in `add_stl`.
+            Colorbar limits for the field plot [min, max]                
+        stl_with_field : list or str
+            STL str name or list of names to samples the selected field on 
         field_opacity : optional, default 1.0
             Sets de opacity of the `field_on_stl` plot
+        log_scale: bool, default False
+            Turns on logarithmic scale colorbar
+        stl_transparent: list or str, default None
+            STL name or list of names to add to the scene with the selected transparency and color
+        stl_opacity: float, default 0.1
+            Opacity of the STL solids without field
+        stl_colors: list or str, default 'white'
+            str or list of colors to use for each STL solid
         off_screen: bool, default False
             Enable plot rendering off screen, for gif frames generation. 
             Plot will not be rendered if set to True.
+        title: str
+            Name to use in the .png savefile with off_screen is True
         n: int, optional
             Timestep number to be added to the plot title and figsave title.
         '''
