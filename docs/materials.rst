@@ -1,7 +1,7 @@
 materials module
 ================
 
-.. automodule:: materials
+.. automodule:: wakis.materials
    :members:
    :undoc-members:
    :show-inheritance:

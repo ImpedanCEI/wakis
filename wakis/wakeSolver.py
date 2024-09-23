@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the wakis Package.     #
+# Copyright (c) CERN, 2024.                   #
+# ########################################### #
+
 import time
 import os
 import glob
@@ -147,8 +152,9 @@ class WakeSolver():
         self.logfile = logfile
         self.folder = results_folder
         
-        if not os.path.exists(self.folder): 
-            os.mkdir(self.folder)
+        if self.save:
+            if not os.path.exists(self.folder): 
+                os.mkdir(self.folder)
         
         # create log
         if self.log:

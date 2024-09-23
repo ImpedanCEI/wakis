@@ -1,3 +1,9 @@
+# copyright ################################# #
+# This file is part of the wakis Package.     #
+# Copyright (c) CERN, 2024.                   #
+# ########################################### #
+
+
 import numpy as xp
 
 try:

@@ -1,7 +1,7 @@
 field module
 ============
 
-.. automodule:: field
+.. automodule:: wakis.field
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,14 +1,16 @@
+# copyright ################################# #
+# This file is part of the wakis Package.     #
+# Copyright (c) CERN, 2024.                   #
+# ########################################### #
+
 '''
-`sources.py`
----
+The `sources.py` script containts different classes
+defining a time-dependent sources to be installed 
+in the electromagnetic simulation.
 
-Functions defining a time-dependent source to be installed 
-in the electromagnetic simulation
-
-It should be in the form `func(self, t, *args, **kwargs)`
-
-TODO: each source needs to be a class, with a call function in the form of
-`source.call(self, t)`
+All sources need an update function that will be called
+every simulation timestep, e.g.:
+    def update(self, t, *args, **kwargs)`
 '''
 
 import numpy as np

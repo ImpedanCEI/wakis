@@ -16,6 +16,7 @@ Overview of ``wakis`` internal classes and functions, generated from the interna
    field
    sources
    materials
+   plotting
 
 
 .. [#f1] Created with `sphinx-autodoc2 <https://github.com/chrisjsewell/sphinx-autodoc2>`_

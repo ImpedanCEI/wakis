@@ -12,7 +12,7 @@
 #
 import sys, os
 sys.path.insert(0, os.path.abspath('../../wakis/'))
-#sys.path.insert(0, os.path.abspath("../wakis/"))
+#sys.path.insert(0, os.path.abspath("../wakis"))
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.append(os.path.abspath('..'))
 
@@ -84,7 +84,7 @@ pygments_style = 'sphinx'
 #
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['img']
-html_logo = "img/logo_pinkwhite_v2.png"
+html_logo = "img/wakis-logo-pinkwhite.png"
 html_theme_options = {
     'logo_only': True,
     'home_page_in_toc': True,

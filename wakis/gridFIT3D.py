@@ -1,7 +1,12 @@
+# copyright ################################# #
+# This file is part of the wakis Package.     #
+# Copyright (c) CERN, 2024.                   #
+# ########################################### #
+
 import numpy as np
 import pyvista as pv
 
-from field import Field
+from .field import Field
 
 
 class GridFIT3D:

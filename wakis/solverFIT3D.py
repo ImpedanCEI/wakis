@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the wakis Package.     #
+# Copyright (c) CERN, 2024.                   #
+# ########################################### #
+
 from tqdm import tqdm
 
 import numpy as np
@@ -7,8 +12,9 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
 from scipy.sparse import diags, hstack, vstack
 
-from field import Field
-from materials import material_lib
+from .field import Field
+from .materials import material_lib
+from .plotting import PlotMixin
 
 try:
     from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
@@ -16,19 +22,19 @@ try:
 except ImportError:
     imported_cupyx = False
 
-class SolverFIT3D:
+class SolverFIT3D(PlotMixin):
 
     def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_conductors=False, use_stl=False, use_gpu=False,
+                 use_stl=False, use_conductors=False, use_gpu=False,
                  bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
         algorithm based on the Finite Integration Technique (FIT)
 
-        Parameters
-        ----------
+        Parameters:
+        -----------
         grid: GridFIT3D object
             Instance of GridFIT3D class containing the simulation mesh and the 
             imported geometry
@@ -57,6 +63,23 @@ class SolverFIT3D:
             it enables flag: use_conductivity
         verbose: int or bool, default True
             Enable verbose ouput on the terminal if 1 or True
+
+        Attributes
+        ----------
+        E: Field object
+            Object to access the Electric field data in [V/m]. 
+            E.g.: solver.E[:,:,n,'z'] gives a 2D numpy.ndarray fieldmap of Ez component, located at the n-th cell in z
+        H: Field object
+            Object to access the Magnetic field data in [A/m]. 
+            E.g.: solver.H[i,j,k,'x'] gives a point value of Hx component, located at the i,j,k cell
+        J: Field object
+            Object to access the Current density field data in [A/m^2]. 
+        ieps: Field object
+            Object to access the ε^-1 tensor containing 1/permittivity values in the 3 dimensions. 
+        imu: Field object
+            Object to access the μ^-1 tensor containing 1/permeability values in the 3 dimensions.
+        sigma: Field object
+            Object to access the condutcity σ tensor in the 3 dimensions.
         '''
 
         self.verbose = verbose
@@ -79,8 +102,7 @@ class SolverFIT3D:
         self.grid = grid
         self.cfln = cfln
         if dt is None:
-            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 +
-                                            1 / self.grid.dz ** 2))
+            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
         else:
             self.dt = dt
 
@@ -158,9 +180,6 @@ class SolverFIT3D:
         if self.use_stl:
             self.apply_stl()
 
-        if self.use_conductors:
-            self.apply_conductors()
-
         # Fill PML BCs
         if self.activate_pml:
             if verbose: print('Filling PML sigmas...')
@@ -193,8 +212,8 @@ class SolverFIT3D:
         Field ieps, imu or sigma have been modified 
         and pre-compute the time-stepping matrices
 
-        Params
-        ------
+        Parameters:
+        -----------
         tensor : str, default 'all'
             Name of the tensor to update: 'ieps', 'imu', 'sigma' 
             for permitivity, permeability and conductivity, respectively. 
@@ -223,10 +242,7 @@ class SolverFIT3D:
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
-
             self.attrcleanup()
-            #if self.use_conductors:
-                #self.set_field_in_conductors_to_0()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
@@ -242,45 +258,6 @@ class SolverFIT3D:
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
      
-        #update ABC
-        if self.activate_abc:
-            self.update_abc()
-
-    def one_step_etd(self):
-        '''[TODO] Not working
-        '''
-        if self.step_0:
-            self.set_ghosts_to_0()
-            self.step_0 = False
-
-            #cleanup
-            del self.itDaiDepsDstC
-
-            #pre-compute
-            a, b = 1.0, self.sigma.toarray()
-            isigma = np.divide(a, b, out=np.zeros_like(b), where=b!=0)
-
-            self.iDsigma = diags(isigma, shape=(3*self.N, 3*self.N), dtype=float)
-            self.Dexp = diags(np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
-                              shape=(3*self.N, 3*self.N), dtype=float)
-            self.oneMinusDexp = diags(1.0-np.exp(-self.ieps.toarray()*self.sigma.toarray()*self.dt), 
-                              shape=(3*self.N, 3*self.N), dtype=float)
-            self.itDaiDsigmaDstC = self.itDa * self.iDsigma * self.Ds * self.C.transpose()
-
-            del a, b, isigma
-            self.attrcleanup()
-
-        self.H.fromarray(self.H.toarray() -
-                         self.dt*self.tDsiDmuiDaC*self.E.toarray()
-                         )
-
-        self.E.fromarray(self.Dexp*self.E.toarray() +
-                         (self.oneMinusDexp)*self.itDaiDsigmaDstC*self.H.toarray() -
-                         (self.oneMinusDexp)*self.iDsigma*self.J.toarray()
-                         )
-        
-        self.J.fromarray(self.Dsigma*self.E.toarray())
-
         #update ABC
         if self.activate_abc:
             self.update_abc()
@@ -438,7 +415,7 @@ class SolverFIT3D:
             - beam charge distribution: lambdas (distance) [C/m] lambdaf (spectrum) [C]
 
         Parameters:
-        ----------
+        -----------
         wakelength: float
             Desired length of the wake in [m] to be computed 
             
@@ -696,11 +673,23 @@ class SolverFIT3D:
 
         # Absorbing boundary conditions ABC
         if any(True for x in self.bc_low if x.lower() == 'abc'):
-            # maybe we need this for abc to work?
-            self.tL[-1, :, :, 'x'] = self.L[0, :, :, 'x']
-            self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
-            self.itA[-1, :, :, 'z'] = self.iA[0, :, :, 'z']
+            if self.bc_high[0].lower() == 'abc':
+                self.tL[-1, :, :, 'x'] = self.L[0, :, :, 'x']
+                self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
+                self.itA[-1, :, :, 'z'] = self.iA[0, :, :, 'z']
 
+            if self.bc_high[1].lower() == 'abc':
+                self.tL[:, -1, :, 'y'] = self.L[:, 0, :, 'y']
+                self.itA[:, -1, :, 'x'] = self.iA[:, 0, :, 'x']
+                self.itA[:, -1, :, 'z'] = self.iA[:, 0, :, 'z']
+
+            if self.bc_high[2].lower() == 'abc':
+                self.tL[:, :, -1, 'z'] = self.L[:, :, 0, 'z']
+                self.itA[:, :, -1, 'x'] = self.iA[:, :, 0, 'x']
+                self.itA[:, :, -1, 'y'] = self.iA[:, :, 0, 'y']
+
+            self.tDs = diags(self.tL.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.itDa = diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
             self.activate_abc = True
 
         # Perfect Matching Layers (PML)
@@ -712,6 +701,8 @@ class SolverFIT3D:
         '''
         Routine to calculate pml sigmas and apply them 
         to the conductivity tensor sigma
+
+        [IN-PROGRESS]
         '''
 
         # Initialize
@@ -721,23 +712,17 @@ class SolverFIT3D:
         # Fill
         if self.bc_low[0].lower() == 'pml':
             sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
-            #sx[0:self.npml] = 20*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
-            print(f'sx min: {sx.min()}')
-            print(f'sx max: {sx.max()}')
             for d in ['x', 'y', 'z']:
                 for i in range(self.npml):
-                    #if d == 'x':
-                    #    self.sigma[i, :, :, d] = 1/sx[i]
-                    #else:
                     self.sigma[i, :, :, d] = sx[i]
-                    #if sx[i] > 0: self.ieps[i, :, :, d] = 1/(5*self.npml*eps_0)
-                    #if sx[i] > 0.001 : self.ieps[i, :, :, d] = 1/(np.mean(sx[:self.npml])*eps_0)
                     if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
             sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
-            for j in range(self.npml):
-                self.sigma[:, j, :, 'y'] = sy[j]
+            for d in ['x', 'y', 'z']:
+                for j in range(self.npml):
+                    self.sigma[:, j, :, d] = sy[j]
+                    if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
 
         if self.bc_low[2].lower() == 'pml':
             #sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
@@ -749,15 +734,19 @@ class SolverFIT3D:
 
         if self.bc_high[0].lower() == 'pml':
             sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
-            for i in range(self.npml):
-                i +=1
-                self.sigma[-i, :, :, 'x'] = sx[-i]
+            for d in ['x', 'y', 'z']:
+                for i in range(self.npml):
+                    i +=1
+                    self.sigma[-i, :, :, 'x'] = sx[-i]
+                    if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
 
         if self.bc_high[1].lower() == 'pml':
             sy[-self.npml:] = 1/(2*self.dt)*((self.y[-self.npml:] - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
-            for j in range(self.npml):
-                j +=1
-                self.sigma[:, -j, :, 'y'] = sy[-j]
+            for d in ['x', 'y', 'z']:
+                for j in range(self.npml):
+                    j +=1
+                    self.sigma[:, -j, :, d] = sy[-j]
+                    if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
 
         if self.bc_high[2].lower() == 'pml':
             #sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
@@ -767,17 +756,7 @@ class SolverFIT3D:
                     k +=1
                     self.sigma[:, :, -k, d] = sz[-k]
                     self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.npml:])*eps_0)
-                    #if sz[-k] > 0. : self.ieps[:, :, -k, d] = 1/(sz[-k]*eps_0) #1/(sz[-k]+1)
-        
-        # Update E conductivity tensor
-        #self.Dsigma += diags(self.S_pml.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-        #self.sigma = self.S_pml + self.S_pml*eps_0
-        #self.ieps = self.ieps + self.S_pml*eps_0
-        #del S_pml
 
-        # Create H conductivity tensor
-        # self.Dsigmastar = diags(self.S_pml.toarray()*mu_0/eps_0, shape=(3*self.N, 3*self.N), dtype=float)
-        # del S_pml 
 
     def update_abc(self):
         '''
@@ -802,18 +781,18 @@ class SolverFIT3D:
 
         if self.bc_high[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[-1, :, :, d] = -self.E[-2, :, :, d]
-                self.H[-1, :, :, d] = self.H[-2, :, :, d] 
+                self.E[-1, :, :, d] = self.E[-1, :, :, d]
+                self.H[-1, :, :, d] = self.H[-1, :, :, d] 
 
         if self.bc_high[1].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, -1, :, d] = self.E[:, -2, :, d]
-                self.H[:, -1, :, d] = self.H[:, -2, :, d] 
+                self.E[:, -1, :, d] = self.E[:, -1, :, d]
+                self.H[:, -1, :, d] = self.H[:, -1, :, d] 
 
         if self.bc_high[2].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, :, -1, d] = self.E[:, :, -2, d]
-                self.H[:, :, -1, d] = self.H[:, :, -2, d] 
+                self.E[:, :, -1, d] = self.E[:, :, -1, d]
+                self.H[:, :, -1, d] = self.H[:, :, -1, d] 
 
     def set_ghosts_to_0(self):
         '''
@@ -932,518 +911,3 @@ class SolverFIT3D:
         del self.Px, self.Py, self.Pz
         del self.Ds, self.iDa, self.tDs, self.itDa
         del self.C
-        
-    def plot3D(self, field='E', component='z', clim=None, hide_solids=None,
-               show_solids=None, add_stl=None, stl_opacity=0.1, stl_colors='white',
-               title=None, cmap='jet', clip_volume=False, clip_normal='-y',
-               clip_box=False, clip_bounds=None, field_on_stl=False, field_opacity=1.0,
-               off_screen=False, zoom=0.5, nan_opacity=1.0, n=None):
-        '''
-        Built-in 3D plotting using PyVista
-        
-        Parameters:
-        ----------
-        field: str, default 'E'
-            3D field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            3D field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        clim: list, optional
-            Colorbar limits for the field plot [min, max]
-        hide_solids: bool, optional
-            Mask the values inside solid to np.nan. NaNs will be shown in gray, 
-            since there is a bug with the nan_opacity parameter
-        show_solids: bool, optional
-            Mask the values outside solid to np.nan. 
-        add_stl: str or list, optional
-            List or str of stl solids to add to the plot by `pv.add_mesh`
-        stl_opacity: float, default 0.1
-            Opacity of the stl surfaces (0 - Transparent, 1 - Opaque)
-        stl_colors: str or list of str, default 'white'
-            Color of the stl surfaces
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        clip_volume: bool, default False
-            Enable an interactive widget to clip out part of the domain, plane normal is defined by 
-            `clip_normal` parameter
-        clip_normal: str, default '-y'
-            Normal direction of the clip_volume interactive plane
-        clip box: bool, default False
-            Enable a box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
-        field_on_stl : bool, default False
-            Samples the field on the stl file specified in `add_stl`.
-        field_opacity : optional, default 1.0
-            Sets de opacity of the `field_on_stl` plot
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation. 
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        '''
-        import pyvista as pv
-
-        if len(field) == 2: #support for e.g. field='Ex'
-            component = field[1]
-            field = field[0]
-
-        if title is None:
-            title = field + component +'3d'
-
-        if self.plotter_active and not off_screen:
-            self.plotter_active = False
-
-        if not self.plotter_active:
-
-            pl = pv.Plotter(off_screen=off_screen)
-
-            # Plot stl surface(s)
-            if add_stl is not None:
-                if type(add_stl) is str:
-                    key = add_stl
-                    surf = self.grid.read_stl(key)
-                    pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
-
-                elif type(add_stl) is list:
-                    for i, key in enumerate(add_stl):
-                        surf = self.grid.read_stl(key)
-                        if type(stl_colors) is list:
-                            pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, smooth_shading=True)
-                        else:
-                            pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
-                else:
-                    key = self.grid.stl_solids.keys()[0] 
-                    surf = self.grid.read_stl(key)
-                    pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
-
-            pl.camera_position = 'zx'
-            pl.camera.azimuth += 30
-            pl.camera.elevation += 30
-            #pl.background_color = "grey"
-            pl.camera.zoom(zoom)
-            pl.add_axes()
-            pl.enable_3_lights()
-
-            if off_screen:
-                self.plotter_active = True
-        else: 
-            pl = self.pl
-
-
-        # Plot field
-        if field == 'E':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E[:, :, :, component], self.N)
-
-        elif field == 'H':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H[:, :, :, component], self.N)
-
-        elif field == 'J':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J[:, :, :, component], self.N)
-        else:
-            print("`field` value not valid")
-
-        points = self.grid.grid.cell_data_to_point_data() #interpolate
-        
-        if hide_solids is not None:
-            tol = np.min([self.dx, self.dy, self.dz])*1e-3
-            if type(hide_solids) is str:
-                surf = self.grid.read_stl(hide_solids)
-                select = self.grid.grid.select_enclosed_points(surf, tolerance=tol)
-                mask = select['SelectedPoints'] > 0
-
-            elif type(hide_solids) is list:
-                for i, solid in enumerate(hide_solids):
-                    surf = self.grid.read_stl(solid)
-                    select = self.grid.grid.select_enclosed_points(surf, tolerance=tol)
-                    if i == 0:
-                        mask = select['SelectedPoints'] > 0
-                    else:
-                        mask += select['SelectedPoints'] > 0
-
-            points[field+component][mask] = np.nan 
-
-        if show_solids is not None:
-            tol = np.min([self.dx, self.dy, self.dz])*1e-3
-            if type(show_solids) is str:
-                surf = self.grid.read_stl(show_solids)
-                select = self.grid.grid.select_enclosed_points(surf, tolerance=tol)
-                mask = select['SelectedPoints'] > 0
-
-            elif type(show_solids) is list:
-                for solid in show_solids:
-                    surf = self.grid.read_stl(solid)
-                    select = self.grid.grid.select_enclosed_points(surf, tolerance=tol)
-                    if i == 0:
-                        mask = select['SelectedPoints'] > 0
-                    else:
-                        mask += select['SelectedPoints'] > 0
-
-            points[field+component][np.logical_not(mask)] = np.nan 
-
-        if clip_box:
-            if clip_bounds is None:
-                Lx, Ly = (self.grid.xmax-self.grid.xmin), (self.grid.ymax-self.grid.ymin)
-                clip_bounds = [self.grid.xmax-Lx/2, self.grid.xmax,
-                               self.grid.ymax-Ly/2, self.grid.ymax,
-                               self.grid.zmin, self.grid.zmax]
-                
-            ac1 = pl.add_mesh(points.clip_box(bounds=clip_bounds), opacity=nan_opacity,
-                              scalars=field+component, cmap=cmap, 
-                              clim=clim)
-
-        elif clip_volume:
-            ac1 = pl.add_mesh_clip_plane(points, normal=clip_normal, opacity=1.0,
-                                         scalars=field+component, cmap=cmap, clim=clim, 
-                                         normal_rotation=False, nan_opacity=nan_opacity)
-            
-        elif field_on_stl is True and add_stl is not None:
-            surf = self.grid.read_stl(add_stl)
-            fieldonsurf = surf.sample(points)
-            ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, scalars=field+component, opacity=field_opacity)
-
-        else:
-            print('Plotting option inconsistent')
-
-        if n is not None:
-            pl.add_title(field+component+f' field, timestep={n}', font='times', font_size=12)
-            title += '_'+str(n).zfill(6)
-
-        # Save
-        if off_screen:
-            pl.screenshot(title+'.png')
-            pl.remove_actor(ac1)
-            self.pl = pl
-        else:
-            pl.show(full_screen=True)
-
-    def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm=None, 
-               vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1, 
-               patch_reverse=False, add_patch=False, title=None, off_screen=False, 
-               n=None, interpolation='antialiased'):
-        '''
-        Built-in 2D plotting of a field slice using matplotlib
-        
-        Parameters:
-        ----------
-        field: str, default 'E'
-            Field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        plane: arr or str, default 'XZ'
-            Plane where to plot the 2d field cut: array of 2 slices() and 1 int [x,y,z]
-            or a str 'XY', 'ZY' or 'ZX'
-        pos: float, default 0.5
-            Position of the cutting plane, as a franction of the plane's normal dimension
-            e.g. plane 'XZ' wil be sitting at y=pos*(ymax-ymin)
-        norm: str, default None
-            Plotting scale to pass to matplotlib imshow: 'linear', 'log', 'symlog'
-            ** Only for matplotlib version >= 3.8
-        vmin: list, optional
-            Colorbar min limit for the field plot
-        vmax: list, optional
-            Colorbar max limit for the field plot       
-        figsize: list, default [8,4]    
-            Figure size to pass to the plot initialization
-        add_patch: str or list, optional
-            List or str of stl solids to add to the plot by `pv.add_mesh`
-        patch_alpha: float, default 0.1
-            Value for the transparency of the patch if `add_patch = True`
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True.
-            If n is provided, 'str(n).zfill(6)' will be added to the title.
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation. 
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        interpolation: str, default 'antialiased'
-            Interpolation method to pass to matplotlib imshow e.g., 'none',
-            'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36',
-        '''
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-        Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
-        xmin, xmax = self.grid.xmin, self.grid.xmax 
-        ymin, ymax = self.grid.ymin, self.grid.ymax
-        zmin, zmax = self.grid.zmin, self.grid.zmax
-        
-        if len(field) == 2: #support for e.g. field='Ex'
-            component = field[1]
-            field = field[0]
-        
-        if title is None:
-            title = field + component +'2d'
-            
-        if type(plane) is not str and len(plane) == 3:
-            x, y, z = plane[0], plane[1], plane[2]
-
-            if type(plane[2]) is int:
-                cut = f'(x,y,a) a={round(self.z[z],3)}'
-                xax, yax = 'y', 'x'
-                extent = [self.y[y].min(), self.y[y].max(), 
-                          self.x[x].min(), self.x[x].max()]            
-
-            if type(plane[0]) is int:
-                cut = f'(a,y,z) a={round(self.x[x],3)}'
-                xax, yax = 'z', 'y'
-                extent = [self.z[z].min(), self.z[z].max(), 
-                          self.y[y].min(), self.y[y].max()]    
-
-            if type(plane[1]) is int:
-                cut = f'(x,a,z) a={round(self.y[y],3)}'
-                xax, yax = 'z', 'x'
-                extent = [self.z[z].min(), self.z[z].max(), 
-                          self.x[x].min(), self.x[x].max()]   
-
-        elif plane == 'XY':
-            x, y, z = slice(0,Nx), slice(0,Ny), int(Nz*pos) #plane XY
-            cut = f'(x,y,a) a={round(pos*(zmax-zmin)+zmin,3)}'
-            xax, yax = 'y', 'x'
-            extent = [ymin, ymax, xmin, xmax]
-
-        elif plane == 'ZY':
-            x, y, z = int(Nx*pos), slice(0,Ny), slice(0,Nz) #plane ZY
-            cut = f'(a,y,z) a={round(pos*(xmax-xmin)+xmin,3)}'
-            xax, yax = 'z', 'y'
-            extent = [zmin, zmax, ymin, ymax]
-        
-        elif plane == 'ZX':
-            x, y, z = slice(0,Nx),  int(Ny*pos), slice(0,Nz) #plane XZ
-            cut = f'(x,a,z) a={round(pos*(ymax-ymin)+ymin,3)}'
-            xax, yax = 'z', 'x'
-            extent = [zmin, zmax, xmin, xmax]
-        
-        else:
-            print("Plane needs to be an array of slices [x,y,z] or a str 'XY', 'ZY', 'ZX'")
-
-        fig, ax = plt.subplots(1,1, figsize=figsize)
-
-        if field == 'E':
-            if component == 'Abs':
-                im = ax.imshow(self.E.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.E[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-        if field == 'H':
-            if component == 'Abs':
-                im = ax.imshow(self.H.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.H[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-        if field == 'J':
-            if component == 'Abs':
-                im = ax.imshow(self.J.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.J[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)  
-                              
-        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT {field}{component}{cut}')
-        ax.set_xlabel(xax)
-        ax.set_ylabel(yax)
-
-        # Patch stl
-        if add_patch is not None:
-            if type(add_patch) is str:
-                mask = np.reshape(self.grid.grid[add_patch], (Nx, Ny, Nz))
-                patch = np.ones((Nx, Ny, Nz))
-                if patch_reverse:
-                    patch[mask] = np.nan 
-                else:
-                    patch[np.logical_not(mask)] = np.nan 
-                ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
-
-            elif type(add_patch) is list:
-                for solid in add_patch:
-                    mask = np.reshape(self.grid.grid[solid], (Nx, Ny, Nz))
-                    patch = np.ones((Nx, Ny, Nz))
-                    patch[np.logical_not(mask)] = np.nan
-                    ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
-
-        if n is not None:
-            fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
-            title += '_'+str(n).zfill(6)
-
-        fig.tight_layout()
-
-        if off_screen:
-            fig.savefig(title+'.png')
-            plt.clf()
-            plt.close(fig)
-
-        else:
-            plt.show()
-
-    def plot1D(self, field='E', component='z', line=None, pos=0.5, 
-               xscale='linear', yscale='linear', xlim=None, ylim=None, 
-               figsize=[8,4], title=None, off_screen=False, n=None, **kwargs):
-        '''
-        Built-in 1D plotting of a field line using matplotlib
-        
-        Parameters:
-        ----------
-        field: str, default 'E'
-            Field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        figsize: list, default [8,4]    
-            Figure size to pass to the plot initialization
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True.
-            If n is provided, 'str(n).zfill(6)' will be added to the title.
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation. 
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        **kwargs:
-            Keyword arguments to be passed to the `matplotlib.plot` function.
-            Default kwargs used: 
-                kwargs = {'color':'g', 'lw':1.2, 'ls':'-'}
-        '''
-        import matplotlib.pyplot as plt
-
-        Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
-        xmin, xmax = self.grid.xmin, self.grid.xmax 
-        ymin, ymax = self.grid.ymin, self.grid.ymax
-        zmin, zmax = self.grid.zmin, self.grid.zmax
-        
-        if len(field) == 2: #support for e.g. field='Ex'
-            component = field[1]
-            field = field[0]
-        
-        if title is None:
-            title = field + component +'2d'
-            
-        if type(line) is not str and len(line) == 3:
-            x, y, z = line[0], line[1], line[2]
-
-            #z-axis
-            if type(line[2]) is slice:  
-                cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
-                xax = 'z'
-                xx = self.z[z]
-                xlims = (self.z[z].min(), self.z[z].max())
-            
-            #x-axis
-            if type(line[0]) is slice:  
-                cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
-                xax = 'x'
-                xx = self.x[x]
-                xlims = (self.x[x].min(), self.x[x].max())
-
-            #y-axis
-            if type(line[2]) is slice:  
-                cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
-                xax = 'y'
-                xx = self.y[y]
-                xlims = (self.y[y].min(), self.y[y].max())
-
-        elif line.lower() == 'x':
-            x, y, z = slice(0,Nx), int(Ny*pos), int(Nz*pos) #x-axis
-            cut = f'(x,a,b) a={round(pos*(ymax-ymin)+ymin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
-            xax = 'x'
-            xx = self.x[x]
-            xlims = (xmin, xmax)
-
-        elif line.lower() == 'y':
-            x, y, z = int(Nx*pos), slice(0,Ny), int(Nz*pos) #y-axis
-            cut = f'(a,y,b) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
-            xax = 'y'
-            xx = self.y[y]
-            xlims = (ymin, ymax)
-        
-        elif line.lower() == 'z':
-            x, y, z = int(Nx*pos), int(Ny*pos), slice(0,Nz) #z-axis
-            cut = f'(a,b,z) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(ymax-ymin)+ymin,3)}'
-            xax = 'z'
-            xx = self.z[z]
-            xlims = (zmin, zmax)
-        
-        else:
-            print("line needs to be an array of slices [x,y,z] or a str 'x', 'y', 'z'")
-
-        plotkw = {'c':'g', 'lw':1.2, 'ls':'-'}
-        plotkw.update(kwargs)
-
-        fig, ax = plt.subplots(1,1, figsize=figsize)
-
-        if field == 'E':
-            if component == 'Abs':
-                ax.plot(xx, self.E.get_abs()[x, y, z], **plotkw)
-                yax = 'E(Abs) amplitude'
-            else:
-                ax.plot(xx, self.E[x, y, z, component], **plotkw)
-                yax = f'E{component} amplitude'
-
-        if field == 'H':
-            if component == 'Abs':
-                ax.plot(xx, self.H.get_abs()[x, y, z], **plotkw)
-                yax = 'H(Abs) amplitude'
-            else:
-                ax.plot(xx, self.H[x, y, z, component], **plotkw)
-                yax = f'H{component} amplitude'
-
-        if field == 'J':
-            if component == 'Abs':
-                ax.plot(xx, self.J.get_abs()[x, y, z], **plotkw)
-                yax = 'J(Abs) amplitude'
-            else:
-                ax.plot(xx, self.J[x, y, z, component], **plotkw)
-                yax = f'J{component} amplitude'
-                              
-        ax.set_title(f'FIT {field}{component}{cut}')
-        ax.set_xlabel(xax)
-        ax.set_ylabel(yax, color=plotkw['c'])
-        ax.set_xlim(xlims)
-
-        ax.set_xscale(xscale)
-        ax.set_yscale(yscale)
-
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
-
-        if n is not None:
-            fig.suptitle('$'+field+'_{'+component+'}$ field, timestep='+str(n))
-            title += '_'+str(n).zfill(6)
-
-        fig.tight_layout()
-
-        if off_screen:
-            fig.savefig(title+'.png')
-            plt.clf()
-            plt.close(fig)
-
-        else:
-            plt.show()
