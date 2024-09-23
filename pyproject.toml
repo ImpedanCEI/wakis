@@ -10,7 +10,7 @@ authors = [
 	{name = "Giovanni Iadarola"},
 	{name = "Carlo Zannini"},
 ]
-description = "3D Electromagnetic Time-Domain wake and impedance solver¨
+description = "3D Electromagnetic Time-Domain wake and impedance solver"
 keywords = ["electromagnetism", "accelerator-physics", "impedance", "3d", "gpu"]
 readme = "README.md"
 requires-python = ">=3.8"
@@ -21,7 +21,7 @@ classifiers=[
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
 		"Topic :: Scientific/Engineering :: Physics",
-    ],
+]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
@@ -33,3 +33,8 @@ Documentation = "https://wakis.readthedocs.io/en/latest/index.html"
 "Source code" = "https://github.com/ImpedanCEI/wakis/wakis"
 "Bug Tracker" = "https://github.com/ImpedanCEI/wakis/issues"
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "serial",
+]
