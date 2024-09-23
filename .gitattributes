@@ -2,3 +2,4 @@
 * text=auto
 # Remove ipynb from language statistics
 *.ipynb linguist-vendored
+*.sh  linguist-vendored
