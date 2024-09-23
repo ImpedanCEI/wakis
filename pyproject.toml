@@ -1,0 +1,35 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["dependencies", "version"]
+name = "wakis"
+authors = [
+	{name = "Elena de la Fuente", email = "elena.de.la.fuente.garcia@cern.ch"},
+	{name = "Lorenzo Giacomel"},
+	{name = "Giovanni Iadarola"},
+	{name = "Carlo Zannini"},
+]
+description = "3D Electromagnetic Time-Domain wake and impedance solver¨
+keywords = ["electromagnetism", "accelerator-physics", "impedance", "3d", "gpu"]
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+classifiers=[
+        "Development Status :: 4 - Beta",
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+        "Intended Audience :: Science/Research",
+		"Topic :: Scientific/Engineering :: Physics",
+    ],
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+version = {attr = "wakis._version.__version__"}
+
+[project.urls]
+Download = "https://pypi.org/project/wakis/"
+Documentation = "https://wakis.readthedocs.io/en/latest/index.html"
+"Source code" = "https://github.com/ImpedanCEI/wakis/wakis"
+"Bug Tracker" = "https://github.com/ImpedanCEI/wakis/issues"
+
