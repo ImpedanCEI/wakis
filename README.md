@@ -1,4 +1,4 @@
-<img src="https://indico.cern.ch/event/1444664/attachments/2910987/5107232/wakis-logo-white-background.png" alt="wakis-logo-light-background" width="240">
+<img src="docs/img/wakis-logo-pink.png" alt="wakis-logo-light-background" width="240">
 
 > **Wak**e and **I**mpedance **S**olver
 
