@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail; IFS=$'\n\t'
 
-NAME="wakis"
-VER=$(grep __version__ wakis/_version.py| cut -d '=' -f2 | xargs)
+NAME=$( python setup.py --name )
+VER=$( python setup.py --version )
 
 echo "========================================================================"
 echo "Tagging $NAME v$VER"
