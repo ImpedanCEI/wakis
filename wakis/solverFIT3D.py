@@ -396,8 +396,9 @@ class SolverFIT3D(PlotMixin):
                 self.plot3D(n=n, **plotkw)
 
         # End
-        for hf in hfs:
-            hf.close()
+        if save:
+            for hf in hfs:
+                hf.close()
 
     def wakesolve(self, wakelength, wake=None, 
                   save_J=False, add_space=None, use_etd=False,
