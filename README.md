@@ -64,9 +64,14 @@ pip install -r requirements.txt
 ```
 
 #### Users: pip install from PyPI
-
-_Coming soon_
-
+For basic usage, simply do:
+```
+pip install wakis
+```
+For some extra features, including interactive 3d plots in python notebooks, use: 
+```
+pip install wakis['notebook']
+```
 
 
 
