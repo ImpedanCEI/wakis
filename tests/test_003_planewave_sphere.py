@@ -12,7 +12,7 @@ from wakis.sources import PlaneWave
 
 import pytest 
 
-flag_interactive = True
+flag_interactive = False
 
 class TestPlanewave:
     def test_simulation(self):
