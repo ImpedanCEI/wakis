@@ -170,7 +170,7 @@ class PlotMixin:
 
             points[field+component][np.logical_not(mask)] = np.nan 
 
-        
+        # Clip a rectangle of the domain
         if clip_box:
             if clip_bounds is None:
                 Lx, Ly = (self.grid.xmax-self.grid.xmin), (self.grid.ymax-self.grid.ymin)
@@ -189,22 +189,22 @@ class PlotMixin:
         else:
             print('Plotting option inconsistent')
 
+        # Save
         if n is not None:
             pl.add_title(field+component+f' field, timestep={n}', font='times', font_size=12)
             title += '_'+str(n).zfill(6)
-
-        # Save
         if off_screen:
             pl.screenshot(title+'.png')
             pl.remove_actor(ac1)
             self.pl = pl
         else:
-            pl.show(full_screen=True)
+            pl.show(full_screen=False)
 
     def plot3DonSTL(self, field='E', component='z', clim=None, cmap='jet',
                     stl_with_field=None, field_opacity=1.0, log_scale=False,
                     stl_transparent=None, stl_opacity=0.1, stl_colors='white',
-                    title=None, off_screen=False, zoom=0.5, n=None):
+                    clip_interactive=False, clip_normal='-y',
+                    title=None, off_screen=False, zoom=0.5, n=None, **kwargs):
         '''
         Built-in 3D plotting using PyVista
         
@@ -237,6 +237,9 @@ class PlotMixin:
             Name to use in the .png savefile with off_screen is True
         n: int, optional
             Timestep number to be added to the plot title and figsave title.
+        **kwargs: optional
+            PyVista's add_mesh optional arguments: 
+            https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
         '''
         import pyvista as pv
 
@@ -268,14 +271,6 @@ class PlotMixin:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, smooth_shading=True)
                         else:
                             pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
-
-            pl.camera_position = 'zx'
-            pl.camera.azimuth += 30
-            pl.camera.elevation += 30
-            #pl.background_color = "grey"
-            pl.camera.zoom(zoom)
-            pl.add_axes()
-            pl.enable_3_lights()
 
             if off_screen:
                 self.plotter_active = True
@@ -311,16 +306,40 @@ class PlotMixin:
                 key = stl_with_field
                 surf = self.grid.read_stl(key)
                 fieldonsurf = surf.sample(points)
-                ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim, nan_opacity=0.,
-                                  scalars=field+component, opacity=field_opacity)
+
+                if clip_interactive:
+                    ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
+                                        scalars=field+component, opacity=field_opacity,
+                                        cmap=cmap, clim=clim, log_scale=log_scale, 
+                                        **kwargs)
+                else:
+                    ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim,
+                                  scalars=field+component, opacity=field_opacity,
+                                  log_scale=log_scale, smooth_shading=True, 
+                                  **kwargs)
 
             elif type(stl_with_field) is list:
                 for i, key in enumerate(stl_with_field):
                     surf = self.grid.read_stl(key)
                     fieldonsurf = surf.sample(points)
-                    ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim, nan_opacity=0.,
+                    if clip_interactive:
+                        ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
+                                        scalars=field+component, opacity=field_opacity,
+                                        cmap=cmap, clim=clim, log_scale=log_scale, 
+                                        **kwargs)
+                    else:
+                        ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim,
                                       scalars=field+component, opacity=field_opacity,
-                                      log_scale=log_scale)
+                                      log_scale=log_scale, smooth_shading=True,
+                                      **kwargs)
+
+        pl.camera_position = 'zx'
+        pl.camera.azimuth += 30
+        pl.camera.elevation += 30
+        #pl.background_color = "grey"
+        pl.camera.zoom(zoom)
+        pl.add_axes()
+        pl.enable_3_lights()
 
         if n is not None:
             pl.add_title(field+component+f' field, timestep={n}', font='times', font_size=12)
@@ -332,7 +351,7 @@ class PlotMixin:
             pl.remove_actor(ac1)
             self.pl = pl
         else:
-            pl.show(full_screen=True)
+            pl.show(full_screen=False)
 
 
     def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm=None, 
@@ -505,7 +524,7 @@ class PlotMixin:
             plt.close(fig)
 
         else:
-            plt.show()
+            plt.show(block=False)
 
     def plot1D(self, field='E', component='z', line=None, pos=0.5, 
                xscale='linear', yscale='linear', xlim=None, ylim=None, 
