@@ -1,4 +1,4 @@
-<img src="docs/img/wakis-logo-pink.png" alt="wakis-logo-light-background" width="240">
+<img src="https://github.com/ImpedanCEI/wakis/blob/main/docs/img/wakis-logo-pink.png" alt="wakis-logo-light-background" width="240">
 
 > **Wak**e and **I**mpedance **S**olver
 
