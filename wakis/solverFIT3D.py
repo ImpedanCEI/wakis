@@ -320,7 +320,9 @@ class SolverFIT3D(PlotMixin):
         -------------
         h5py
         '''
-
+        self.Nt = Nt
+        if source is not None: self.source = source
+        
         if save:
             try:
                 import h5py
@@ -371,7 +373,7 @@ class SolverFIT3D(PlotMixin):
         # Time loop 
         for n in tqdm(range(Nt)):
 
-            if source is not None: #TODO test
+            if source is not None: 
                 source.update(self, n*self.dt)
 
             if save:
