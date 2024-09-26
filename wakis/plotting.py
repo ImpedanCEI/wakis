@@ -532,7 +532,10 @@ class PlotMixin:
                 for solid in add_patch:
                     mask = np.reshape(self.grid.grid[solid], (Nx, Ny, Nz))
                     patch = np.ones((Nx, Ny, Nz))
-                    patch[np.logical_not(mask)] = np.nan
+                    if patch_reverse:
+                        patch[mask] = np.nan 
+                    else:
+                        patch[np.logical_not(mask)] = np.nan 
                     ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
 
         if n is not None:
