@@ -204,6 +204,7 @@ class PlotMixin:
                     stl_with_field=None, field_opacity=1.0, log_scale=False,
                     stl_transparent=None, stl_opacity=0.1, stl_colors='white',
                     clip_interactive=False, clip_normal='-y',
+                    clip_box=False, clip_bounds=None, 
                     title=None, off_screen=False, zoom=0.5, n=None, **kwargs):
         '''
         Built-in 3D plotting using PyVista
@@ -217,7 +218,9 @@ class PlotMixin:
             3D field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
             if a component is defined in field
         clim: list, optional
-            Colorbar limits for the field plot [min, max]                
+            Colorbar limits for the field plot [min, max]  
+        cmap: str or cmap obj, default 'jet'
+            Colormap to use for the field plot              
         stl_with_field : list or str
             STL str name or list of names to samples the selected field on 
         field_opacity : optional, default 1.0
@@ -230,6 +233,15 @@ class PlotMixin:
             Opacity of the STL solids without field
         stl_colors: list or str, default 'white'
             str or list of colors to use for each STL solid
+        clip_interactive: bool, default False
+            Enable an interactive widget to clip out part of the domain, plane normal is defined by 
+            `clip_normal` parameter
+        clip_normal: str, default '-y'
+            Normal direction of the clip_volume interactive plane
+        clip_box: bool, default False
+            Enable a static box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
+        clip_bounds: Default None
+            List of bounds [xmin, xmax, ymin, ymax, zmin, zmax] of the box to clip if clip_box is active. 
         off_screen: bool, default False
             Enable plot rendering off screen, for gif frames generation. 
             Plot will not be rendered if set to True.
@@ -307,11 +319,22 @@ class PlotMixin:
                 surf = self.grid.read_stl(key)
                 fieldonsurf = surf.sample(points)
 
-                if clip_interactive:
+                if clip_interactive: # interactive plotting with a plane
                     ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
                                         scalars=field+component, opacity=field_opacity,
                                         cmap=cmap, clim=clim, log_scale=log_scale, 
                                         **kwargs)
+                        
+                elif clip_box: # Clip a rectangle of the domain
+                    if clip_bounds is None:
+                        Lx, Ly = (self.grid.xmax-self.grid.xmin), (self.grid.ymax-self.grid.ymin)
+                        clip_bounds = [self.grid.xmax-Lx/2, self.grid.xmax,
+                                    self.grid.ymax-Ly/2, self.grid.ymax,
+                                    self.grid.zmin, self.grid.zmax]
+                    ac1 = pl.add_mesh(fieldonsurf.clip_box(bounds=clip_bounds), cmap=cmap, clim=clim,
+                                  scalars=field+component, opacity=field_opacity,
+                                  log_scale=log_scale, smooth_shading=True, 
+                                  **kwargs)
                 else:
                     ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim,
                                   scalars=field+component, opacity=field_opacity,
