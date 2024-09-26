@@ -42,9 +42,10 @@ class Beam:
         self.sigmaz = sigmaz
         self.q = q
         self.beta = beta
+        self.v = c_light*beta
         if ti is not None: 
             self.ti = ti
-        else:  self.ti = 8.548921333333334*self.sigmaz
+        else:  self.ti = 8.548921333333334*self.sigmaz/self.v 
         self.is_first_update = True
 
     def update(self, solver, t):
@@ -52,12 +53,12 @@ class Beam:
             self.ixs, self.iys = np.abs(solver.x-self.xsource).argmin(), np.abs(solver.y-self.ysource).argmin()
             self.is_first_update = False
         # reference shift
-        s0 = solver.z.min() - c_light*self.ti
-        s = solver.z - c_light*t
+        s0 = solver.z.min() - self.v*self.ti
+        s = solver.z - self.v*t
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
         # update 
-        solver.J[self.ixs,self.iys,:,'z'] = self.q*c_light*profile/solver.dx/solver.dy
+        solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
 
 class PlaneWave:
     def __init__(self, xs=None, ys=None, zs=0, nodes=15, f=None, beta=1.0):
