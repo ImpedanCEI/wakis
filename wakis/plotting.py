@@ -200,10 +200,11 @@ class PlotMixin:
         else:
             pl.show(full_screen=False)
 
-    def plot3DonSTL(self, field='E', component='z', clim=None, cmap='jet',
-                    stl_with_field=None, field_opacity=1.0, log_scale=False,
+    def plot3DonSTL(self, field='E', component='z', clim=None, cmap='jet', log_scale=False,
+                    stl_with_field=None, field_opacity=1.0, tolerance=None,
                     stl_transparent=None, stl_opacity=0.1, stl_colors='white',
-                    clip_interactive=False, clip_normal='-y',
+                    clip_plane = False, clip_interactive=False, 
+                    clip_normal='-x', clip_origin=[0,0,0],
                     clip_box=False, clip_bounds=None, 
                     title=None, off_screen=False, zoom=0.5, n=None, **kwargs):
         '''
@@ -220,13 +221,15 @@ class PlotMixin:
         clim: list, optional
             Colorbar limits for the field plot [min, max]  
         cmap: str or cmap obj, default 'jet'
-            Colormap to use for the field plot              
+            Colormap to use for the field plot     
+        log_scale: bool, default False
+            Turns on logarithmic scale colorbar         
         stl_with_field : list or str
             STL str name or list of names to samples the selected field on 
         field_opacity : optional, default 1.0
             Sets de opacity of the `field_on_stl` plot
-        log_scale: bool, default False
-            Turns on logarithmic scale colorbar
+        tolerance : float, default None
+            Tolerance to apply to PyVista's sampling algorithm
         stl_transparent: list or str, default None
             STL name or list of names to add to the scene with the selected transparency and color
         stl_opacity: float, default 0.1
@@ -236,8 +239,12 @@ class PlotMixin:
         clip_interactive: bool, default False
             Enable an interactive widget to clip out part of the domain, plane normal is defined by 
             `clip_normal` parameter
+        clip_plane: bool, default False
+            Clip stl_with_field surface with a plane and show field on such plane
         clip_normal: str, default '-y'
-            Normal direction of the clip_volume interactive plane
+            Normal direction of the clip_volume interactive plane and the clip_plane
+        clip_origin: list, default [0,0,0]
+            Origin of the clipping plane for the clip_plane option
         clip_box: bool, default False
             Enable a static box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
         clip_bounds: Default None
@@ -267,7 +274,9 @@ class PlotMixin:
 
         if not self.plotter_active:
 
-            pl = pv.Plotter(off_screen=off_screen)
+            pl = pv.Plotter(off_screen=off_screen, lighting='none')
+            light = pv.Light(light_type='headlight')
+            pl.add_light(light)
 
             # Plot stl surface(s)
             if stl_transparent is not None:
@@ -317,7 +326,11 @@ class PlotMixin:
             if type(stl_with_field) is str:
                 key = stl_with_field
                 surf = self.grid.read_stl(key)
-                fieldonsurf = surf.sample(points)
+                if clip_plane:
+                    try: surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin).subdivide_adaptive(max_edge_len=3*self.dz)
+                    except: print("Surface non-manifold, clip with plane skipped")
+
+                fieldonsurf = surf.sample(points, tolerance)
 
                 if clip_interactive: # interactive plotting with a plane
                     ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
@@ -330,39 +343,55 @@ class PlotMixin:
                         Lx, Ly = (self.grid.xmax-self.grid.xmin), (self.grid.ymax-self.grid.ymin)
                         clip_bounds = [self.grid.xmax-Lx/2, self.grid.xmax,
                                     self.grid.ymax-Ly/2, self.grid.ymax,
-                                    self.grid.zmin, self.grid.zmax]
+                                    self.grid.zmin, self.grid.zmax]    
+
                     ac1 = pl.add_mesh(fieldonsurf.clip_box(bounds=clip_bounds), cmap=cmap, clim=clim,
                                   scalars=field+component, opacity=field_opacity,
-                                  log_scale=log_scale, smooth_shading=True, 
+                                  log_scale=log_scale, 
                                   **kwargs)
+
                 else:
                     ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim,
                                   scalars=field+component, opacity=field_opacity,
-                                  log_scale=log_scale, smooth_shading=True, 
+                                  log_scale=log_scale, 
                                   **kwargs)
 
             elif type(stl_with_field) is list:
                 for i, key in enumerate(stl_with_field):
                     surf = self.grid.read_stl(key)
+                    if clip_plane:
+                        try: surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin)
+                        except: print("Surface non-manifold, clip with plane skipped")
+
                     fieldonsurf = surf.sample(points)
-                    if clip_interactive:
+
+                    if clip_interactive: # interactive plotting with a plane
                         ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
                                         scalars=field+component, opacity=field_opacity,
                                         cmap=cmap, clim=clim, log_scale=log_scale, 
                                         **kwargs)
+                    elif clip_box: # Clip a rectangle of the domain
+                        if clip_bounds is None:
+                            Lx, Ly = (self.grid.xmax-self.grid.xmin), (self.grid.ymax-self.grid.ymin)
+                            clip_bounds = [self.grid.xmax-Lx/2, self.grid.xmax,
+                                        self.grid.ymax-Ly/2, self.grid.ymax,
+                                        self.grid.zmin, self.grid.zmax]  
+                        ac1 = pl.add_mesh(fieldonsurf.clip_box(bounds=clip_bounds), cmap=cmap, clim=clim,
+                                  scalars=field+component, opacity=field_opacity,
+                                  log_scale=log_scale, **kwargs)  
                     else:
                         ac1 = pl.add_mesh(fieldonsurf, cmap=cmap, clim=clim,
                                       scalars=field+component, opacity=field_opacity,
-                                      log_scale=log_scale, smooth_shading=True,
+                                      log_scale=log_scale,
                                       **kwargs)
-
         pl.camera_position = 'zx'
-        pl.camera.azimuth += 30
+        pl.camera.azimuth += 20
         pl.camera.elevation += 30
         #pl.background_color = "grey"
         pl.camera.zoom(zoom)
         pl.add_axes()
-        pl.enable_3_lights()
+        pl.enable_anti_aliasing()
+        #pl.enable_3_lights()
 
         if n is not None:
             pl.add_title(field+component+f' field, timestep={n}', font='times', font_size=12)
