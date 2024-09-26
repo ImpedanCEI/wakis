@@ -155,7 +155,7 @@ class SolverFIT3D(PlotMixin):
                         ])
                 
         # Boundaries
-        if verbose: print('Appliying boundary conditions...')
+        if verbose: print('Applying boundary conditions...')
         self.bc_low = bc_low
         self.bc_high = bc_high
         self.npml = 10
