@@ -3,18 +3,19 @@ import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
 from scipy.constants import c as c_light
+from tqdm import tqdm
 
 sys.path.append('../../')
 
-from solverFIT3D import SolverFIT3D
-from gridFIT3D import GridFIT3D 
-from wakeSolver import WakeSolver
+from wakis import SolverFIT3D
+from wakis import GridFIT3D 
+from wakis import WakeSolver
 
 # ---------- Domain setup ---------
 # Number of mesh cells
-Nx = 40
-Ny = 40
-Nz = 111
+Nx = 80
+Ny = 80
+Nz = 141
 #dt = 2.187760221e-12 # CST
 
 # Embedded boundaries
@@ -33,13 +34,14 @@ Lx, Ly, Lz = (xmax-xmin), (ymax-ymin), (zmax-zmin)
 # set grid and geometry
 grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
                 stl_solids=stl_solids, 
-                stl_materials=stl_materials)
+                stl_materials=stl_materials,
+                stl_scale=1.0)
     
 # ------------ Beam source ----------------
 # Beam parameters
 sigmaz = 10e-2      #[m] -> 2 GHz
 q = 1e-9            #[C]
-beta = 1.0          # beam beta TODO
+beta = 1.0          # beam beta 
 xs = 0.             # x source position [m]
 ys = 0.             # y source position [m]
 xt = 0.             # x test position [m]
@@ -47,7 +49,7 @@ yt = 0.             # y test position [m]
 # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
 
 # Simualtion
-wakelength = 50. #[m]
+wakelength = 10. #[m]
 add_space = 10   # no. cells
 
 wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
@@ -56,51 +58,76 @@ wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
-bc_low=['pec', 'pec', 'abc']
-bc_high=['pec', 'pec', 'abc']
+bc_low=['pec', 'pec', 'pec']
+bc_high=['pec', 'pec', 'pec']
 
 solver = SolverFIT3D(grid, wake, #dt=dt,
                      bc_low=bc_low, bc_high=bc_high, 
                      use_stl=True, bg='pec')
 # Plot settings
 if not os.path.exists('img/'): os.mkdir('img/')
+from matplotlib.colors import LinearSegmentedColormap
+cmap = LinearSegmentedColormap.from_list('name', plt.cm.jet(np.linspace(0.1, 0.9))) # CST's colormap
+
 plotkw2D = {'title':'img/Ez', 
-            'add_patch':['shell','cavity'], 'patch_alpha':0.3,
+            'add_patch':['cavity'], 'patch_alpha':1.0,
+            'patch_reverse' : True, 
             'vmin':-1e3, 'vmax':1e3,
+            'cmap': cmap,
             'plane': [int(Nx/2), slice(0, Ny), slice(add_space, -add_space)]}
 
-plotkw3D = {'title':'img/Ez', 
+plotkw3D = {'title':'img/Ez3d', 
             'add_stl':'shell',
             'field_opacity':0.5,}
-            
-# Run wakefield time-domain simulation
+
+# For plotting
 run = True
 if run:
+    from wakis.sources import Beam
+    beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
+                xsource=xs, ysource=ys)
+    Nt = 3000            
+    for n in tqdm(range(Nt)):
+
+        beam.update(solver, n*solver.dt)
+
+        if n%30 == 0 and n>600:
+            solver.plot3DonSTL('E', component='Abs', cmap=cmap, clim=[0, 500],
+                stl_with_field='cavity', field_opacity=1.0,
+                stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
+                clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
+                off_screen=True, zoom=1.2, n=n, title='img/Ez')
+            
+        solver.one_step()
+
+# Run wakefield time-domain simulation
+run = False
+if run:
     solver.wakesolve(wakelength=wakelength, add_space=add_space,
-                    plot=False, plot_every=50, save_J=True,
-                    use_etd=False,
-                    **plotkw2D)
+                    plot=True, plot_every=30, plot_until=3000,
+                    save_J=False, **plotkw2D)
 
 # Run only electromagnetic time-domain simulation
 runEM = False
 if runEM:
-    from sources import Beam
+    from wakis.sources import Beam
     beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
                 xsource=xs, ysource=ys)
 
     solver.emsolve(Nt=8000, source=beam,
-                   plot2d=True, plot_every=100, 
+                   plot=True, plot_every=100, 
                    **plotkw2D)
 
- # Or, load previous results
-if run is False and runEM is False:
+# Or, load previous results
+run = False
+if run:
     wake.solve()
     #wake.load_results(folder='results/')
 
 #-------------- Compare with CST -------------
 
 #--- Longitudinal wake and impedance ---
-plot = True
+plot = False
 if plot:
     # CST wake
     cstWP = wake.read_txt('cst/WP_wl10000.txt')
@@ -126,6 +153,36 @@ if plot:
     fig.savefig('results/benchmark.png')
 
     plt.show()
+
+plot = False
+if plot:
+    wake.f = np.abs(wake.f)
+    zmax = solver.z.max() + solver.add_space*solver.dz
+    zmin = solver.z.min() - solver.add_space*solver.dz
+    end = 3000*solver.dt*wake.v - (zmax-zmin) + wake.ti*wake.v
+
+    for n in range(3000,35500,500):
+
+        part = n*solver.dt*wake.v - (zmax-zmin) + wake.ti*wake.v
+        end = part
+
+        fig, ax = plt.subplots(1,1, figsize=[8,4], dpi=150)
+        ax.plot(wake.s[wake.s < part]*1e2, wake.WP[wake.s < part], c='r', lw=1.5, label='Wakis')
+        ax.set_xlabel('s [cm]')
+        ax.set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+        ax.set_xlim(xmin=wake.s.min()*1e2, xmax=end*1.05*1e2)
+        ax.set_ylim(ymin=-wake.WP.max(), ymax=wake.WP.max())
+
+        axx = ax.twinx()
+        axx.plot(wake.s[wake.s < part]*1e2, wake.lambdas[wake.s < part], c='darkorange')
+        axx.set_ylabel('Beam current density [C/m]', color='darkorange')
+        axx.set_ylim(ymin=-wake.lambdas.max(), ymax=wake.lambdas.max())
+
+        fig.tight_layout()
+        fig.savefig(f'img/WP_{str(n).zfill(5)}.png')
+        plt.close()
+
+        #plt.show()
 
 #--- 1d Ez field ---
 plot = False
