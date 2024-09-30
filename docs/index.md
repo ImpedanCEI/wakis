@@ -18,7 +18,8 @@ sd_hide_title: true
 * 100% python, fully exposed API (material tensors, fields $E$, $H$, $J$). Matrix operators based on `numpy` and `scipy.sparse` routines ensure fast calculations.
 * 1d, 2d, 3d built-in plotting on-the-fly
 * Optimized memory consumption
-* GPU acceleration: *coming soon*
+* GPU acceleration using cupy/cupyx
+* Perfect matching layer (PML) coming soon!
 
 The source code is available in the `wakis` [GitHub repository](https://github.com/ImpedanCEI/wakis).
 
