@@ -35,7 +35,7 @@ jobs:
     - name: pip install
       run:  |
         pip install wakis
-        pip install matplotlib, pytest
+        pip install matplotlib pytest
     - name: Print versions
       run: conda list        
     - name: Run pytest
