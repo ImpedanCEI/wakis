@@ -1,25 +1,18 @@
 # This is a basic workflow that is manually triggered
 
-name: Manual workflow
+name: manual_tests_CPU
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
-    inputs:
-      name:
-        description: 'marker'
-        default: 'not-slow'
-        required: true
-        type: string
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  tests:
+  run_tests:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    
+
     # Make the default shell a login shell, so that conda is initialised properly
     defaults:
       run:
@@ -34,9 +27,15 @@ jobs:
         python-version: "3.10"
     - name: pip install
       run:  |
-        pip install wakis
+        pip install numpy==1.24.2 scipy h5py 'pyvista[all,trame]' tqdm
         pip install matplotlib pytest
     - name: Print versions
-      run: conda list        
+      run: conda list
+    - name: Checkout wakis
+      uses: actions/checkout@v4
+      with:
+        path: wakis
     - name: Run pytest
-      run: python -m pytest --color=yes -v tests -m ${{ inputs.marker }}
+      run:  |
+        cd wakis
+        python -m pytest --color=yes -v -s tests -m "not interactive"
