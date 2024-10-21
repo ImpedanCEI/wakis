@@ -273,7 +273,6 @@ class PlotMixin:
             self.plotter_active = False
 
         if not self.plotter_active:
-
             pl = pv.Plotter(off_screen=off_screen, lighting='none')
             light = pv.Light(light_type='headlight')
             pl.add_light(light)
