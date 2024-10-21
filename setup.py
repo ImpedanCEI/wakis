@@ -46,7 +46,7 @@ setup(
 		"Topic :: Scientific/Engineering :: Physics",
         ],
     install_requires=[
-        'numpy<=2.0',
+        'numpy<2.0',
         'scipy',
         'pyvista',
         'h5py',
