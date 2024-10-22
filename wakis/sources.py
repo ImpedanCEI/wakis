@@ -14,6 +14,7 @@ every simulation timestep, e.g.:
 '''
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.constants import mu_0, c as c_light 
 
 class Beam:
@@ -101,7 +102,7 @@ class PlaneWave:
                 self.f = self.nodes/T
 
             self.vp = self.beta*c_light  # wavefront velocity beta*c
-            self.w = 2*np.pi*self.f           # ang. frequency  
+            self.w = 2*np.pi*self.f      # ang. frequency  
             self.kz = self.w/c_light     # wave number   
             self.is_first_update = False
 
@@ -109,8 +110,8 @@ class PlaneWave:
         solver.E[self.xs,self.ys,self.zs,'x'] = 1.0 * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
 
 class WavePacket:
-    def __init__(self, xs=None, ys=None, 
-                 sigmaz=None, sigmaxy=None, 
+    def __init__(self, xs=None, ys=None, zs=0,
+                 sigmaz=None, sigmaxy=None, tinj=None,
                  wavelength=None, f=None, beta=1.0):
         '''
         Updates E and H fields every timestep to
@@ -120,11 +121,15 @@ class WavePacket:
         Parameters
         ----
         xs, ys: slice, default 0:N
-            Transverse positions of the source [m]
+            Transverse positions of the source [index]
+        zs: int, default 0
+            Longitudinal position of the source [index]
         sigmaz: float, default 10*dz
             Longitudinal gaussian sigma [m]
         sigmaxy: float, default 5*dx
             Longitudinal gaussian sigma [m]
+        tinj:
+            Injection time delay [m], default 6*sigmaz
         wavelength: float, default 10*dz
             Wave packet wavelength [m] f=c/wavelength
         f: float, default None
@@ -135,10 +140,20 @@ class WavePacket:
 
         self.beta = beta
         self.xs, self.ys = xs, ys
+        self.zs = zs
         self.f = f
         self.wavelength = wavelength
         self.sigmaxy = sigmaxy 
-        self.sigmaz = sigmaz   
+        self.sigmaz = sigmaz
+        self.tinj = tinj   
+
+        if self.f is None:
+            self.f = c_light/self.wavelength
+        self.w = 2*np.pi*self.f
+
+        if self.tinj is None:
+            self.tinj = 6*self.sigmaz
+
         self.is_first_update = True
 
     def update(self, solver, t):
@@ -153,24 +168,46 @@ class WavePacket:
                 self.sigmaz = 10*solver.dz
             if self.sigmaxy is None: 
                 self.sigmaxy = 5*solver.dx
-            if self.f is None:
-                self.f = c_light/self.wavelength
-            else: self.f = f
-            self.w = 2*np.pi*self.f 
+            if self.tinj is None:
+                self.tinj = 6*self.sigmaz
+
+            self.is_first_update = False
         
         # reference shift
-        s0 = self.z.min()-6*self.sigmaz
-        s = self.z.min()-self.beta*c_light*t
-        self.is_first_update = False
+        s0 = solver.z.min()-self.tinj
+        s = solver.z.min()-self.beta*c_light*t
     
         # 2d gaussian
-        X, Y = np.meshgrid(self.x, self.y)
+        X, Y = np.meshgrid(solver.x, solver.y)
         gaussxy = np.exp(-(X**2+Y**2)/(2*self.sigmaxy**2))
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
         # Update
-        self.H[self.xs,self.ys,0,'y'] = -1.0*np.cos(self.w*t)*gaussxy*gausst
-        self.E[self.xs,self.ys,0,'x'] = 1.0*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
+        solver.H[self.xs,self.ys,self.zs,'y'] = -1.0*np.cos(self.w*t)*gaussxy*gausst
+        solver.E[self.xs,self.ys,self.zs,'x'] = 1.0*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
+
+    def plot(self, t, zmin=0):
+        fig, ax = plt.subplots()
+
+        # compute source evolution
+        s0 = zmin-self.tinj
+        s = zmin-self.beta*c_light*t
+        gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
+
+        sourceH = -1.0*np.cos(self.w*t)*gausst
+        ax.plot(t, sourceH, 'b')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Magnetic field Hy [A/m]', color='b')
+        ax.set_ylim(-np.abs(sourceH).max(), +np.abs(sourceH).max())
+
+        sourceE = 1.0*mu_0*c_light*np.cos(self.w*t)*gausst
+        axx = ax.twinx()
+        axx.plot(t, sourceE, 'r')
+        axx.set_ylabel('Electric field Ex [V/m]', color='r')
+        axx.set_ylim(-np.abs(sourceE).max(), +np.abs(sourceE).max())
+
+        fig.tight_layout()
+        plt.show()
 
 class Dipole:
     def __init__(self, field='E', component='z',
