@@ -580,7 +580,7 @@ class PlotMixin:
         else:
             plt.show(block=False)
 
-    def plot1D(self, field='E', component='z', line=None, pos=0.5, 
+    def plot1D(self, field='E', component='z', line='z', pos=0.5, 
                xscale='linear', yscale='linear', xlim=None, ylim=None, 
                figsize=[8,4], title=None, off_screen=False, n=None, **kwargs):
         '''
@@ -594,6 +594,14 @@ class PlotMixin:
         component: str, default 'z'
             Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
             if a component is defined in field
+        line: str or list, default 'z'
+            line of indexes to plot. E.g. line=[0, slice(10,Ny-10), 0]
+        pos: float, default 0.5
+            Float 0-1 indicating the cut position. Only used if line is str.
+        xlim, ylim: tupple
+            limits for x and y axis (see matplotlib.ax.set_xlim for more)
+        xscale, yscale: str
+            scale to use in x and y axes (see matplotlib.ax.set_xscale for more)
         figsize: list, default [8,4]    
             Figure size to pass to the plot initialization
         title: str, optional
@@ -636,14 +644,14 @@ class PlotMixin:
                 xlims = (self.z[z].min(), self.z[z].max())
             
             #x-axis
-            if type(line[0]) is slice:  
+            elif type(line[0]) is slice:  
                 cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
                 xax = 'x'
                 xx = self.x[x]
                 xlims = (self.x[x].min(), self.x[x].max())
 
             #y-axis
-            if type(line[2]) is slice:  
+            elif type(line[1]) is slice:  
                 cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
                 xax = 'y'
                 xx = self.y[y]
