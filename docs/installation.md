@@ -6,8 +6,15 @@ The installation guide is writen for Linux, but `wakis` code and dependencies ar
 
 ## Installing from Github
 
-This is the recommended installation for developers. To start using wakis, you can `git clone`it from the main repository:
+### For users
+`wakis` is now deployed to [PyPI](https://pypi.org/project/wakis/) and can be installed through pip:
+```
+pip install wakis
+```
+You can also upgrade to the latest version frequently by doing `pip install wakis --upgrade`
 
+### For developers
+To start using wakis and access the python scripts that compose the code, you can `git clone`it from the main repository:
 ```
 # SSH:
 git clone git@github.com:ImpedanCEI/FITwakis.git
@@ -16,7 +23,12 @@ git clone git@github.com:ImpedanCEI/FITwakis.git
 git clone https://github.com/ImpedanCEI/FITwakis.git
 ```
 
-However, if you would like to improve and make changes in `wakis`, we encorage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
+On a previously created conda environment, one can proceed installing the dependencies. On  `wakis` main directory do:
+```
+pip install -r requirements.txt
+```
+
+If you would like to improve and make changes in `wakis`, we encorage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
 
 To contribute, first fork the repository, create a new branch, and submit a pull request. Step-by-step:
 
@@ -47,7 +59,7 @@ pip install -r requirements.txt
 
 ## Python installation
 
-If a python installation has not been setuo yet, we recommend using [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. Miniconda can be installed and activated by:
+If a python installation has not been setup yet, we recommend using [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. Miniconda can be installed and activated by:
 
 ```
 # get, install and activate miniconda
@@ -60,11 +72,27 @@ conda create --name wakis-env python=3.9
 conda activate wakis-env
 ```
 
-Once the conda environment is created, one can proceed with the dependencies. On  `wakis` main directory do:
-
+## GPU setup
+`wakis` uses `cupy` to access GPU acceleration with the supported NVIDIA GPUs (more info in [Cupy's website](https://cupy.dev/)).
+Provided a compatible [NVIDIA CUDA GPU](https://developer.nvidia.com/cuda-gpus) or [AMD ROCm GPUs](https://www.amd.com/en/products/graphics/desktops/radeon.html) with the adequate drivers & Toolkit, one can install `cupy` from pip:
 ```
-pip install ipython
-pip install -r requirements.txt
+# For CUDA 11.2 ~ 11.x
+pip install cupy-cuda11x
+
+# For CUDA 12.x
+pip install cupy-cuda12x
+
+# For AMD ROCm 4.3
+pip install cupy-rocm-4-3
+
+# For AMD ROCm 5.0
+pip install cupy-rocm-5-0
+```
+
+The toolkits can be installed using `conda-forge` and `mamba` or from the source. Notice the version compatibility between GPU drivers and Toolkit to [choose the adequate version](https://docs.nvidia.com/deeplearning/cudnn/latest/reference/support-matrix.html):
+```
+conda install mamba -n base -c conda-forge
+mamba install cudatoolkit=11.8.0
 ```
 
 
