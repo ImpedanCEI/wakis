@@ -116,7 +116,7 @@ class GridFIT3D:
         self.tL.field_x = tX[1:, 1:, 1:] - tX[:-1, :-1, :-1]
         self.tL.field_y = tY[1:, 1:, 1:] - tY[:-1, :-1, :-1]
         self.tL.field_z = tZ[1:, 1:, 1:] - tZ[:-1, :-1, :-1]
-        self.tL.inspect('XY')
+
         self.itA = Field(self.Nx, self.Ny, self.Nz)
         aux = self.tL.field_y * self.tL.field_z
         self.itA.field_x = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
