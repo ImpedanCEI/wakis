@@ -7,9 +7,9 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from mpl_toolkits.mplot3d import Axes3D
 sys.path.append('../')
 
-from solverFIT3D import SolverFIT3D
-from gridFIT3D import GridFIT3D 
-from sources import Pulse
+from wakis.solverFIT3D import SolverFIT3D
+from wakis.gridFIT3D import GridFIT3D 
+from wakis.sources import Pulse
 
 # ---------- Domain setup ---------
 n_pml = 0
@@ -23,11 +23,11 @@ Nz = 20
 bcx = 'pml'
 bcy = 'pec'
 bc_low=[bcx, bcy, 'pec']
-bc_high=[bcx, bcy, 'pec']
+bc_high=['pec', bcy, 'pec']
 
 if bcx == 'pml':
     bcx += 'v3'
-    n_pml = 30
+    n_pml = 10
     Nx += n_pml
 
 # set grid 
@@ -36,17 +36,19 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz)
 
 # set solver
 solver = SolverFIT3D(grid, dt=0.5*grid.dx/c_light,
-                     bc_low=bc_low, bc_high=bc_high)
+                     bc_low=bc_low, bc_high=bc_high,
+                     n_pml=n_pml)
 
 # set source
-source = Pulse(field='Ez', 
+source = Pulse(field='Ez', amplitude=1.0,
                xs=25+n_pml, ys=100, zs=slice(0,Nz), #zs=int(Nz/2),
                shape='harris', L=50*solver.dx)
+
 
 # ------------ Time loop ----------------
 run = True
 if run:
-    Nt = 200 
+    Nt = 200 + 40
     plot = True
     for n in tqdm(range(Nt)):
         # Advance
@@ -66,7 +68,7 @@ if run:
                     title='imgEpml/Ez', off_screen=True, n=n, interpolation='spline36')
 
     # Plot 2D
-    plot = False
+    plot = True
     if plot:
         Y_r, X_r = np.meshgrid(solver.y, solver.x)
         #hf = h5py.File(f'Ez_test_pec.h5', 'r')
@@ -112,7 +114,7 @@ hres = h5py.File('R.h5', 'w')
 hres[bcx] = R
 hres.close()
 
-plot = True
+plot = False
 if plot:
     Y_r, X_r = np.meshgrid(solver.y, solver.x[0+n_pml:76+n_pml])
     field = np.abs(R)

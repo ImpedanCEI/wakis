@@ -7,9 +7,9 @@ from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from mpl_toolkits.mplot3d import Axes3D
 sys.path.append('../')
 
-from solverFIT3D import SolverFIT3D
-from gridFIT3D import GridFIT3D 
-from sources import Pulse
+from wakis.solverFIT3D import SolverFIT3D
+from wakis.gridFIT3D import GridFIT3D 
+from wakis.sources import Pulse
 
 # ---------- Domain setup ---------
 
@@ -60,7 +60,7 @@ for n in tqdm(range(Nt)):
 
 
 # Save
-hf = h5py.File('Ez.h5', 'w')
+hf = h5py.File('Ez_ref.h5', 'w')
 hf['x'], hf['y'], hf['z'] = solver.x, solver.y, solver.z
 hf['t'] = np.arange(0, Nt*solver.dt, solver.dt)
 hf['Ez'] = solver.E[:,:,int(Nz/2),'z']

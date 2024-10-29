@@ -28,7 +28,7 @@ class SolverFIT3D(PlotMixin):
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, use_gpu=False,
-                 bg=[1.0, 1.0], verbose=1):
+                 bg=[1.0, 1.0], verbose=1, n_pml=10):
         '''
         Class holding the 3D time-domain electromagnetic solver 
         algorithm based on the Finite Integration Technique (FIT)
@@ -158,7 +158,7 @@ class SolverFIT3D(PlotMixin):
         if verbose: print('Applying boundary conditions...')
         self.bc_low = bc_low
         self.bc_high = bc_high
-        self.npml = 10
+        self.n_pml = n_pml
 
         self.apply_bc_to_C() 
 
@@ -714,51 +714,52 @@ class SolverFIT3D(PlotMixin):
 
         # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            #sx[0:self.n_pml] = eps_0/(2*self.dt)*((self.x[self.n_pml] - self.x[:self.n_pml])/(self.n_pml*self.dx))**pml_exp
+            sx[0:self.n_pml] = np.linspace(1.e-1, 1.e-4, self.n_pml)**pml_exp
             for d in ['x', 'y', 'z']:
-                for i in range(self.npml):
+                for i in range(self.n_pml):
                     self.sigma[i, :, :, d] = sx[i]
-                    if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
+                    #if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
-            sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
+            sy[0:self.n_pml] = 1/(2*self.dt)*((self.y[self.n_pml] - self.y[:self.n_pml])/(self.n_pml*self.dy))**pml_exp
             for d in ['x', 'y', 'z']:
-                for j in range(self.npml):
+                for j in range(self.n_pml):
                     self.sigma[:, j, :, d] = sy[j]
                     if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
 
         if self.bc_low[2].lower() == 'pml':
-            #sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
-            sz[0:self.npml] = 2*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
+            #sz[0:self.n_pml] = eps_0/(2*self.dt)*((self.z[self.n_pml] - self.z[:self.n_pml])/(self.n_pml*self.dz))**pml_exp
+            sz[0:self.n_pml] = 2*((self.z[self.n_pml] - self.z[:self.n_pml])/(self.n_pml*self.dz))**pml_exp
             for d in ['x', 'y', 'z']:
-                for k in range(self.npml):
+                for k in range(self.n_pml):
                     self.sigma[:, :, k, d] = sz[k]
-                    if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.npml])*eps_0) 
+                    #if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.n_pml])*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
-            sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
+            sx[-self.n_pml:] = 1/(2*self.dt)*((self.x[-self.n_pml:] - self.x[-self.n_pml])/(self.n_pml*self.dx))**pml_exp
             for d in ['x', 'y', 'z']:
-                for i in range(self.npml):
+                for i in range(self.n_pml):
                     i +=1
-                    self.sigma[-i, :, :, 'x'] = sx[-i]
+                    self.sigma[-i, :, :, 'x'] = 0.#sx[-i]
                     if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
 
         if self.bc_high[1].lower() == 'pml':
-            sy[-self.npml:] = 1/(2*self.dt)*((self.y[-self.npml:] - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
+            sy[-self.n_pml:] = 1/(2*self.dt)*((self.y[-self.n_pml:] - self.y[-self.n_pml])/(self.n_pml*self.dy))**pml_exp
             for d in ['x', 'y', 'z']:
-                for j in range(self.npml):
+                for j in range(self.n_pml):
                     j +=1
                     self.sigma[:, -j, :, d] = sy[-j]
                     if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
 
         if self.bc_high[2].lower() == 'pml':
-            #sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
-            sz[-self.npml:] = 2*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            #sz[-self.n_pml:] = eps_0/(2*self.dt)*((self.z[-self.n_pml:] - self.z[-self.n_pml])/(self.n_pml*self.dz))**pml_exp
+            sz[-self.n_pml:] = 2*((self.z[-self.n_pml:] - self.z[-self.n_pml])/(self.n_pml*self.dz))**pml_exp
             for d in ['x', 'y', 'z']:
-                for k in range(self.npml):
+                for k in range(self.n_pml):
                     k +=1
                     self.sigma[:, :, -k, d] = sz[-k]
-                    self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.npml:])*eps_0)
+                    self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.n_pml:])*eps_0)
 
 
     def update_abc(self):
