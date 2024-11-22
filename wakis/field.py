@@ -284,7 +284,7 @@ class Field:
             else:
                 return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
-    def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False):
+    def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False, **kwargs):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -323,10 +323,10 @@ class Field:
                 field = field.get()
 
             if transpose:
-                im[d] = axs[d].imshow(field[x,y,z].T, cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
+                im[d] = axs[d].imshow(field[x,y,z].T, cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower', **kwargs)
 
             else:
-                im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower')
+                im[d] = axs[d].imshow(field[x,y,z], cmap=cmap, vmin=-field.max(), vmax=field.max(), extent=extent, origin='lower', **kwargs)
 
         for i, ax in enumerate(axs):
             ax.set_title(f'Field {dims[i]}, plane {plane}')
