@@ -11,7 +11,9 @@ The installation guide is writen for Linux, but `wakis` code and dependencies ar
 ```
 pip install wakis
 ```
-You can also upgrade to the latest version frequently by doing `pip install wakis --upgrade`
+You can also upgrade to the latest version frequently by doing `pip install wakis --upgrade`. 
+
+To use `wakis` in python notebooks, the option `pip install wakis['notebook']` is preferred. 
 
 ### For developers
 To start using wakis and access the python scripts that compose the code, you can `git clone`it from the main repository:
@@ -95,6 +97,25 @@ conda install mamba -n base -c conda-forge
 mamba install cudatoolkit=11.8.0
 ```
 
+## Python Notebooks troubleshooting
+
+### Matplotlib interactive plots
+Within jupyter notebooks, in order to be able to zoom and interact with matplotlib figures, one needs to use notebook magic commands `%`. 
+* The recommended one for Jupyter notebooks on the web is `%matplotlib widget`
+* The recommended one for Jupyter notebooks on VS Code in `%matplotlib ipympl`
+
+The package `ipympl`can be easily installed using `pip install ipympl`
+
+### PyVista interactive plots
+To be able to render 3D interactive plots in Jupyter notebooks, it is recommended to use the `wakis['notebook']` pip installation. 
+
+Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `libGL error` is installing a new driver within your condaenvironment with:
+
+```
+conda install -c conda-forge::lidstdcxx-ng
+```
+
+----
 
 [PyVista](https://github.com/pyvista/pyvista) a python package for 3D plotting and mesh analysis through a streamlined interface for the Visualization Toolkit (VTK) [^1]. 
 We rely on [PyVista](https://github.com/pyvista/pyvista) to import CAD/STL geometry as embedded boundaries or/and as solids with different materials into the domain. This allows `wakis` to efficiently render 3D plots of the electromagnetic fields and visualize the computational mesh interactively.
