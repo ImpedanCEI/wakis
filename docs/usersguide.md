@@ -391,7 +391,7 @@ plt.plot(wake.f, np.real(wake.Z)) #plot real part
 plt.plot(wake.f, np.imag(wake.Z)) #plot imaginary part
 plt.plot(wake.f, np.abs(wake.Z))  #plot absolute
 
-# re-calculate longitudinal impedance from the wake.WPx and WPy result
+# re-calculate transverse impedance from the wake.WPx and WPy result
 wake.calc_trans_Z(samples=10001, fmax=2e9)
 plt.plot(wake.f, np.abs(wake.Zx)) #plot absolute of Zx
 plt.plot(wake.f, np.abs(wake.Zy)) #plot absolute of Zy
