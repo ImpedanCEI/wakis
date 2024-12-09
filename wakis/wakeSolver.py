@@ -658,6 +658,76 @@ class WakeSolver():
         if self.save:
             np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
 
+    @staticmethod
+    def calc_impedance_from_wake(wake, s=None, t=None, fmax=None, 
+                                    samples=1001, verbose=True):
+        if len(wake) == 2:
+            t = wake[0]
+            wake = wake[1]   
+        if s is not None:
+            t = s/c_light
+        elif s is None and t is None:
+            raise AttributeError('Provide time data through parameter "t" [s] or "s" [m]')
+        dt = np.mean(t[1:]-t[:-1])
+
+        # Maximum frequency: fmax = 1/dt
+        if fmax is not None:
+            aux = np.arange(t.min(), t.max(), 1/fmax/2)
+            wake = np.interp(aux, t, wake)
+            dt = np.mean(aux[1:]-aux[:-1]); del aux
+        else: fmax = 1/dt
+        # Time resolution: fres=(1/len(wake)/dt/2)
+
+        # Obtain DFTs 
+        Wfft = np.fft.fft(wake, n=2*samples+1) 
+        ffft = np.fft.fftfreq(len(Wfft), dt)
+
+        # Mask invalid frequencies
+        mask  = np.logical_and(ffft >= 0 , ffft < fmax)
+        Z = Wfft[mask]
+        f = ffft[mask]            # Positive frequencies
+
+        if verbose:
+            print(f'* Number of samples = {len(f)}')
+            print(f'* Maximum frequency = {f.max()} Hz')
+            print(f'* Maximum resolution = {np.mean(f[1:]-f[:-1])} Hz')
+
+        return [f, Z]
+    
+    @staticmethod
+    def calc_wake_from_impedance(impedance, f=None, tmax=None, tres=None, pad=0, verbose=True):
+        
+        if len(impedance) == 2:
+            f = impedance[0]
+            Z = impedance[1]
+        elif f is None:
+            raise AttributeError('Provide frequency data through parameter "f"')
+        else: 
+            Z = impedance
+        df = np.mean(f[1:]-f[:-1])
+
+        # Maximum time: tmax = 1/(f[2]-f[1])
+        if tmax is not None:
+            aux = np.arange(f.min(), f.max(), 1/tmax)
+            Z = np.interp(aux, f, Z)
+            df = np.mean(aux[1:]-aux[:-1]); del aux
+        else: tmax = 1/df
+
+        # Time resolution: tres=(1/len(Z)/(f[2]-f[1]))
+        if tres is not None:
+            pad = int(1/df/tres - len(Z))
+
+        # Inverse fourier transform of impedance
+        wake = np.real(np.fft.ifft(np.pad(Z, pad)))
+        t = np.linspace(0, tmax, len(wake))
+
+        if verbose:
+            print(f'* Number of samples = {len(t)}')
+            print(f'* Maximum time = {t.max()} s')
+            print(f'* Maximum resolution = {np.mean(t[1:]-t[:-1])} s')
+
+        return [t, wake]
+
     def read_Ez(self, filename=None, return_value=False):
         '''
         Read the Ez.h5 file containing the Ez field information
