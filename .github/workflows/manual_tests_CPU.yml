@@ -1,6 +1,6 @@
 # This is a basic workflow that is manually triggered
 
-name: manual_tests_CPU
+name: manual_tests_CPU_python10
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
@@ -28,7 +28,6 @@ jobs:
     - name: pip install
       run:  |
         pip install wakis['notebook']
-        conda install conda-forge::libstdcxx-ng
 
     - name: Print versions
       run: conda list
@@ -39,4 +38,4 @@ jobs:
     - name: Run pytest
       run:  |
         cd wakis
-        python -m pytest --color=yes -v -s tests -m "not interactive"
+        python -m pytest --color=yes -v -s tests
