@@ -12,7 +12,7 @@ from wakis.sources import PlaneWave
 
 import pytest 
 
-flag_interactive = False
+flag_interactive = False # Set to true to run PyVista tests
 
 class TestPlanewave:
     def test_simulation(self):
@@ -87,7 +87,8 @@ class TestPlanewave:
             add_stl='Sphere', stl_opacity=0.1, stl_colors='white',
             clip_interactive=True, clip_normal='-y',
             off_screen=False)  
-         
+        
+    @pytest.mark.skipif(not flag_interactive, reason="Requires Xserver connection for plotting")     
     def test_plot3D_offscreen(self):
         global solver
         solver.plot3D(field='H', component='y', cmap='bwr',
@@ -106,6 +107,7 @@ class TestPlanewave:
                            clip_interactive=True, clip_normal='-y',
                            off_screen=False, zoom=1.0)
         
+    @pytest.mark.skipif(not flag_interactive, reason="Requires Xserver connection for plotting")
     def test_plot3DonSTL_offscreen(self):
         global solver
         solver.plot3DonSTL('Ex', cmap='jet', 
