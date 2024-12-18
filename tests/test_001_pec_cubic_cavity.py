@@ -95,7 +95,7 @@ class TestPecCubicCavity:
         global wake 
         wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
                     xsource=xs, ysource=ys, xtest=xt, ytest=yt,
-                    save=False, logfile=False, Ez_file='001_Ez.h5')
+                    save=False, logfile=False, Ez_file='tests/001_Ez.h5')
 
         # boundary conditions
         bc_low=['pec', 'pec', 'pec']
@@ -109,7 +109,7 @@ class TestPecCubicCavity:
         wakelength = 1. #[m]
         add_space = 12  # no. cells
         solver.wakesolve(wakelength=wakelength, add_space=add_space, save_J=False)
-        os.remove('001_Ez.h5')
+        os.remove('tests/001_Ez.h5')
 
     def test_long_wake_potential(self):
         global wake
