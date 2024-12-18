@@ -13,16 +13,16 @@ pip install wakis
 ```
 You can also upgrade to the latest version frequently by doing `pip install wakis --upgrade`. 
 
-To use `wakis` in python notebooks, the option `pip install wakis['notebook']` is preferred. 
+To use `wakis` in python notebooks, the option `pip install wakis['notebook']` is preferred. See the section on [troubleshooting](#python-notebooks-troubleshooting) if an error pops up when rendering 3D plots.
 
 ### For developers
 To start using wakis and access the python scripts that compose the code, you can `git clone`it from the main repository:
 ```
 # SSH:
-git clone git@github.com:ImpedanCEI/FITwakis.git
+git clone git@github.com:ImpedanCEI/wakis.git
 
 # or HTTPS:
-git clone https://github.com/ImpedanCEI/FITwakis.git
+git clone https://github.com/ImpedanCEI/wakis.git
 ```
 
 On a previously created conda environment, one can proceed installing the dependencies. On  `wakis` main directory do:
@@ -53,7 +53,7 @@ To contribute, first fork the repository, create a new branch, and submit a pull
 * `tqdm`: This package is used for displaying progress bars in loops.
 * `pyvista`: For handling and visualizing 3D CAD geometries and vtk-based 3D plotting.
 
-To install the dependencies in a conda python environment, simply run:
+To install only the dependencies in a conda python environment, simply run:
 
 ```
 pip install -r requirements.txt
@@ -112,7 +112,7 @@ To be able to render 3D interactive plots in Jupyter notebooks, it is recommende
 Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `libGL error` is installing a new driver within your condaenvironment with:
 
 ```
-conda install -c conda-forge::lidstdcxx-ng
+conda install conda-forge::libstdcxx-ng
 ```
 
 ----
