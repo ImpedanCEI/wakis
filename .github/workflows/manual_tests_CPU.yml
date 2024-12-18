@@ -27,8 +27,7 @@ jobs:
         python-version: "3.10"
     - name: pip install
       run:  |
-        pip install numpy==1.24.2 scipy h5py 'pyvista[all,trame]' tqdm
-        pip install matplotlib pytest
+        pip install wakis['notebook']
     - name: Print versions
       run: conda list
     - name: Checkout wakis
