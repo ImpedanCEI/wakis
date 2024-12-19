@@ -2,11 +2,10 @@
 
 name: nightly_tests_CPU_python10
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
+# Controls when the action will run. CRON schedule runs at mm hh dd mm yy UTC TIME
 on:
   schedule:
-    - cron: "30 10 * * *"
+    - cron: "40 9 * * *"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
