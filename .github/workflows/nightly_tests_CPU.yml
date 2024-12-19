@@ -6,7 +6,7 @@ name: nightly_tests_CPU_python10
 # or API.
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "30 10 * * *"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
