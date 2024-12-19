@@ -6,8 +6,8 @@
 ![Tests badge](https://github.com/impedanCEI/wakis/actions/workflows/nightly_tests_CPU.yml/badge.svg)
 
 ![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=blue)
-![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=pink)
-![Tokei - LOC](https://tokei.rs/b1/github/ImpedanCEI/wakis?category=code?/style=square&color=green)
+![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=purple)
+![Tokei - LOC](https://tokei.rs/b1/github/ImpedanCEI/wakis?category=code?/style=square&color=fuchsia)
 
 
 
