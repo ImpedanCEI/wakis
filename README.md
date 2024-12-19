@@ -3,11 +3,13 @@
 > **Wak**e and **I**mpedance **S**olver
 
 [![Documentation Status](https://readthedocs.org/projects/wakis/badge/?version=latest)](https://wakis.readthedocs.io/en/latest/?badge=latest)
-![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=green)
+![Tests badge](https://github.com/impedanCEI/wakis/actions/workflows/nightly_tests_CPU.yml/badge.svg)
+
+![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=blue)
 ![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=pink)
 ![Tokei - LOC](https://tokei.rs/b1/github/ImpedanCEI/wakis?category=code?/style=square&color=green)
 
-![Tests badge](https://github.com/impedanCEI/wakis/actions/workflows/nightly_tests_CPU.yml/badge.svg)
+
 
 `wakis` is a **3D Time-domain Electromagnetic solver** that solves the Integral form of Maxwell's equations using the Finite Integration Technique (FIT) numerical method. It computes the longitudinal and transverse **wake potential and beam-coupling impedance** from the simulated electric and magnetic fields. It is also a multi-purpose solver, capable of simulating planewaves interaction with nano-structures, optical diffraction, and much more!
 
