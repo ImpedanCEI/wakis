@@ -4,6 +4,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/wakis/badge/?version=latest)](https://wakis.readthedocs.io/en/latest/?badge=latest)
 ![Tests badge](https://github.com/impedanCEI/wakis/actions/workflows/nightly_tests_CPU.yml/badge.svg)
+[![codecov](https://codecov.io/github/elenafuengar/wakis/graph/badge.svg?token=7QPYJC23A0)](https://codecov.io/github/elenafuengar/wakis)
 
 ![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=blue)
 ![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=pink)
