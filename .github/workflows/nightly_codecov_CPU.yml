@@ -5,7 +5,7 @@ name: nighlty_codecov
 # Controls when the action will run. CRON schedule runs at mm hh dd mm yy UTC TIME
 on:
   workflow_dispatch:
-
+  
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   run_tests:
@@ -39,6 +39,7 @@ jobs:
         cd wakis
         pytest --cov --cov-report=xml
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV }}
+        slug: ImpedanCEI/wakis
