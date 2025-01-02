@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, consider cite it as below to support open-source science"
+authors:
+- family-names: "de la Fuente Garcia"
+  given-names: "Elena"
+  orcid: "https://orcid.org/0009-0004-5649-2160"
+title: "Wakis"
+version: 0.4.0
+doi: 10.5281/zenodo.14589714
+date-released: 01-01-2025
+url: "https://github.com/ImpedanCEI/wakis"
