@@ -660,8 +660,8 @@ class WakeSolver():
 
     @staticmethod
     def calc_impedance_from_wake(wake, s=None, t=None, fmax=None, 
-                                    samples=1001, verbose=True):
-        if len(wake) == 2:
+                                    samples=None, verbose=True):
+        if type(wake) == list:
             t = wake[0]
             wake = wake[1]   
         if s is not None:
@@ -677,14 +677,18 @@ class WakeSolver():
             dt = np.mean(aux[1:]-aux[:-1]); del aux
         else: fmax = 1/dt
         # Time resolution: fres=(1/len(wake)/dt/2)
-
+        
         # Obtain DFTs 
-        Wfft = np.fft.fft(wake, n=2*samples+1) 
+        if samples is not None:
+            Wfft = np.fft.fft(wake, n=2*samples) 
+        else:
+            Wfft = np.fft.fft(wake) 
+
         ffft = np.fft.fftfreq(len(Wfft), dt)
 
         # Mask invalid frequencies
         mask  = np.logical_and(ffft >= 0 , ffft < fmax)
-        Z = Wfft[mask]
+        Z = Wfft[mask]/len(wake)*2
         f = ffft[mask]            # Positive frequencies
 
         if verbose:
@@ -695,7 +699,8 @@ class WakeSolver():
         return [f, Z]
     
     @staticmethod
-    def calc_wake_from_impedance(impedance, f=None, tmax=None, tres=None, pad=0, verbose=True):
+    def calc_wake_from_impedance(impedance, f=None, tmax=None, 
+                                samples=None, pad=0, verbose=True):
         
         if len(impedance) == 2:
             f = impedance[0]
@@ -714,11 +719,11 @@ class WakeSolver():
         else: tmax = 1/df
 
         # Time resolution: tres=(1/len(Z)/(f[2]-f[1]))
-        if tres is not None:
-            pad = int(1/df/tres - len(Z))
-
+        # pad = int(1/df/tres - len(Z))
+        # wake = np.real(np.fft.ifft(np.pad(Z, pad)))
+        wake = np.real(-1*np.fft.fft(Z, n=samples))
+        wake = np.roll(wake,-1)
         # Inverse fourier transform of impedance
-        wake = np.real(np.fft.ifft(np.pad(Z, pad)))
         t = np.linspace(0, tmax, len(wake))
 
         if verbose:
