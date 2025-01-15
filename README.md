@@ -24,7 +24,7 @@
 * 100% python, fully exposed API (material tensors, fields $E$, $H$, $J$). Matrix operators based on `numpy` and `scipy.sparse` routines ensure fast calculations.
 * 1d, 2d, 3d built-in plotting on-the-fly
 * Optimized memory consumption
-* GPU acceleration using cupy/cupyx
+* GPU acceleration using `cupy/cupyx`
 * Perfect matching layer (PML) *coming soon!*
 
 ## How to use
@@ -47,11 +47,11 @@ For specific needs, please contact the developer :woman_technologist: :wave:
 ## Motivation
 The determination of electromagnetic wakefields and their impact on accelerator performance is a significant issue in current accelerator components. These wakefields, which are generated within the accelerator vacuum chamber as a result of the interaction between the structure and a passing beam, can have significant effects on the machine. 
 These effects can be characterized through the beam coupling impedance in the frequency domain and wake potential in the time domain. Accurate evaluation of these properties is essential for predicting dissipated power and maintaining beam stability. 
-`wakis` is an open-source tool that can compute wake potential and impedance for both longitudinal and transverse planes for general 3D structures. `wakis` was first presented at IPAC23 conference as a post-processing tool: 
+`wakis` is an open-source tool that can compute wake potential and impedance for both longitudinal and transverse planes for general 3D structures. 
 
-* https://doi.org/10.18429/JACoW-IPAC2023-WEPL170
+* `wakis` was first presented at IPAC23 conference as a post-processing tool: https://doi.org/10.18429/JACoW-IPAC2023-WEPL170
   
-It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver.
+* It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the 14th International Computational Accelerator Physics Conference (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
 
 ## Installation
 This section explains how to set up the environment to start using `wakis` 3d electromagnetic time domain simulations, and beam-coupling impedance computations
