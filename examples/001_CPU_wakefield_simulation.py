@@ -158,13 +158,13 @@ fig2.savefig('001_results/001_transverse_x.png')
 
 # Plot transverse y wake potential and impedance
 fig3, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WPx, c='r', lw=1.5, label='Wakis')
+ax[0].plot(wake.s*1e2, wake.WPy, c='r', lw=1.5, label='Wakis')
 ax[0].set_xlabel('s [cm]')
 ax[0].set_ylabel('Transverse wake potential Y [V/pC]', color='r')
 ax[0].legend()
 ax[0].set_xlim(xmax=wakelength*1e2)
 
-ax[1].plot(wake.f*1e-9, np.abs(wake.Zx), c='b', lw=1.5, label='Wakis')
+ax[1].plot(wake.f*1e-9, np.abs(wake.Zy), c='b', lw=1.5, label='Wakis')
 ax[1].set_xlabel('f [GHz]')
 ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
 ax[1].legend()
@@ -173,3 +173,10 @@ fig3.tight_layout()
 fig3.savefig('001_results/001_transverse_y.png')
 #plt.show()
 
+# Plot Abs Electric field on STL solid `cavity`
+solver.plot3DonSTL('E', component='Abs', cmap='rainbow', clim=[0, 500],
+    stl_with_field='cavity', field_opacity=1.0,
+    stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
+    clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
+    off_screen=True, zoom=1.2, title='001_img/Ez3d')
+        
