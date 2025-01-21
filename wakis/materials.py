@@ -22,7 +22,6 @@ Format (conductive):
 '''
 
 import numpy as np
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 
 material_lib = {
     'pec' : [np.inf, 1.],
@@ -31,5 +30,17 @@ material_lib = {
 
     'dielectric' : [10., 1.0],
     
-    'metal' : [10, 1.0, 10],
+    'lossy metal' : [10, 1.0, 10],
+}
+
+material_colors = {
+    'pec' : 'silver',
+
+    'vacuum' : 'tab:blue',
+
+    'dielectric' : 'tab:green',
+
+    'lossy metal' : 'tab:orange',
+
+    'other' : 'white',
 }
