@@ -21,7 +21,7 @@ stl_materials = {'cavity': 'vacuum',
                  'shell': [30, 1.0, 30]
                  }
 
-# BONUS: Visualize geomEtry - Uncomment for plotting!
+# BONUS: Visualize geometry - Uncomment for plotting!
 # pl = pv.Plotter()
 # pl.add_mesh(pv.read(solid_1),color='tab:orange', specular=0.5, smooth_shading=True)
 # pl.add_mesh(pv.read(solid_2),color='tab:blue', opacity=0.5, specular=0.5, smooth_shading=True)
@@ -48,9 +48,10 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax,
                 verbose=1)
 
 # BONUS: Visualize grid - Uncomment for plotting!
-# grid.inspect(add_stl=[solid_1, solid_2],
-#              stl_colors=['tab:orange', 'tab:blue'],
-#              stl_opacity=1.0)
+# grid.inspect(add_stl=[solid_1, solid_2], stl_opacity=1.0)
+
+# BONUS: Visualize imported solids - Uncomment for plotting!
+grid.plot_solids()
 
 # ------------ Beam source & Wake ----------------
 # Beam parameters
