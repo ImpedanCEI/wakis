@@ -190,6 +190,11 @@ solver.plot2D(field='E', component='z',
               off_screen=True, title='001_img/Ez2d')
 #plt.show()
 
+
+# BONUS: Generate an animation from the plots generated during the simulation
+#        Needs imagemagick package -> `apt install imagemagick`
+# os.system('convert -loop 0 -delay 5 001_img/Ez_*.png 001_img/Ez_sim.gif')
+
 # ----------- 3d plots results --------------------
 # Plot Electric field component in 3D using pyvista.plotter
 solver.plot3D('E', component='Abs', 
