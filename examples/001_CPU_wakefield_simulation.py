@@ -86,7 +86,7 @@ if not os.path.exists('001_img/'):
     os.mkdir('001_img/')
 
 plotkw2D = {'title':'001_img/Ez', 
-            'add_patch':['cavity'], 'patch_alpha':1.0,
+            'add_patch':'cavity', 'patch_alpha':1.0,
             'patch_reverse' : True,  # patch logical_not('cavity')
             'vmin':-1e3, 'vmax':1e3, # colormap limits
             'cmap': 'rainbow',
@@ -120,8 +120,7 @@ solver.wakesolve(wakelength=wakelength,
                  plot_every=30, plot_until=3000, **plotkw2D
                  )
 
-# ----------- Results --------------------
-
+# ----------- 1d plot results --------------------
 # Plot longitudinal wake potential and impedance
 fig1, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
 ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='Wakis')
@@ -173,10 +172,36 @@ fig3.tight_layout()
 fig3.savefig('001_results/001_transverse_y.png')
 #plt.show()
 
+# Plot Electric field component in 2D using imshow
+solver.plot1D(field='E', component='z', 
+              line='z', pos=0.5, xscale='linear', yscale='linear',
+              off_screen=True, title='001_img/Ez1d')
+#plt.show()
+
+# ----------- 2d plots results --------------------
+from matplotlib.colors import LinearSegmentedColormap
+cmap = LinearSegmentedColormap.from_list('name', plt.cm.jet(np.linspace(0.1, 0.9))) # CST's colormap
+
+# Plot Electric field component in 2D using imshow
+solver.plot2D(field='E', component='z', 
+              plane='XY', pos=0.5, 
+              cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
+              add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
+              off_screen=True, title='001_img/Ez2d')
+#plt.show()
+
+# ----------- 3d plots results --------------------
+# Plot Electric field component in 3D using pyvista.plotter
+solver.plot3D('E', component='Abs', 
+              cmap='rainbow', clim=[0, 500],
+              add_stl=['cavity', 'shell'], stl_opacity=0.1,
+              clip_interactive=True, clip_normal='-y')
+
 # Plot Abs Electric field on STL solid `cavity`
-solver.plot3DonSTL('E', component='Abs', cmap='rainbow', clim=[0, 500],
-    stl_with_field='cavity', field_opacity=1.0,
-    stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-    clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
-    off_screen=True, zoom=1.2, title='001_img/Ez3d')
+solver.plot3DonSTL('E', component='Abs', 
+                   cmap='rainbow', clim=[0, 500],
+                   stl_with_field='cavity', field_opacity=1.0,
+                   stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
+                   #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
+                   off_screen=False, zoom=1.2, title='001_img/Ez3d')
         
