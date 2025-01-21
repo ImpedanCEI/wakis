@@ -196,18 +196,4 @@ solver.plot2D(field='E', component='z',
 #        Needs imagemagick package -> `apt install imagemagick`
 # os.system('convert -loop 0 -delay 5 001_img/Ez_*.png 001_img/Ez_sim.gif')
 
-# ----------- 3d plots results --------------------
-# Plot Electric field component in 3D using pyvista.plotter
-solver.plot3D('E', component='Abs', 
-              cmap='rainbow', clim=[0, 500],
-              add_stl=['cavity', 'shell'], stl_opacity=0.1,
-              clip_interactive=True, clip_normal='-y')
-
-# Plot Abs Electric field on STL solid `cavity`
-solver.plot3DonSTL('E', component='Abs', 
-                   cmap='rainbow', clim=[0, 500],
-                   stl_with_field='cavity', field_opacity=1.0,
-                   stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-                   #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
-                   off_screen=False, zoom=1.2, title='001_img/Ez3d')
         
