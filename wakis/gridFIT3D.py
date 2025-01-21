@@ -49,7 +49,7 @@ class GridFIT3D:
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
-                verbose=1, tol=1e-3):
+                stl_colors=None, verbose=1, tol=1e-3):
         
         self.verbose = verbose
 
@@ -76,6 +76,7 @@ class GridFIT3D:
         self.stl_rotate = stl_rotate
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
+        self.stl_colors = stl_colors
 
         # primal Grid G
         self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
@@ -128,6 +129,9 @@ class GridFIT3D:
         
         if stl_solids is not None:
             self.mark_cells_in_stl()
+
+        if stl_colors is None:
+            self.assign_colors()
 
     def mark_cells_in_stl(self):
 
@@ -190,7 +194,54 @@ class GridFIT3D:
 
         return surf
     
-    def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors='white'):
+    def assign_colors(self):
+        '''Classify colors assigned to each solid
+        based on the categories in `material_colors` dict
+        inside `materials.py`
+        '''
+        self.stl_colors = {}
+
+        for key in self.stl_solids:
+            mat = self.stl_materials[key]
+            if type(mat) is str:
+                self.stl_colors[key] = mat
+            elif len(mat) == 2: 
+                if mat[0] is np.inf:  #eps_r
+                    self.stl_colors[key] = 'pec'
+                elif mat[0] > 1.0:    #eps_r
+                    self.stl_colors[key] = 'dielectric'
+                else:
+                    self.stl_colors[key] = 'vacuum'
+            elif len(mat) == 3:
+                self.stl_colors[key] = 'lossy metal'
+            else:
+                self.stl_colors[key] = 'other'
+
+    def plot_solids(self, **kwargs):
+        '''3D plot using pyvista to visualize 
+        the imported stl geometries 
+
+        * Colors are controlled by `stl_colors` dictionary
+        * `**kwargs` are passed to pyvista.add_mesh()
+        '''
+
+        from .materials import material_colors
+        pl = pv.Plotter()
+
+        for key in self.stl_solids:
+            color = material_colors[self.stl_colors[key]]
+            if self.stl_colors[key] == 'vacuum':
+                opacity = 0.5
+            else:
+                opacity = 1.0
+            pl.add_mesh(self.read_stl(key), color=color, 
+                        opacity=opacity, specular=0.5, smooth_shading=True,
+                        **kwargs)
+        
+        pl.set_background('mistyrose', top='white')
+        pl.show()
+
+    def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None):
         '''3D plot using pyvista to visualize 
         the structured grid and
         the imported stl geometries
@@ -204,6 +255,9 @@ class GridFIT3D:
         stl_colors: str or list of str, default 'white'
             Color of the stl surfaces
         '''
+
+        if stl_colors is None:
+            stl_colors = self.stl_colors
 
         pl = pv.Plotter()
         pl.add_mesh(self.grid, show_edges=True, cmap=['white', 'white'], name='grid')
@@ -220,29 +274,37 @@ class GridFIT3D:
             pl.add_mesh(grid, show_edges=True, cmap=['white', 'white'], name='grid')
             
             # Plot stl surface(s)
-            if add_stl is not None:
+            if add_stl is not None: #add 1 selected stl solid
                 if type(add_stl) is str:
                     key = add_stl
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
-                    pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                    if stl_colors is None:
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                    else:
+                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
 
-                elif type(add_stl) is list:
+                elif type(add_stl) is list: #add selected list of stl solids
                     for i, key in enumerate(add_stl):
                         surf = self.read_stl(key)
                         surf = surf.clip_box(widget.bounds, invert=False)
-                        if type(stl_colors) is list:
+                        if type(stl_colors) is dict:
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         else:
-                            pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
-            else:
+                            pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+            
+            else: #add all stl solids
                 for i, key in enumerate(self.stl_solids):
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
-                    if type(stl_colors) is list:
+                    if type(stl_colors) is dict:
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                    elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
-                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
 
         _ = pl.add_box_widget(callback=clip, rotation_enabled=False)
 
@@ -250,7 +312,7 @@ class GridFIT3D:
         pl.camera_position = 'zx'
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
-        pl.background_color = "grey"
+        pl.set_background('mistyrose', top='white')
         #pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_3_lights()
