@@ -98,7 +98,9 @@ class PlotMixin:
             pl.camera_position = 'zx'
             pl.camera.azimuth += 30
             pl.camera.elevation += 30
-            #pl.background_color = "grey"
+            pl.set_background('mistyrose', top='white')
+            try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except: pass
             pl.camera.zoom(zoom)
             pl.add_axes()
             pl.enable_3_lights()
@@ -386,7 +388,9 @@ class PlotMixin:
         pl.camera_position = 'zx'
         pl.camera.azimuth += 20
         pl.camera.elevation += 30
-        #pl.background_color = "grey"
+        pl.set_background('mistyrose', top='white')
+        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+        except: pass
         pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_anti_aliasing()
