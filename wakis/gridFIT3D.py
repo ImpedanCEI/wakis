@@ -8,7 +8,6 @@ import pyvista as pv
 
 from .field import Field
 
-
 class GridFIT3D:
     """
     Class holding the grid information and 
@@ -238,6 +237,8 @@ class GridFIT3D:
                         **kwargs)
         
         pl.set_background('mistyrose', top='white')
+        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+        except: pass
         pl.show()
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None):
@@ -254,7 +255,7 @@ class GridFIT3D:
         stl_colors: str or list of str, default 'white'
             Color of the stl surfaces
         '''
-
+        from .materials import material_colors
         if stl_colors is None:
             stl_colors = self.stl_colors
 
@@ -279,7 +280,7 @@ class GridFIT3D:
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
                     if stl_colors is None:
-                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
                         pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
 
@@ -288,7 +289,7 @@ class GridFIT3D:
                         surf = self.read_stl(key)
                         surf = surf.clip_box(widget.bounds, invert=False)
                         if type(stl_colors) is dict:
-                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         else:
@@ -299,7 +300,7 @@ class GridFIT3D:
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
                     if type(stl_colors) is dict:
-                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
@@ -312,6 +313,8 @@ class GridFIT3D:
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
         pl.set_background('mistyrose', top='white')
+        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+        except: pass
         #pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_3_lights()
