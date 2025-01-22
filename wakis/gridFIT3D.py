@@ -129,9 +129,8 @@ class GridFIT3D:
         
         if stl_solids is not None:
             self.mark_cells_in_stl()
-
-        if stl_colors is None:
-            self.assign_colors()
+            if stl_colors is None:
+                self.assign_colors()
 
     def mark_cells_in_stl(self):
 
