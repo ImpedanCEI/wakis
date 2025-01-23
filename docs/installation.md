@@ -109,7 +109,7 @@ The package `ipympl`can be easily installed using `pip install ipympl`
 ### PyVista interactive plots
 To be able to render 3D interactive plots in Jupyter notebooks, it is recommended to use the `wakis['notebook']` pip installation. 
 
-Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `libGL error` is installing a new driver within your conda environment with:
+Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `MESA-loader` or `libGL error` is installing a new driver within your conda environment with:
 
 ```
 conda install conda-forge::libstdcxx-ng
