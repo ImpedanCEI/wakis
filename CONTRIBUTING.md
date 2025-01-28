@@ -53,10 +53,9 @@ Wakis is an open-source code developed and maintained at CERN. It aims to be a p
 We recommend the following workflow:
 * Create a fork: https://github.com/ImpedanCEI/wakis/fork 
 * Commit your contributions to your fork
-* If any feature is added, it needs a test! Inside the `tests/` folder, add a reproducible piece of code that can check to correct functionality of your feature
-
-
-
+* If any feature is added, it needs a test! Inside the `tests/` folder, add a reproducible piece of code that can check the correct functionality of your feature. 
+* Run your new `test_00x_your feature.py` together with all other Wakis tests by doing `pytest -v -s`. All tests must be passing before your feature can be merged!
+* Last step is to open a pull request on https://github.com/ImpedanCEI/wakis/pulls. The maintainer will review and approve your contribution and it will be available for the next package relase 🎉
 
 ### Reporting Bugs
 
