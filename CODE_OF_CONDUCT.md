@@ -1,3 +1,22 @@
+# Contributing to Wakis
+
+First off, thanks for taking the time to contribute! ❤️ For a complete guide on how to contribute with new features, report bugs or open issues, please refer to our [CONTRIBUTING.md](https://github.com/ImpedanCEI/wakis/blob/main/CONTRIBUTING.md). Find a quick snippet below:
+
+> ### Legal Notice <!-- omit in toc -->
+> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project licence.
+
+### Your first code contribution
+Wakis is an open-source code developed and maintained at CERN. It aims to be a platform for the electromagnetism and accelerator community to use and improve with each individual expertise. Therefore, if you as a user feel you can improve the code, we would be very grateful to review and accept pull-requests!
+
+:::success
+We recommend the following workflow:
+* Create a fork: https://github.com/ImpedanCEI/wakis/fork 
+* Commit your contributions to your fork
+* If any feature is added, it needs a test! Inside the `tests/` folder, add a reproducible piece of code that can check the correct functionality of your feature. 
+* Run your new `test_00x_your feature.py` together with all other Wakis tests by doing `pytest -v -s`. All tests must be passing before your feature can be merged!
+* Last step is to open a pull request on https://github.com/ImpedanCEI/wakis/pulls. The maintainer will review and approve your contribution and it will be available for the next package relase 🎉
+:::
+
 # Code of Conduct - Wakis
 
 ## Our Pledge
