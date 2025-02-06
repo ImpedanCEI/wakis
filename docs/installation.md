@@ -115,6 +115,13 @@ Some driver problems may arise depending on pre-installed versions. One way of s
 conda install conda-forge::libstdcxx-ng
 ```
 
+If you're in a headless environment (e.g., remote server, openstack machine), forcing OSMesa (Off-Screen Mesa) rendering might help:
+
+```python
+import os
+os.environ['PYVISTA_USE_OSMESA'] = 'True'
+```
+
 ----
 
 [PyVista](https://github.com/pyvista/pyvista) a python package for 3D plotting and mesh analysis through a streamlined interface for the Visualization Toolkit (VTK) [^1]. 
