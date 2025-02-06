@@ -215,7 +215,8 @@ class GridFIT3D:
             else:
                 self.stl_colors[key] = 'other'
 
-    def plot_solids(self, **kwargs):
+    def plot_solids(self, bounding_box=False, anti_aliasing='ssaa', 
+                    **kwargs):
         '''3D plot using pyvista to visualize 
         the imported stl geometries 
 
@@ -224,10 +225,15 @@ class GridFIT3D:
         '''
 
         from .materials import material_colors
+        
         pl = pv.Plotter()
-
+        pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
-            color = material_colors[self.stl_colors[key]]
+            try:
+                color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
+            except: 
+                color = self.stl_colors[key] # specifies color e.g. 'tab:red'
+                
             if self.stl_colors[key] == 'vacuum':
                 opacity = 0.5
             else:
@@ -239,9 +245,20 @@ class GridFIT3D:
         pl.set_background('mistyrose', top='white')
         try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
         except: pass
+        pl.camera_position = 'zx'
+        pl.camera.azimuth += 30
+        pl.camera.elevation += 30
+        pl.add_axes()
+        pl.enable_anti_aliasing(anti_aliasing)
+
+        if bounding_box:
+            pl.add_bounding_box()
+            
         pl.show()
 
-    def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None):
+    def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
+                anti_aliasing='ssaa'):
+        
         '''3D plot using pyvista to visualize 
         the structured grid and
         the imported stl geometries
@@ -259,6 +276,7 @@ class GridFIT3D:
         if stl_colors is None:
             stl_colors = self.stl_colors
 
+        pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
         pl.add_mesh(self.grid, show_edges=True, cmap=['white', 'white'], name='grid')
         
@@ -318,4 +336,5 @@ class GridFIT3D:
         #pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_3_lights()
+        pl.enable_anti_aliasing('ssaa')
         pl.show()
