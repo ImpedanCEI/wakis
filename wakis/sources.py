@@ -62,7 +62,8 @@ class Beam:
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
 
 class PlaneWave:
-    def __init__(self, xs=None, ys=None, zs=0, nodes=15, f=None, beta=1.0):
+    def __init__(self, xs=None, ys=None, zs=0, nodes=15, f=None, 
+                 amplitude=1.0, beta=1.0):
         '''
         Updates the fields E and H every timestep 
         to introduce a planewave excitation at the given 
@@ -89,6 +90,7 @@ class PlaneWave:
         self.xs, self.ys = xs, ys
         self.zs = zs
         self.f = f
+        self.amplitude = amplitude
         self.is_first_update = True
      
     def update(self, solver, t):
@@ -106,13 +108,14 @@ class PlaneWave:
             self.kz = self.w/c_light     # wave number   
             self.is_first_update = False
 
-        solver.H[self.xs,self.ys,self.zs,'y'] = -1.0 * np.cos(self.w*t) 
-        solver.E[self.xs,self.ys,self.zs,'x'] = 1.0 * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
+        solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude * np.cos(self.w*t) 
+        solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
 
 class WavePacket:
     def __init__(self, xs=None, ys=None, zs=0,
                  sigmaz=None, sigmaxy=None, tinj=None,
-                 wavelength=None, f=None, beta=1.0):
+                 wavelength=None, f=None, 
+                 amplitude=1.0, beta=1.0):
         '''
         Updates E and H fields every timestep to
         introduce a 2d gaussian wave packetat the 
@@ -145,7 +148,8 @@ class WavePacket:
         self.wavelength = wavelength
         self.sigmaxy = sigmaxy 
         self.sigmaz = sigmaz
-        self.tinj = tinj   
+        self.tinj = tinj  
+        self.amplitude = amplitude 
 
         if self.f is None:
             self.f = c_light/self.wavelength
@@ -183,8 +187,8 @@ class WavePacket:
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
         # Update
-        solver.H[self.xs,self.ys,self.zs,'y'] = -1.0*np.cos(self.w*t)*gaussxy*gausst
-        solver.E[self.xs,self.ys,self.zs,'x'] = 1.0*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
+        solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude*np.cos(self.w*t)*gaussxy*gausst
+        solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
 
     def plot(self, t, zmin=0):
         fig, ax = plt.subplots()
@@ -194,13 +198,13 @@ class WavePacket:
         s = zmin-self.beta*c_light*t
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
-        sourceH = -1.0*np.cos(self.w*t)*gausst
+        sourceH = -self.amplitude*np.cos(self.w*t)*gausst
         ax.plot(t, sourceH, 'b')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Magnetic field Hy [A/m]', color='b')
         ax.set_ylim(-np.abs(sourceH).max(), +np.abs(sourceH).max())
 
-        sourceE = 1.0*mu_0*c_light*np.cos(self.w*t)*gausst
+        sourceE = self.amplitude*mu_0*c_light*np.cos(self.w*t)*gausst
         axx = ax.twinx()
         axx.plot(t, sourceE, 'r')
         axx.set_ylabel('Electric field Ex [V/m]', color='r')
