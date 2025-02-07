@@ -109,8 +109,7 @@ class GridFIT3D:
         self.ty = np.append(self.ty, self.ty[-1])
         self.tz = np.append(self.tz, self.tz[-1])
 
-        tX, tY, tZ = np.meshgrid(self.x, self.y, self.z, indexing='ij')
-        #self.tgrid = pv.StructuredGrid(tX.transpose(), tY.transpose(), tZ.transpose())
+        tX, tY, tZ = np.meshgrid(self.tx, self.ty, self.tz, indexing='ij')
 
         self.tL = Field(self.Nx, self.Ny, self.Nz)
         self.tL.field_x = tX[1:, 1:, 1:] - tX[:-1, :-1, :-1]
