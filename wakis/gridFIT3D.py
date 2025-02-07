@@ -336,5 +336,5 @@ class GridFIT3D:
         #pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_3_lights()
-        pl.enable_anti_aliasing('ssaa')
+        pl.enable_anti_aliasing(anti_aliasing)
         pl.show()
