@@ -598,8 +598,8 @@ class SolverFIT3D(PlotMixin):
             self.itDa = diags(self.itA.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
 
         # Dirichlet PEC: tangential E field = 0 at boundary
-        if any(True for x in self.bc_low if x.lower() in ('electric','pec','pml')):
-    
+        if any(True for x in self.bc_low if x.lower() in ('electric','pec','pml')) \
+           or any(True for x in self.bc_high if x.lower() in ('electric','pec','pml')):
             if self.bc_low[0].lower() in ('electric','pec', 'pml'):
                 xlo = 0
             if self.bc_low[1].lower() in ('electric','pec', 'pml'):
@@ -637,8 +637,8 @@ class SolverFIT3D(PlotMixin):
 
 
         # Dirichlet PMC: tangential H field = 0 at boundary
-        if any(True for x in self.bc_low if x.lower() == 'magnetic' or x.lower() == 'pmc'):
-
+        if any(True for x in self.bc_low if x.lower() in ('magnetic','pmc')) \
+           or any(True for x in self.bc_high if x.lower() in ('magnetic','pmc')):
             if self.bc_low[0].lower() == 'magnetic' or self.bc_low[0] == 'pmc':
                 xlo = 0
             if self.bc_low[1].lower() == 'magnetic' or self.bc_low[1] == 'pmc':
@@ -675,7 +675,8 @@ class SolverFIT3D(PlotMixin):
             self.C = self.Dbc*self.C
 
         # Absorbing boundary conditions ABC
-        if any(True for x in self.bc_low if x.lower() == 'abc'):
+        if any(True for x in self.bc_low if x.lower() == 'abc') \
+           or any(True for x in self.bc_high if x.lower() == 'abc'):
             if self.bc_high[0].lower() == 'abc':
                 self.tL[-1, :, :, 'x'] = self.L[0, :, :, 'x']
                 self.itA[-1, :, :, 'y'] = self.iA[0, :, :, 'y']
@@ -696,7 +697,8 @@ class SolverFIT3D(PlotMixin):
             self.activate_abc = True
 
         # Perfect Matching Layers (PML)
-        if any(True for x in self.bc_low if x.lower() == 'pml'):
+        if any(True for x in self.bc_low if x.lower() == 'pml') \
+           or any(True for x in self.bc_high if x.lower() == 'pml'):
             self.activate_pml = True
             self.use_conductivity = True
 
@@ -714,51 +716,55 @@ class SolverFIT3D(PlotMixin):
 
         # Fill
         if self.bc_low[0].lower() == 'pml':
-            sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            #sx[0:self.npml] = eps_0/(2*self.dt)*((self.x[self.npml] - self.x[:self.npml])/(self.npml*self.dx))**pml_exp
+            sx[0:self.npml] = np.linspace( np.sqrt(1.e-1), np.sqrt(1.e-4), self.npml)
             for d in ['x', 'y', 'z']:
                 for i in range(self.npml):
                     self.sigma[i, :, :, d] = sx[i]
-                    if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
+                    #if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
-            sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
+            #sy[0:self.npml] = 1/(2*self.dt)*((self.y[self.npml] - self.y[:self.npml])/(self.npml*self.dy))**pml_exp
+            sy[0:self.npml] = np.linspace( np.sqrt(1.e-1), np.sqrt(1.e-4), self.npml)
             for d in ['x', 'y', 'z']:
                 for j in range(self.npml):
                     self.sigma[:, j, :, d] = sy[j]
-                    if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
+                    #if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
 
         if self.bc_low[2].lower() == 'pml':
             #sz[0:self.npml] = eps_0/(2*self.dt)*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
-            sz[0:self.npml] = 2*((self.z[self.npml] - self.z[:self.npml])/(self.npml*self.dz))**pml_exp
+            sz[0:self.npml] = np.linspace( np.sqrt(1.e-1), np.sqrt(1.e-4), self.npml)
             for d in ['x', 'y', 'z']:
                 for k in range(self.npml):
                     self.sigma[:, :, k, d] = sz[k]
-                    if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.npml])*eps_0) 
+                    #if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.npml])*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
-            sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
+            #sx[-self.npml:] = 1/(2*self.dt)*((self.x[-self.npml:] - self.x[-self.npml])/(self.npml*self.dx))**pml_exp
+            sx[-self.npml:] = np.linspace( np.sqrt(1.e-4), np.sqrt(1.e-1), self.npml)
             for d in ['x', 'y', 'z']:
                 for i in range(self.npml):
                     i +=1
                     self.sigma[-i, :, :, 'x'] = sx[-i]
-                    if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
+                    #if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
 
         if self.bc_high[1].lower() == 'pml':
-            sy[-self.npml:] = 1/(2*self.dt)*((self.y[-self.npml:] - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
+            #sy[-self.npml:] = 1/(2*self.dt)*((self.y[-self.npml:] - self.y[-self.npml])/(self.npml*self.dy))**pml_exp
+            sy[-self.npml:] = np.linspace( np.sqrt(1.e-4), np.sqrt(1.e-1), self.npml)
             for d in ['x', 'y', 'z']:
                 for j in range(self.npml):
                     j +=1
                     self.sigma[:, -j, :, d] = sy[-j]
-                    if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
+                    #if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
 
         if self.bc_high[2].lower() == 'pml':
             #sz[-self.npml:] = eps_0/(2*self.dt)*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
-            sz[-self.npml:] = 2*((self.z[-self.npml:] - self.z[-self.npml])/(self.npml*self.dz))**pml_exp
+            sz[-self.npml:] = np.linspace( np.sqrt(1.e-4), np.sqrt(1.e-1), self.npml)
             for d in ['x', 'y', 'z']:
                 for k in range(self.npml):
                     k +=1
                     self.sigma[:, :, -k, d] = sz[-k]
-                    self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.npml:])*eps_0)
+                    #self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.npml:])*eps_0)
 
 
     def update_abc(self):
