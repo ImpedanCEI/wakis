@@ -27,6 +27,7 @@
 * GPU acceleration using `cupy/cupyx`
 * Perfect matching layer (PML) 
 * Wakefield extrapolation with PIML [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX) evolutionary algorithm
+* Non-equidistant Filon Fourier integration with [`neffint`](https://github.com/ImpedanCEI/neffint)
 * Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
 
 ## How to use
