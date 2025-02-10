@@ -5,6 +5,7 @@
 
 
 import numpy as xp
+import copy
 
 try:
     import cupy as xp_gpu
@@ -252,6 +253,20 @@ class Field:
         return 'x:\n' + self.field_x.__str__() + '\n'+  \
                 'y:\n' + self.field_y.__str__() + '\n'+ \
                 'z:\n' + self.field_z.__str__()
+    
+    def copy(self):
+        import copy
+        obj = type(self).__new__(self.__class__)  # Create empty instance
+
+        for key, value in self.__dict__.items():
+            if key == "xp":
+                obj.xp = self.xp  # Just copy reference, no need for deepcopy
+            elif key == "array" and self.on_gpu:
+                obj.array = self.xp.array(self.array)  # Ensure CuPy array is copied properly
+            else:
+                obj.__dict__[key] = copy.deepcopy(value)
+
+        return obj
 
     def compute_ijk(self, n):
         if n > (self.N):
