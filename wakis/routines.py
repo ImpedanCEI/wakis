@@ -147,7 +147,8 @@ class RoutinesMixin():
 
     def wakesolve(self, wakelength, wake=None, 
                   save_J=False, add_space=None, use_etd=False,
-                  plot=False, plot_every=1, plot_until=None, **kwargs):
+                  plot=False, plot_from=None, plot_every=1, plot_until=None, 
+                  **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
         wake potential WP(s) and impedance Z(s). 
@@ -266,6 +267,7 @@ class RoutinesMixin():
             update = self.one_step
 
         if plot_until is None: plot_until = Nt
+        if plot_from is None: plot_from = int(self.ti/self.dt)
 
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
@@ -283,7 +285,7 @@ class RoutinesMixin():
             
             # Plot
             if plot:
-                if n%plot_every == 0 and n<plot_until and n>int(self.ti/self.dt):
+                if n%plot_every == 0 and n<plot_until and n>plot_from:
                     self.plot2D(field='E', component='z', n=n, **plotkw)
                 else:
                     pass
