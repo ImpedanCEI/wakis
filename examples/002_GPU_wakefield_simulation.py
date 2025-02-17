@@ -18,7 +18,7 @@ stl_solids = {'cavity': solid_1,
               }
 
 stl_materials = {'cavity': 'vacuum', 
-                 'shell': [30, 1.0, 30]
+                 'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
                  }
 
 # BONUS: Visualize geomEtry - Uncomment for plotting!
