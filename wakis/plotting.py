@@ -545,7 +545,7 @@ class PlotMixin:
                                interpolation=interpolation)  
                               
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'FIT {field}{component}{cut}')
+        ax.set_title(f'Wakis {field}{component}{cut}')
         ax.set_xlabel(xax)
         ax.set_ylabel(yax)
 
@@ -714,7 +714,7 @@ class PlotMixin:
                 ax.plot(xx, self.J[x, y, z, component], **plotkw)
                 yax = f'J{component} amplitude'
                               
-        ax.set_title(f'FIT {field}{component}{cut}')
+        ax.set_title(f'Wakis {field}{component}{cut}')
         ax.set_xlabel(xax)
         ax.set_ylabel(yax, color=plotkw['c'])
         ax.set_xlim(xlims)
