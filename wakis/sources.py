@@ -62,8 +62,8 @@ class Beam:
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
 
 class PlaneWave:
-    def __init__(self, xs=None, ys=None, zs=0, nodes=15, f=None, 
-                 amplitude=1.0, beta=1.0):
+    def __init__(self, xs=None, ys=None, zs=0, nodes=None, f=None, 
+                 amplitude=1.0, beta=1.0, phase=0):
         '''
         Updates the fields E and H every timestep 
         to introduce a planewave excitation at the given 
@@ -92,30 +92,59 @@ class PlaneWave:
         self.f = f
         self.amplitude = amplitude
         self.is_first_update = True
+        self.phase = phase
      
+        self.vp = self.beta*c_light  # wavefront velocity beta*c
+        self.w = 2*np.pi*self.f      # ang. frequency  
+        self.kz = self.w/c_light     # wave number 
+        self.tmax = np.inf
+
+        if self.nodes is not None:
+            self.tmax = self.nodes/self.f
+
     def update(self, solver, t):
         if self.is_first_update:
             if self.xs is None:
                 self.xs = slice(0, solver.Nx)
             if self.ys is None:
                 self.ys = slice(0, solver.Ny)
-            if self.f is None:
-                T = (solver.z.max()-solver.z.min())/c_light
-                self.f = self.nodes/T
 
-            self.vp = self.beta*c_light  # wavefront velocity beta*c
-            self.w = 2*np.pi*self.f      # ang. frequency  
-            self.kz = self.w/c_light     # wave number   
             self.is_first_update = False
 
-        solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude * np.cos(self.w*t) 
-        solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude * np.cos(self.w*t) /(self.kz/(mu_0*self.vp)) 
+        if t <= self.tmax:
+            solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude * np.cos(self.w*t+self.phase) 
+            solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude * np.cos(self.w*t+self.phase) /(self.kz/(mu_0*self.vp)) 
+        else:
+            solver.H[self.xs,self.ys,self.zs,'y'] = 0.
+            solver.E[self.xs,self.ys,self.zs,'x'] = 0.
+
+    def plot(self, t):
+        fig, ax = plt.subplots()
+
+        sourceH = -self.amplitude * np.cos(self.w*t+self.phase) 
+        sourceE = self.amplitude * np.cos(self.w*t+self.phase) /(self.kz/(mu_0*self.vp)) 
+        
+        sourceH[t>self.tmax] = 0.
+        sourceE[t>self.tmax] = 0.
+
+        ax.plot(t, sourceH, 'b')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Magnetic field Hy [A/m]', color='b')
+        ax.set_ylim(-np.abs(sourceH).max(), +np.abs(sourceH).max())
+
+        axx = ax.twinx()
+        axx.plot(t, sourceE, 'r')
+        axx.set_ylabel('Electric field Ex [V/m]', color='r')
+        axx.set_ylim(-np.abs(sourceE).max(), +np.abs(sourceE).max())
+
+        fig.tight_layout()
+        plt.show()
 
 class WavePacket:
     def __init__(self, xs=None, ys=None, zs=0,
                  sigmaz=None, sigmaxy=None, tinj=None,
                  wavelength=None, f=None, 
-                 amplitude=1.0, beta=1.0):
+                 amplitude=1.0, beta=1.0, phase=0):
         '''
         Updates E and H fields every timestep to
         introduce a 2d gaussian wave packetat the 
@@ -150,6 +179,7 @@ class WavePacket:
         self.sigmaz = sigmaz
         self.tinj = tinj  
         self.amplitude = amplitude 
+        self.phase = phase
 
         if self.f is None:
             self.f = c_light/self.wavelength
@@ -187,9 +217,9 @@ class WavePacket:
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
         # Update
-        solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude*np.cos(self.w*t)*gaussxy*gausst
-        solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude*mu_0*c_light*np.cos(self.w*t)*gaussxy*gausst
-
+        solver.H[self.xs,self.ys,self.zs,'y'] = -self.amplitude*np.cos(self.w*t+self.phase)*gaussxy*gausst
+        solver.E[self.xs,self.ys,self.zs,'x'] = self.amplitude*mu_0*c_light*np.cos(self.w*t+self.phase)*gaussxy*gausst
+    
     def plot(self, t, zmin=0):
         fig, ax = plt.subplots()
 
@@ -198,13 +228,13 @@ class WavePacket:
         s = zmin-self.beta*c_light*t
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 
-        sourceH = -self.amplitude*np.cos(self.w*t)*gausst
+        sourceH = -self.amplitude*np.cos(self.w*t+self.phase)*gausst
         ax.plot(t, sourceH, 'b')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Magnetic field Hy [A/m]', color='b')
         ax.set_ylim(-np.abs(sourceH).max(), +np.abs(sourceH).max())
 
-        sourceE = self.amplitude*mu_0*c_light*np.cos(self.w*t)*gausst
+        sourceE = self.amplitude*mu_0*c_light*np.cos(self.w*t+self.phase)*gausst
         axx = ax.twinx()
         axx.plot(t, sourceE, 'r')
         axx.set_ylabel('Electric field Ex [V/m]', color='r')
@@ -216,7 +246,8 @@ class WavePacket:
 class Dipole:
     def __init__(self, field='E', component='z',
                 xs=None, ys=None, zs=None, 
-                nodes=10, f=None, amplitude=1.0):
+                nodes=10, f=None, amplitude=1.0,
+                phase=0):
         '''
         Updates the fields E and H every timestep 
         to introduce a planewave excitation at the given 
@@ -242,6 +273,7 @@ class Dipole:
         self.field = field
         self.component = component
         self.amplitude = amplitude
+        self.phase = phase
 
         if len(field) == 2: #support for e.g. field='Ex'
             self.component = field[1]
@@ -266,11 +298,11 @@ class Dipole:
             self.is_first_update = False
 
         if self.field == 'E':
-            solver.E[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+            solver.E[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t+self.phase) 
         elif self.field == 'H':
-            solver.H[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+            solver.H[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t+self.phase) 
         elif self.field == 'J':
-            solver.J[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t) 
+            solver.J[self.xs,self.ys,self.zs,self.component] = self.amplitude*np.sin(self.w*t+self.phase) 
         else:
             print(f'Field "{self.field}" not valid, should be "E", "H" or "J"]')
 
