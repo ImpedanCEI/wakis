@@ -210,7 +210,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
-    def update_tensors(self, tensor='ieps'):
+    def update_tensors(self, tensor='all'):
         '''Update tensor matrices after 
         Field ieps, imu or sigma have been modified 
         and pre-compute the time-stepping matrices
