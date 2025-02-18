@@ -64,7 +64,7 @@ class GridFIT3D:
         self.Nz = Nz
         self.dx = (xmax - xmin) / Nx
         self.dy = (ymax - ymin) / Ny
-        self.dz = (ymax - ymin) / Nz
+        self.dz = (zmax - zmin) / Nz
 
         # Compatibility with FDTD grid obj
         self.nx, self.ny, self.nz = Nx, Ny, Nz
