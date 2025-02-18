@@ -54,8 +54,9 @@ class TestPlanewave:
         bc_high=['periodic', 'periodic', 'pec']
         
         # source
+        f = 15/((solver.z.max()-solver.z.min())/c)
         source = PlaneWave(xs=slice(1, Nx-1), ys=slice(1,Ny-1), zs=1, 
-                           nodes=15, beta=1.0)
+                           f=f, beta=1.0)
 
         # simulation
         global solver
