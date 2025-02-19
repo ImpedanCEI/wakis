@@ -31,6 +31,10 @@ material_lib = {
     'dielectric' : [10., 1.0],
     
     'lossy metal' : [10, 1.0, 10],
+
+    'copper' : [5.8e+07, 1.0, 5.8e+07],
+
+    'berillium' : [2.5e+07, 1.0, 2.5e+07],  
 }
 
 material_colors = {
