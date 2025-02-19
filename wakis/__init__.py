@@ -9,6 +9,7 @@ from . import solverFIT3D
 from . import sources
 from . import materials
 from . import wakeSolver
+from . import geometry
 
 from .field import Field
 from .gridFIT3D import GridFIT3D
