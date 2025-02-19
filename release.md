@@ -4,6 +4,9 @@
 ## New Features
 * Perfect Matching Layers (PML) boundary conditions: First version out!
 
+* Geometry import:
+  * Function to read `.STP` files, extracting each solid in an `.STL` file indicating the name and material: `wakis.geometry.extract_stl_solids_from_stp(filename)`
+  
 * Ploting:
     * `solver.plot3DonSTL` Field on STL solid using `pyvista.sample` interpolation algorithm 
         * Interactive plane clipping on `plot3DonSTL`
@@ -13,6 +16,7 @@
 * Sources:
     * Add `plot(t)` method to plot the source over the simulation time `t` 
     * Custom amplitude as an attribute `self.amplitude`.
+    * Custom phase as an attribute `self.phase`
 
 * Wake extrapolation of partially decayed wakes coupling with [`IDDEFIX`]: https://github.com/ImpedanCEI/IDDEFIX: 
     * IDDEFIX is a physics-informed machine learning framework that fits a resonator-based model (parameterized by R, f, Q) to wakefield simulation data using Evolutionary Algorithms. It leverages Differential Evolution to optimize these parameters, enabling efficient classification and extrapolation of electromagnetic wakefield behavior. This allows for reduced simulation time while maintaining long-term accuracy, akin to time-series forecasting in machine learning
