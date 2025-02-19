@@ -51,16 +51,16 @@ class TestPlanewave:
 
         # Boundary conditions and 
         bc_low=['periodic', 'periodic', 'pec']
-        bc_high=['periodic', 'periodic', 'pec']
+        bc_high=['periodic', 'periodic', 'pml']
+        
+        # simulation
+        global solver
+        solver = SolverFIT3D(grid, use_stl=True, bc_low=bc_low, bc_high=bc_high)
         
         # source
         f = 15/((solver.z.max()-solver.z.min())/c)
         source = PlaneWave(xs=slice(1, Nx-1), ys=slice(1,Ny-1), zs=1, 
                            f=f, beta=1.0)
-
-        # simulation
-        global solver
-        solver = SolverFIT3D(grid, use_stl=True, bc_low=bc_low, bc_high=bc_high)
         
         Nt = int(1.0*(solver.z.max()-solver.z.min())/c/solver.dt)
         solver.emsolve(Nt, source)
