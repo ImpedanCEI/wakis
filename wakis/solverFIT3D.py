@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 import numpy as np
 import time
+import h5py
 
 from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
 from scipy.sparse import csc_matrix as sparse_mat
@@ -616,3 +617,77 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         del self.Px, self.Py, self.Pz
         del self.Ds, self.iDa, self.tDs, self.itDa
         del self.C
+
+    def save_state(self, filename="solver_state.h5",
+                   close=True):
+        """Save the solver state to an HDF5 file.
+        
+        This function saves only the key state variables (`H`, `E`, `J`) that are updated
+        in `one_step()`, storing them as datasets in an HDF5 file.
+        
+        Parameters:
+        -----------
+        filename : str, optional
+            The name of the HDF5 file where the state will be stored. Default is "solver_state.h5".
+        close : bool, optional (default=True)
+            - If True, the HDF5 file is closed after saving, and the function returns nothing.
+            - If False, the function returns an open HDF5 file object, which must be closed manually.
+
+        Returns:
+        --------
+        h5py.File or None
+            - If `close=True`, nothing is returned.
+            - If `close=False`, returns an open `h5py.File` object for further manipulation.
+        """
+        state = h5py.File(filename, "w") 
+        
+        state.create_dataset("H", data=self.H.toarray())
+        state.create_dataset("E", data=self.E.toarray())
+        state.create_dataset("J", data=self.J.toarray())
+
+        if close:
+            state.close()
+        else:
+            return state  # Caller must close this manually
+
+    def load_state(self, filename="solver_state.h5"):
+        """Load the solver state from an HDF5 file.
+        
+        Reads the saved state variables (`H`, `E`, `J`) from the specified HDF5 file
+        and restores them to the solver.
+
+        Parameters:
+        -----------
+        filename : str, optional
+            The name of the HDF5 file to load the solver state from. Default is "solver_state.h5".
+
+        Returns:
+        --------
+        None
+        """
+        state = h5py.File(filename, "r")  
+        
+        self.E.fromarray(state["E"][:])
+        self.H.fromarray(state["H"][:])
+        self.J.fromarray(state["J"][:])
+
+        state.close()
+
+    def read_state(self, filename="solver_state.h5"):
+        """Open an HDF5 file for reading without loading its contents.
+
+        This function returns an open `h5py.File` object, allowing the caller
+        to manually inspect or extract data as needed. The file must be closed
+        by the caller after use.
+
+        Parameters:
+        -----------
+        filename : str, optional
+            The name of the HDF5 file to open. Default is "solver_state.h5".
+
+        Returns:
+        --------
+        h5py.File
+            An open HDF5 file object in read mode.
+        """
+        return h5py.File(filename, "r")  
