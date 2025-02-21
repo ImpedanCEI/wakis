@@ -584,9 +584,10 @@ class PlotMixin:
         else:
             plt.show(block=False)
 
-    def plot1D(self, field='E', component='z', line='z', pos=0.5, 
+    def plot1D(self, field='E', component='z', line='z', pos=[0.5], 
                xscale='linear', yscale='linear', xlim=None, ylim=None, 
-               figsize=[8,4], title=None, off_screen=False, n=None, **kwargs):
+               figsize=[8,4], title=None, off_screen=False, n=None,
+               colors=None, **kwargs):
         '''
         Built-in 1D plotting of a field line using matplotlib
         
@@ -600,8 +601,9 @@ class PlotMixin:
             if a component is defined in field
         line: str or list, default 'z'
             line of indexes to plot. E.g. line=[0, slice(10,Ny-10), 0]
-        pos: float, default 0.5
-            Float 0-1 indicating the cut position. Only used if line is str.
+        pos: float or list, default 0.5
+            Float or list of floats betwwen 0-1 indicating the cut position. 
+            Only used if line is str.
         xlim, ylim: tupple
             limits for x and y axis (see matplotlib.ax.set_xlim for more)
         xscale, yscale: str
@@ -618,6 +620,8 @@ class PlotMixin:
             Plot will not be rendered if set to True.
         n: int, optional
             Timestep number to be added to the plot title and figsave title.
+        colors: list, optional
+            List of matplotlib-compatible colors. len(colors) >= len(pos)
         **kwargs:
             Keyword arguments to be passed to the `matplotlib.plot` function.
             Default kwargs used: 
@@ -630,97 +634,121 @@ class PlotMixin:
         ymin, ymax = self.grid.ymin, self.grid.ymax
         zmin, zmax = self.grid.zmin, self.grid.zmax
         
+        plotkw = {'lw':1.2, 'ls':'-'}
+        
+        if colors is None:
+            colors = ['k', 'tab:red', 'tab:blue', 'tab:green', 
+                    'tab:orange', 'tab:purple', 'tab:pink']
+        plotkw.update(kwargs)
+
+        fig, ax = plt.subplots(1,1, figsize=figsize)
+
         if len(field) == 2: #support for e.g. field='Ex'
             component = field[1]
             field = field[0]
         
         if title is None:
-            title = field + component +'2d'
-            
-        if type(line) is not str and len(line) == 3:
-            x, y, z = line[0], line[1], line[2]
+            title = field + component +'1d'
+        
+        if type(pos) is not list: #support for a list of cut positions
+            pos_arr = [pos]
+        else:
+            pos_arr = pos
+        
+        for i, pos in enumerate(pos_arr):
 
-            #z-axis
-            if type(line[2]) is slice:  
-                cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
-                xax = 'z'
-                xx = self.z[z]
-                xlims = (self.z[z].min(), self.z[z].max())
-            
-            #x-axis
-            elif type(line[0]) is slice:  
+            if type(line) is not str and len(line) == 3:
+                x, y, z = line[0], line[1], line[2]
+
+                #z-axis
+                if type(line[2]) is slice:  
+                    cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
+                    xax = 'z'
+                    xx = self.z[z]
+                    xlims = (self.z[z].min(), self.z[z].max())
+                
+                #x-axis
+                elif type(line[0]) is slice:  
+                    cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
+                    xax = 'x'
+                    xx = self.x[x]
+                    xlims = (self.x[x].min(), self.x[x].max())
+
+                #y-axis
+                elif type(line[1]) is slice:  
+                    cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
+                    xax = 'y'
+                    xx = self.y[y]
+                    xlims = (self.y[y].min(), self.y[y].max())
+
+            elif line.lower() == 'x':
+                x, y, z = slice(0,Nx), int(Ny*pos), int(Nz*pos) #x-axis
                 cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
                 xax = 'x'
                 xx = self.x[x]
-                xlims = (self.x[x].min(), self.x[x].max())
+                xlims = (xmin, xmax)
 
-            #y-axis
-            elif type(line[1]) is slice:  
+            elif line.lower() == 'y':
+                x, y, z = int(Nx*pos), slice(0,Ny), int(Nz*pos) #y-axis
                 cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
                 xax = 'y'
                 xx = self.y[y]
-                xlims = (self.y[y].min(), self.y[y].max())
-
-        elif line.lower() == 'x':
-            x, y, z = slice(0,Nx), int(Ny*pos), int(Nz*pos) #x-axis
-            cut = f'(x,a,b) a={round(pos*(ymax-ymin)+ymin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
-            xax = 'x'
-            xx = self.x[x]
-            xlims = (xmin, xmax)
-
-        elif line.lower() == 'y':
-            x, y, z = int(Nx*pos), slice(0,Ny), int(Nz*pos) #y-axis
-            cut = f'(a,y,b) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(zmax-zmin)+zmin,3)}'
-            xax = 'y'
-            xx = self.y[y]
-            xlims = (ymin, ymax)
-        
-        elif line.lower() == 'z':
-            x, y, z = int(Nx*pos), int(Ny*pos), slice(0,Nz) #z-axis
-            cut = f'(a,b,z) a={round(pos*(xmax-xmin)+xmin,3)}, b={round(pos*(ymax-ymin)+ymin,3)}'
-            xax = 'z'
-            xx = self.z[z]
-            xlims = (zmin, zmax)
-        
-        else:
-            print("line needs to be an array of slices [x,y,z] or a str 'x', 'y', 'z'")
-
-        plotkw = {'c':'g', 'lw':1.2, 'ls':'-'}
-        plotkw.update(kwargs)
-
-        fig, ax = plt.subplots(1,1, figsize=figsize)
-
-        if field == 'E':
-            if component == 'Abs':
-                ax.plot(xx, self.E.get_abs()[x, y, z], **plotkw)
-                yax = 'E(Abs) amplitude'
+                xlims = (ymin, ymax)
+            
+            elif line.lower() == 'z':
+                x, y, z = int(Nx*pos), int(Ny*pos), slice(0,Nz) #z-axis
+                cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
+                xax = 'z'
+                xx = self.z[z]
+                xlims = (zmin, zmax)
+            
             else:
-                ax.plot(xx, self.E[x, y, z, component], **plotkw)
-                yax = f'E{component} amplitude'
+                print("line needs to be an array of slices [x,y,z] or a str 'x', 'y', 'z'")
 
-        if field == 'H':
-            if component == 'Abs':
-                ax.plot(xx, self.H.get_abs()[x, y, z], **plotkw)
-                yax = 'H(Abs) amplitude'
-            else:
-                ax.plot(xx, self.H[x, y, z, component], **plotkw)
-                yax = f'H{component} amplitude'
+            if i == 0: # first one on top
+                zorder = 10
+            else: zorder = i
 
-        if field == 'J':
-            if component == 'Abs':
-                ax.plot(xx, self.J.get_abs()[x, y, z], **plotkw)
-                yax = 'J(Abs) amplitude'
-            else:
-                ax.plot(xx, self.J[x, y, z, component], **plotkw)
-                yax = f'J{component} amplitude'
+            if field == 'E':
+                if component == 'Abs':
+                    ax.plot(xx, self.E.get_abs()[x, y, z], color=colors[i], zorder=zorder, 
+                            label=f'{field}{component}{cut}', **plotkw)
+                    yax = 'E(Abs) amplitude'
+                else:
+                    ax.plot(xx, self.E[x, y, z, component], color=colors[i], zorder=zorder,
+                            label=f'{field}{component}{cut}', **plotkw)
+                    yax = f'E{component} amplitude'
+
+            if field == 'H':
+                if component == 'Abs':
+                    ax.plot(xx, self.H.get_abs()[x, y, z], color=colors[i], zorder=zorder,
+                            label=f'{field}{component}{cut}', **plotkw)
+                    yax = 'H(Abs) amplitude'
+                else:
+                    ax.plot(xx, self.H[x, y, z, component], color=colors[i], zorder=zorder,
+                           label=f'{field}{component}{cut}', **plotkw)
+                    yax = f'H{component} amplitude'
+
+            if field == 'J':
+                if component == 'Abs':
+                    ax.plot(xx, self.J.get_abs()[x, y, z], color=colors[i], zorder=zorder,
+                            label=f'{field}{component}{cut}', **plotkw)
+                    yax = 'J(Abs) amplitude'
+                else:
+                    ax.plot(xx, self.J[x, y, z, component], color=colors[i], zorder=zorder,
+                            label=f'{field}{component}{cut}', **plotkw)
+                    yax = f'J{component} amplitude'
                               
-        ax.set_title(f'Wakis {field}{component}{cut}')
+        ax.set_title(f'Wakis {field}{component}'+(len(pos_arr)==1)*f'{cut}')
         ax.set_xlabel(xax)
-        ax.set_ylabel(yax, color=plotkw['c'])
+        ax.set_ylabel(yax, color=colors[0])
         ax.set_xlim(xlims)
 
         ax.set_xscale(xscale)
         ax.set_yscale(yscale)
+
+        if len(pos_arr) > 1:
+            ax.legend(loc=1)
 
         if xlim is not None:
             ax.set_xlim(xlim)
