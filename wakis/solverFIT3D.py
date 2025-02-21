@@ -102,11 +102,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Grid 
         self.grid = grid
-        self.cfln = cfln
-        if dt is None:
-            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
-        else:
-            self.dt = dt
 
         self.Nx = self.grid.nx
         self.Ny = self.grid.ny
@@ -185,16 +180,30 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             if verbose: print('Filling PML sigmas...')
             self.n_pml = n_pml
             self.pml_lo = 5e-3
-            self.pml_hi = np.sqrt(1.e-1)
+            self.pml_hi = 1.e-1
             self.pml_func = np.geomspace
             self.fill_pml_sigmas()
 
+        # Timestep calculation w/ relaxation time tau
+        if verbose: print('Calculating maximal stable timestep...') 
+        self.cfln = cfln
+        if dt is None:
+            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
+        else:
+            self.dt = dt
+        
+        self.tau = (1/self.ieps.toarray())[self.sigma.toarray()!=0] / \
+                    self.sigma.toarray()[self.sigma.toarray()!=0] 
+        
+        if self.dt > self.tau.min():
+            self.dt = self.tau.min()
+        
+        # Pre-computing
+        if verbose: print('Pre-computing...') 
         self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
 
-        # Pre-computing
-        if verbose: print('Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
