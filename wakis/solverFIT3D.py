@@ -708,3 +708,21 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             An open HDF5 file object in read mode.
         """
         return h5py.File(filename, "r")  
+    
+    def reset_fields(self):
+        """
+        Resets the electromagnetic field components to zero.
+
+        This function clears the electric field (E), magnetic field (H), and 
+        current density (J) by setting all their components to zero in the 
+        simulation domain. It ensures a clean restart for a new simulation.
+
+        Notes
+        -----
+        - This method is useful when reusing an existing simulation object 
+        without reinitializing all attributes.
+        """
+        for d in ['x', 'y', 'z']:
+            self.E[:, :, :, d] = 0.0
+            self.H[:, :, :, d] = 0.0
+            self.J[:, :, :, d] = 0.0
