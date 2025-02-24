@@ -2,12 +2,14 @@
 *Comming soon!*
 
 ## New Features
-* Perfect Matching Layers (PML) boundary conditions: First version out!
-
 * Geometry import:
-  * Function to read `.STP` files, extracting each solid in an `.STL` file indicating the name and material: `wakis.geometry.extract_stl_solids_from_stp(filename)`
-  
-* Ploting:
+    * Function to read `.STP` files, extracting each solid in an `.STL` file indicating the name and material: `wakis.geometry.extract_stl_solids_from_stp(filename)`
+
+* Solver:
+    * New maximal timestep calculation for high-conductive regions based on CFL + relaxation time criterion
+    * Perfect Matching Layers (PML) boundary conditions: First version out!
+
+* Plotting:
     * `solver.plot3DonSTL` Field on STL solid using `pyvista.sample` interpolation algorithm 
         * Interactive plane clipping on `plot3DonSTL`
         * Field shown on clipping plane
@@ -15,20 +17,23 @@
 
 * Sources:
     * Add `plot(t)` method to plot the source over the simulation time `t` 
-    * Custom amplitude as an attribute `self.amplitude`.
+    * Custom amplitude as an attribute `self.amplitude`
     * Custom phase as an attribute `self.phase`
+    * Custom injection time `self.tinj`
+    * For `PlaneWave` allow for truncation at specific number of `self.nodes` injected
 
-* Wake extrapolation of partially decayed wakes coupling with [`IDDEFIX`]: https://github.com/ImpedanCEI/IDDEFIX: 
-    * IDDEFIX is a physics-informed machine learning framework that fits a resonator-based model (parameterized by R, f, Q) to wakefield simulation data using Evolutionary Algorithms. It leverages Differential Evolution to optimize these parameters, enabling efficient classification and extrapolation of electromagnetic wakefield behavior. This allows for reduced simulation time while maintaining long-term accuracy, akin to time-series forecasting in machine learning
+* Ecosytem:
+    * Wake extrapolation of partially decayed wakes coupling with [`IDDEFIX`]: https://github.com/ImpedanCEI/IDDEFIX: 
+        * IDDEFIX is a physics-informed machine learning framework that fits a resonator-based model (parameterized by R, f, Q) to wakefield simulation data using Evolutionary Algorithms. It leverages Differential Evolution to optimize these parameters, enabling efficient classification and extrapolation of electromagnetic wakefield behavior. This allows for reduced simulation time while maintaining long-term accuracy, akin to time-series forecasting in machine learning
 
-* Impedance to wake function conversion using non-equidistant fourier transform with: [`neffint]: https://github.com/ImpedanCEI/neffint
-    * Neffint is an acronym for Non-equidistant Filon Fourier integration. This is a python package for computing Fourier integrals using a method based on Filon's rule with non-equidistant grid spacing.
+    * Impedance to wake function conversion using non-equidistant fourier transform with: [`neffint]: https://github.com/ImpedanCEI/neffint
+        * Neffint is an acronym for Non-equidistant Filon Fourier integration. This is a python package for computing Fourier integrals using a method based on Filon's rule with non-equidistant grid spacing.
 
-* Beam-induced power loss calculations for different beam shapes and filling schemes using ['BIHC`]: https://github.com/ImpedanCEI/BIHC
-    * Beam Induced Heating Computation (BIHC) tool is a package that allows the estimation of the dissipated power due to the passage of a particle beam inside an accelerator component. The dissipated power value depends on the characteristics of the particle beam (beam spectrum and intensity) and on the characteristics of the consdiered accelerator component (beam-coupling impedance).
+    * Beam-induced power loss calculations for different beam shapes and filling schemes using ['BIHC`]: https://github.com/ImpedanCEI/BIHC
+        * Beam Induced Heating Computation (BIHC) tool is a package that allows the estimation of the dissipated power due to the passage of a particle beam inside an accelerator component. The dissipated power value depends on the characteristics of the particle beam (beam spectrum and intensity) and on the characteristics of the consdiered accelerator component (beam-coupling impedance).
 
 ## Other Tag highlights
-* Nightly tests with Github actions 
+* Nightly tests with Github actions [000 - 005]
 * :file_folder: notebooks: containing interactive examples
 * :file_folder: examples: major cleanup, examples on CPU and GPU
 
