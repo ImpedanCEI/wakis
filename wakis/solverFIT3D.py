@@ -192,8 +192,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.dt = dt
         
-        self.tau = (1/self.ieps.toarray())[self.sigma.toarray()!=0] / \
-                    self.sigma.toarray()[self.sigma.toarray()!=0] 
+        mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
+                              self.ieps.toarray()!=0)  #for PEC eps=inf
+        self.tau = (1/self.ieps.toarray()[mask]) / \
+                    self.sigma.toarray()[mask] 
         
         if self.dt > self.tau.min():
             self.dt = self.tau.min()
