@@ -3,10 +3,12 @@
 
 ## New Features
 * Geometry import:
-    * Function to read `.STP` files, extracting each solid in an `.STL` file indicating the name and material: `wakis.geometry.extract_stl_solids_from_stp(filename)`
+    * Functions to read `.STP` files, exporting each solid into an `.STL` file indicating the name and material: `wakis.geometry.generate_stl_solids_from_stp(stp_file)`
+    * Functions to extract from `.STP` files `solid` names, `colors`, and `materials`: `wakis.geometry.extract_XXX(stp_file)` to easily build the input dictionaries needed for `GridFIT3D`
 
 * Solver:
     * New maximal timestep calculation for high-conductive regions based on CFL + relaxation time criterion
+    * New methods: `save_state()`, `load_state()` to export and import the fields at a particular simulation timestep (HDF5 format). Method `reset_fields()` to clear fields before restarting a simulation.
     * Perfect Matching Layers (PML) boundary conditions: First version out!
 
 * Plotting:
@@ -40,7 +42,7 @@
 ## Bugfixes
 * Patch representation when a list is passed in `Plot2D`
 * `ipympl` added as a dependency to `wakis['notebook']` installation
-* Injection time to account for relativistic beta
+* Injection time to account for relativistic beta in sources
 
 ## Full Changelog
 `git log v0.4.0... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
