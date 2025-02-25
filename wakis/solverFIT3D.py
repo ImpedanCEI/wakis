@@ -184,7 +184,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.pml_func = np.geomspace
             self.fill_pml_sigmas()
 
-        # Timestep calculation w/ relaxation time tau
+        # Timestep calculation 
         if verbose: print('Calculating maximal stable timestep...') 
         self.cfln = cfln
         if dt is None:
@@ -192,14 +192,17 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.dt = dt
         
-        mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
-                              self.ieps.toarray()!=0)  #for PEC eps=inf
-        self.tau = (1/self.ieps.toarray()[mask]) / \
-                    self.sigma.toarray()[mask] 
-        
-        if self.dt > self.tau.min():
-            self.dt = self.tau.min()
-        
+        if self.use_conductivity: # relaxation time criterion tau
+
+            mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
+                                self.ieps.toarray()!=0)  #for PEC eps=inf
+            
+            self.tau = (1/self.ieps.toarray()[mask]) / \
+                        self.sigma.toarray()[mask] 
+            
+            if self.dt > self.tau.min():
+                self.dt = self.tau.min()
+
         # Pre-computing
         if verbose: print('Pre-computing...') 
         self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
