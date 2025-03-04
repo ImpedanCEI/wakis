@@ -214,31 +214,58 @@ class GridFIT3D:
             else:
                 self.stl_colors[key] = 'other'
 
-    def plot_solids(self, bounding_box=False, anti_aliasing='ssaa', 
-                    **kwargs):
-        '''3D plot using pyvista to visualize 
-        the imported stl geometries 
+    def plot_solids(self, bounding_box=False, anti_aliasing=None,
+                    opacity=1.0, specular=0.5,**kwargs):
+        """
+        Generates a 3D visualization of the imported STL geometries using PyVista.
 
-        * Colors are controlled by `stl_colors` dictionary
-        * `**kwargs` are passed to pyvista.add_mesh()
-        '''
+        Parameters:
+        -----------
+        bounding_box : bool, optional
+            If True, adds a bounding box around the plotted geometry (default: False).
+        
+        anti_aliasing : str or None, optional
+            Enables anti-aliasing if provided. Valid values depend on PyVista settings (default: None).
+        
+        opacity : float, optional
+            Controls the transparency of the plotted solids. A value of 1.0 is fully opaque, 
+            while 0.0 is fully transparent (default: 1.0).
+        
+        specular : float, optional
+            Adjusts the specular lighting effect on the surface. Higher values increase shininess (default: 0.5).
+        
+        **kwargs : dict
+            Additional keyword arguments passed to `pyvista.add_mesh()`, allowing customization of the mesh rendering.
+        
+        Notes:
+        ------
+        - Colors are determined by the `GridFIT3D.stl_colors` attribute dictionary if not None
+        - Solids labeled as 'vacuum' are rendered with a default opacity of 0.3 for visibility.e.
+        - The camera is positioned at an angle to provide better depth perception.
+        - If `bounding_box=True`, a bounding box is drawn around the model.
+        - If `anti_aliasing` is specified, it is enabled to improve rendering quality.
+        
+        """
 
         from .materials import material_colors
         
         pl = pv.Plotter()
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
-            try:
-                color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
-            except: 
-                color = self.stl_colors[key] # specifies color e.g. 'tab:red'
-                
-            if self.stl_colors[key] == 'vacuum':
-                opacity = 0.5
+            if self.stl_colors is not None:
+                try:
+                    color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
+                except: 
+                    color = self.stl_colors[key] # specifies color e.g. 'tab:red'
             else:
-                opacity = 1.0
+                color = 'white'
+
+            if self.stl_colors[key] == 'vacuum' or self.stl_material[key] == 'vacuum':
+                opacity = 0.3
+            else:
+                opacity = opacity
             pl.add_mesh(self.read_stl(key), color=color, 
-                        opacity=opacity, specular=0.5, smooth_shading=True,
+                        opacity=opacity, specular=specular, smooth_shading=True,
                         **kwargs)
         
         pl.set_background('mistyrose', top='white')
@@ -248,7 +275,9 @@ class GridFIT3D:
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
         pl.add_axes()
-        pl.enable_anti_aliasing(anti_aliasing)
+
+        if anti_aliasing is not None:
+            pl.enable_anti_aliasing(anti_aliasing)
 
         if bounding_box:
             pl.add_bounding_box()
