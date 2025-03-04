@@ -44,7 +44,7 @@ class TestPML:
         f = 15/((solver.z.max()-solver.z.min())/c)
         planeWave = wakis.sources.PlaneWave(xs=slice(0, Nx), ys=slice(0,Ny), zs=0, 
                                             beta=1.0, amplitude=amplitude,
-                                            f=f, nodes=7, phase=np.pi/2)
+                                            f=f, nodes=nodes, phase=np.pi/2)
         solver.dt = 1/f/200 #ensure right amplitude
 
         # Simulation
