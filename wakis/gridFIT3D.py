@@ -252,13 +252,10 @@ class GridFIT3D:
         pl = pv.Plotter()
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
-            if self.stl_colors is not None:
-                try:
-                    color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
-                except: 
-                    color = self.stl_colors[key] # specifies color e.g. 'tab:red'
-            else:
-                color = 'white'
+            try:
+                color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
+            except: 
+                color = self.stl_colors[key] # specifies color e.g. 'tab:red'
 
             if self.stl_colors[key] == 'vacuum' or self.stl_material[key] == 'vacuum':
                 opacity = 0.3
