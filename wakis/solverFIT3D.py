@@ -660,10 +660,15 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             - If `close=False`, returns an open `h5py.File` object for further manipulation.
         """
         state = h5py.File(filename, "w") 
-        
-        state.create_dataset("H", data=self.H.toarray())
-        state.create_dataset("E", data=self.E.toarray())
-        state.create_dataset("J", data=self.J.toarray())
+        if imported_cupyx:
+            state.create_dataset("H", data=self.H.toarray().get())
+            state.create_dataset("E", data=self.E.toarray().get())
+            state.create_dataset("J", data=self.J.toarray().get())
+
+        else:
+            state.create_dataset("H", data=self.H.toarray())
+            state.create_dataset("E", data=self.E.toarray())
+            state.create_dataset("J", data=self.J.toarray())
 
         if close:
             state.close()
