@@ -299,7 +299,7 @@ class Field:
             else:
                 return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
-    def inspect(self, plane='YZ', cmap='bwr', dpi=100, x=None, y=None, z=None, show=True, handles=False, **kwargs):
+    def inspect(self, plane='YZ', cmap='bwr', dpi=100, figsize=[8,6], x=None, y=None, z=None, show=True, handles=False, **kwargs):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -326,7 +326,7 @@ class Field:
             xax, yax = 'nz', 'ny'
             transpose = False
 
-        fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=[8,6], dpi=dpi)
+        fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=figsize, dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
 
         im = self.xp.zeros_like(axs)
@@ -358,6 +358,7 @@ class Field:
     def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr', dpi=100, show=True, handles=False):
         """
         Voxel representation of a 3D array with matplotlib
+        [TODO] use pyvista instead
         """
         import matplotlib.pyplot as plt
         import matplotlib as mpl
