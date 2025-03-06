@@ -7,6 +7,10 @@ import os
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import sys
+sys.path.append('../')
 
 from wakis import SolverFIT3D
 from wakis import GridFIT3D 
@@ -47,42 +51,28 @@ Ny = 80
 Nz = 141
 
 # Adjust for MPI & ompute local Z-slice range
-Nz += Nz%(size-1)
+Nz += Nz%(size) #if rank 0 is common, then size-1
 dz = (zmax - zmin) / Nz
 z = np.linspace(zmin, zmax, Nz+1)
 
-Nz_mpi = Nz // (size-1) 
-zmin_mpi = (rank-1) * Nz_mpi * dz
-zmax_mpi= rank * Nz_mpi * dz
+# Allocate mpi node cells
+Nz_mpi = Nz // (size) 
+zmin_mpi = rank * Nz_mpi * dz + zmin
+zmax_mpi= (rank+1) * Nz_mpi * dz + zmin
 
 print(f"Process {rank}: Handling Z range {zmin_mpi} to {zmax_mpi}")
 
-# set grid and geometry
-if rank == 0:
-    grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, 
-                    Nx, Ny, Nz, 
-                    stl_solids=stl_solids, 
-                    stl_materials=stl_materials,
-                    stl_scale=1.0,
-                    stl_rotate=[0,0,0],
-                    stl_translate=[0,0,0],
-                    verbose=1)
-else:
-    grid = GridFIT3D(xmin, xmax, ymin, ymax, 
-                        zmin_mpi, zmax_mpi, 
-                        Nx, Ny, Nz_mpi, 
-                        stl_solids=stl_solids, 
-                        stl_materials=stl_materials,
-                        stl_scale=1.0,
-                        stl_rotate=[0,0,0],
-                        stl_translate=[0,0,0],
-                        verbose=1)
-# BONUS: Visualize grid - Uncomment for plotting!
-# grid.inspect(add_stl=[solid_1, solid_2], stl_opacity=1.0)
+grid = GridFIT3D(xmin, xmax, ymin, ymax, 
+                zmin_mpi, zmax_mpi, 
+                Nx, Ny, Nz_mpi, 
+                stl_solids=stl_solids, 
+                stl_materials=stl_materials,
+                stl_scale=1.0,
+                stl_rotate=[0,0,0],
+                stl_translate=[0,0,0],
+                verbose=1)
 
-# BONUS: Visualize imported solids - Uncomment for plotting!
-#grid.plot_solids()
-
+# ------------ Beam source & Wake ----------------
 # ------------ Beam source & Wake ----------------
 # Beam parameters
 sigmaz = 10e-2      #[m] -> 2 GHz
@@ -98,133 +88,132 @@ yt = 0.             # y test position [m]
 wakelength = 10. # [m]
 add_space = 10   # no. cells to skip from boundaries - removes BC artifacts
 
+from wakis.sources import Beam
+from scipy.constants import c
+beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
+            xsource=xs, ysource=ys, ti=3*sigmaz/c)
+
+results_folder = f'001_results_n{rank}/'
+
+'''
 wake = WakeSolver(q=q, 
                   sigmaz=sigmaz, 
                   beta=beta,
                   xsource=xs, ysource=ys, 
                   xtest=xt, ytest=yt,
                   add_space=add_space, 
-                  results_folder='001_results/',
-                  Ez_file='001_results/001_Ez.h5')
+                  results_folder=results_folder,
+                  Ez_file=results_folder+'001_Ez.h5')
+'''
 
 # ----------- Solver & Simulation ----------
-# boundary conditions``
+# boundary conditions
 bc_low=['pec', 'pec', 'pec']
 bc_high=['pec', 'pec', 'pec']
 
-# on-the-fly plotting parameters
-if not os.path.exists('001_img/'): 
-    os.mkdir('001_img/')
+if rank > 0:
+    bc_low=['pec', 'pec', 'periodic']
 
-plotkw2D = {'title':'001_img/Ez', 
-            'add_patch':'cavity', 'patch_alpha':1.0,
-            'patch_reverse' : True,  # patch logical_not('cavity')
-            'vmin':-1e3, 'vmax':1e3, # colormap limits
-            'cmap': 'rainbow',
-            'plane': [int(Nx/2),                       # x
-                      slice(0, Ny),                    # y
-                      slice(add_space, -add_space)]}   # z
+if rank < size - 1:
+    bc_high=['pec', 'pec', 'periodic']
 
 # Solver setup
-solver = SolverFIT3D(grid, wake,
+solver = SolverFIT3D(grid,
                     bc_low=bc_low, 
                     bc_high=bc_high, 
                     use_stl=True, 
                     bg='pec' # Background material
                     )
-# [TODO]: domain should be split after the tensors are built 
-# to avoid issues with boundary conditions / geometry
-# Maybe need to add >1 ghost cells
+# Communication between ghost cells
+def communicate_ghost_cells():
+    if rank > 0:
+        for d in ['x','y','z']:
+            comm.Sendrecv(solver.E[:, :, 1,d], 
+                        recvbuf=solver.E[:, :, 0,d],
+                        dest=rank-1, sendtag=0,
+                        source=rank-1, recvtag=1)
 
-# Solver run
-'''
-solver.wakesolve(wakelength=wakelength, 
-                 add_space=add_space,
-                 plot=True, # turn False for speedup
-                 plot_every=30, plot_until=3000, **plotkw2D
-                 )
-'''
-from wakis.sources import Beam
-beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
-            xsource=xs, ysource=ys)
+            comm.Sendrecv(solver.H[:, :, 1,d], 
+                        recvbuf=solver.H[:, :, 0,d],
+                        dest=rank-1, sendtag=0,
+                        source=rank-1, recvtag=1)
+            
+            comm.Sendrecv(solver.J[:, :, 1,d], 
+                        recvbuf=solver.J[:, :, 0,d],
+                        dest=rank-1, sendtag=0,
+                        source=rank-1, recvtag=1)
+            
+    if rank < size - 1:
+        for d in ['x','y','z']:
+            comm.Sendrecv(solver.E[:, :, -2,d], 
+                          recvbuf=solver.E[:, :, -1, d], 
+                          dest=rank+1, sendtag=1,
+                          source=rank+1, recvtag=0)
+            
+            comm.Sendrecv(solver.H[:, :, -2,d], 
+                          recvbuf=solver.H[:, :, -1, d], 
+                          dest=rank+1, sendtag=1,
+                          source=rank+1, recvtag=0)
+            
+            comm.Sendrecv(solver.J[:, :, -2,d], 
+                          recvbuf=solver.J[:, :, -1, d], 
+                          dest=rank+1, sendtag=1,
+                          source=rank+1, recvtag=0)
 
-Nt = 1/solver.dt * (wake.wakelength + wake.ti*wake.v \
-             + (solver.z.max()-solver.z.min()))/wake.v 
+def compose_field(field, d='z'):
 
+    if field == 'E':
+        local = solver.E[Nx//2, :, :,d].ravel()
+    elif field == 'H':
+        local = solver.H[Nx//2, :, :,d].ravel()
+    elif field == 'J':
+        local = solver.J[Nx//2, :, :,d].ravel()
+
+    buffer = comm.gather(local, root=0)
+    field = None
+
+    if rank == 0:
+        field = np.zeros((Ny, Nz))  # Reinitialize global array
+        for r in range(size):
+            field[:, r*Nz_mpi:(r+1)*Nz_mpi] = np.reshape(buffer[r], (Ny, Nz_mpi))
+    
+    return field
+
+def plot_field(field, name='E', n=None, results_folder='img/'):
+    extent = (zmin, zmax, ymin, ymax)
+    fig, ax = plt.subplots()
+    im = ax.imshow(field, cmap='bwr', extent=extent, vmin=-500, vmax=500)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'{name} at timestep={n}')
+    ax.set_xlabel('z [m]')
+    ax.set_ylabel('y [m]')
+
+    fig.tight_layout(h_pad=0.3)
+    fig.savefig(results_folder+name+str(n).zfill(4)+'.png')
+
+    plt.clf()
+    plt.close(fig)
+
+if rank == 0:
+    img_folder = '003_img/'
+    if not os.path.exists(img_folder): 
+        os.mkdir(img_folder)
+
+Nt = 3000
 for n in tqdm(range(Nt)):
 
-    beam.update_mpi(solver, n*solver.dt, zmin, z)
+    beam.update_mpi(solver, n*solver.dt, zmin)
 
     solver.one_step()
 
-    #Communicate slices [TODO]
+    #Communicate slices
+    communicate_ghost_cells()
 
+    if n%20 == 0:
+        Ez = compose_field('E')
+        if rank == 0:
+            plot_field(Ez, 'Ez', n=n, results_folder=img_folder)
 
-# ----------- 1d plot results --------------------
-# Plot longitudinal wake potential and impedance
-fig1, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
-ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
-
-ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
-ax[1].legend()
-
-fig1.tight_layout()
-fig1.savefig('001_results/001_longitudinal.png')
-#plt.show()
-
-# Plot transverse x wake potential and impedance
-fig2, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WPx, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Transverse wake potential X [V/pC]', color='r')
-ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
-
-ax[1].plot(wake.f*1e-9, np.abs(wake.Zx), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Transverse impedance X [Abs][$\Omega$]', color='b')
-ax[1].legend()
-
-fig2.tight_layout()
-fig2.savefig('001_results/001_transverse_x.png')
-#plt.show()
-
-# Plot transverse y wake potential and impedance
-fig3, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WPy, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Transverse wake potential Y [V/pC]', color='r')
-ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
-
-ax[1].plot(wake.f*1e-9, np.abs(wake.Zy), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
-ax[1].legend()
-
-fig3.tight_layout()
-fig3.savefig('001_results/001_transverse_y.png')
-#plt.show()
-
-# Plot Electric field component in 2D using imshow
-solver.plot1D(field='E', component='z', 
-              line='z', pos=0.5, xscale='linear', yscale='linear',
-              off_screen=True, title='001_img/Ez1d')
-#plt.show()
-
-# ----------- 2d plots results --------------------
-from matplotlib.colors import LinearSegmentedColormap
-cmap = LinearSegmentedColormap.from_list('name', plt.cm.jet(np.linspace(0.1, 0.9))) # CST's colormap
-
-# Plot Electric field component in 2D using imshow
-solver.plot2D(field='E', component='z', 
-              plane='XY', pos=0.5, 
-              cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
-              add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
-              off_screen=True, title='001_img/Ez2d')
+        
+# Run with:
+# mpiexec -n 4 python 003_MPI_wakefield_simulation.py
