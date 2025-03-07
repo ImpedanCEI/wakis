@@ -9,6 +9,7 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=blue)
 ![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=pink)
 ![Tokei - LOC](https://tokei.rs/b1/github/ImpedanCEI/wakis?category=code?/style=square&color=green)
+![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14988677.svg)
 
 
 
