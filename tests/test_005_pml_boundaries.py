@@ -78,3 +78,50 @@ class TestPML:
             solver.plot2D('Hy', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude, vmax=amplitude,
                 off_screen=True, title=f'005_Hy2d') 
+            
+
+    def _pml_func():
+
+        pml_lo = 0.005
+        pml_hi = 0.1
+        n_pml = 10
+
+        lin = np.linspace(pml_lo, pml_hi, n_pml)
+        geom = np.geomspace(pml_lo, pml_hi, n_pml) #r=(pml_hi/pml_lo)**(1/(n_pml-1))
+
+        x = np.linspace(0,1, n_pml)
+        quad = pml_lo + (pml_hi - pml_lo)*x**2
+        cub = pml_lo + (pml_hi - pml_lo)*x**3
+        quart = pml_lo + (pml_hi - pml_lo)*x**4
+        quint = pml_lo + (pml_hi - pml_lo)*x**5
+
+        # Plot func profiles
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+
+        ax.plot(lin, label='linspace')
+        ax.plot(geom, label='geomspace')
+        ax.plot(quad, label='quadratic')
+        ax.plot(cub, label='cubic')
+        ax.plot(quart, label='quartic')
+        ax.plot(quint, label='quintic')
+        ax.set_xlabel('PML cells n')
+        ax.set_ylabel(r'conductivity profile $\sigma(n)$')
+        ax.legend()
+
+        #plt.show()
+
+        # Plot func derivative
+        fig, ax = plt.subplots(dpi=200)
+
+        ax.plot(lin[1:]-lin[:-1], label='linspace')
+        ax.plot(geom[1:]-geom[:-1], label='geomspace')
+        ax.plot(quad[1:]-quad[:-1], label='quadratic')
+        ax.plot(cub[1:]-cub[:-1], label='cubic')
+        ax.plot(quart[1:]-quart[:-1], label='quartic')
+        ax.plot(quint[1:]-quint[:-1], label='quintic')
+        ax.set_xlabel('PML cells n')
+        ax.set_ylabel(r'gradient of conductivity profile $\sigma(n)$')
+        ax.legend()
+
+
