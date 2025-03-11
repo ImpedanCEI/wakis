@@ -12,7 +12,8 @@ class PlotMixin:
                title=None, cmap='jet', 
                clip_interactive=False, clip_normal='-y',
                clip_box=False, clip_bounds=None, 
-               off_screen=False, zoom=0.5, nan_opacity=1.0, n=None):
+               off_screen=False, zoom=0.5, camera_position=None,
+               nan_opacity=1.0, n=None):
         '''
         Built-in 3D plotting using PyVista
         
@@ -95,11 +96,15 @@ class PlotMixin:
                     surf = self.grid.read_stl(key)
                     pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, smooth_shading=True)
 
-            pl.camera_position = 'zx'
-            pl.camera.azimuth += 30
-            pl.camera.elevation += 30
+            if camera_position is None:
+                pl.camera_position = 'zx'
+                pl.camera.azimuth += 30
+                pl.camera.elevation += 30
+            else:
+                pl.camera_position = camera_position
+
             pl.set_background('mistyrose', top='white')
-            try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            try: pl.add_logo_widget('docs/img/wakis-logo-pink.png')
             except: pass
             pl.camera.zoom(zoom)
             pl.add_axes()
@@ -208,7 +213,8 @@ class PlotMixin:
                     clip_plane = False, clip_interactive=False, 
                     clip_normal='-x', clip_origin=[0,0,0],
                     clip_box=False, clip_bounds=None, 
-                    title=None, off_screen=False, zoom=0.5, n=None, **kwargs):
+                    title=None, off_screen=False, n=None, 
+                    zoom=0.5, camera_position=None, **kwargs):
         '''
         Built-in 3D plotting using PyVista
         
@@ -385,11 +391,15 @@ class PlotMixin:
                                       scalars=field+component, opacity=field_opacity,
                                       log_scale=log_scale,
                                       **kwargs)
-        pl.camera_position = 'zx'
-        pl.camera.azimuth += 20
-        pl.camera.elevation += 30
+        if camera_position is None:
+            pl.camera_position = 'zx'
+            pl.camera.azimuth += 30
+            pl.camera.elevation += 30
+        else:
+            pl.camera_position = camera_position
+
         pl.set_background('mistyrose', top='white')
-        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+        try: pl.add_logo_widget('docs/img/wakis-logo-pink.png')
         except: pass
         pl.camera.zoom(zoom)
         pl.add_axes()
