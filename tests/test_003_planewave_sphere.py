@@ -43,6 +43,7 @@ class TestPlanewave:
         xmin, ymin, zmin = (xmin-padx), (ymin-pady), (zmin-padz)
         xmax, ymax, zmax = (xmax+padx), (ymax+pady), (zmax+padz)
 
+        global grid
         grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
                 stl_solids=stl_solids, 
                 stl_rotate=stl_rotate,
@@ -118,3 +119,15 @@ class TestPlanewave:
         if not flag_interactive:
             os.remove('003_3DplotOnSTL_Hy.png')
         
+
+    @pytest.mark.skipif(not flag_interactive, reason="Requires interactive plotting")
+    def test_grid_inspect(self):
+        global grid
+        grid.inspect(add_stl=None, stl_opacity=0.5, stl_colors=None, 
+                     anti_aliasing='ssa')
+
+    @pytest.mark.skipif(not flag_interactive, reason="Requires interactive plotting")
+    def test_grid_plot_solids(self):
+        global grid
+        grid.plot_solids(bounding_box=False, opacity=1.0, specular=0.5,
+                         anti_aliasing=None)
