@@ -257,12 +257,12 @@ class GridFIT3D:
             except: 
                 color = self.stl_colors[key] # specifies color e.g. 'tab:red'
 
-            if self.stl_colors[key] == 'vacuum' or self.stl_material[key] == 'vacuum':
-                opacity = 0.3
+            if self.stl_colors[key] == 'vacuum' or self.stl_materials[key] == 'vacuum':
+                _opacity = 0.3
             else:
-                opacity = opacity
+                _opacity = opacity
             pl.add_mesh(self.read_stl(key), color=color, 
-                        opacity=opacity, specular=specular, smooth_shading=True,
+                        opacity=_opacity, specular=specular, smooth_shading=True,
                         **kwargs)
         
         pl.set_background('mistyrose', top='white')
