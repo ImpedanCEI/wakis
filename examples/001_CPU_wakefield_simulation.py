@@ -53,10 +53,10 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax,
                 verbose=1)
 
 # BONUS: Visualize grid - Uncomment for plotting!
-# grid.inspect(add_stl=[solid_1, solid_2], stl_opacity=1.0)
+grid.inspect(add_stl=['cavity', 'shell'], stl_opacity=1.0)
 
 # BONUS: Visualize imported solids - Uncomment for plotting!
-grid.plot_solids()
+grid.plot_solids(bounding_box=True, opacity=1.0, specular=0.5, anti_aliasing=None)
 
 # ------------ Beam source & Wake ----------------
 # Beam parameters
