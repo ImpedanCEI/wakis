@@ -422,7 +422,7 @@ class PlotMixin:
     def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm=None, 
                vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1, 
                patch_reverse=False, add_patch=False, title=None, off_screen=False, 
-               n=None, interpolation='antialiased'):
+               n=None, interpolation='antialiased', dpi=100, return_handles=False):
         '''
         Built-in 2D plotting of a field slice using matplotlib
         
@@ -524,7 +524,7 @@ class PlotMixin:
         else:
             print("Plane needs to be an array of slices [x,y,z] or a str 'XY', 'ZY', 'ZX'")
 
-        fig, ax = plt.subplots(1,1, figsize=figsize)
+        fig, ax = plt.subplots(1,1, figsize=figsize, dpi=dpi)
 
         if field == 'E':
             if component == 'Abs':
@@ -590,7 +590,8 @@ class PlotMixin:
             fig.savefig(title+'.png')
             plt.clf()
             plt.close(fig)
-
+        elif return_handles:
+            return fig, ax
         else:
             plt.show(block=False)
 
