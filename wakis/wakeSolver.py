@@ -122,7 +122,8 @@ class WakeSolver():
         if ti is not None:
             self.ti = ti
         else:
-            ti = 8.548921333333334*self.sigmaz/self.v  #injection time as in CST
+            #ti = 8.548921333333334*self.sigmaz/self.v  #injection time as in CST for beta = 1
+            ti = 8.548921333333334*self.sigmaz/(np.sqrt(self.beta)*self.v) #injection time as in CST for beta <=1
             self.ti = ti
 
         #field
