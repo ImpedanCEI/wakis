@@ -70,7 +70,7 @@ bash Miniconda3-latest-Linux-x86_64.sh
 source miniconda3/bin/activate
 
 # create dev python environment
-conda create --name wakis-env python=3.9
+conda create --name wakis-env python=3.11
 conda activate wakis-env
 ```
 
@@ -120,6 +120,53 @@ If you're in a headless environment (e.g., remote server, openstack machine), fo
 ```python
 import os
 os.environ['PYVISTA_USE_OSMESA'] = 'True'
+```
+
+## MPI setup
+To run multi-CPU parallelized simulations, Wakis needs the following packages:
+
+* OpenMPI installed in your operating system:
+```bash
+# Linux sudo alternative, mpi
+sudo apt update
+sudo sudo apt install openmpi-bin openmpi-common libopenmpi-dev
+# Conda forge alternative (not tested)
+conda install -c conda-forge openmpi
+# Check install
+which mpicc #/usr/bin/mpicc
+which mpiexec #/usr/bin/mpiexec
+```
+
+* Python package [`mpi4py`](https://mpi4py.readthedocs.io/en/stable/)
+```bash
+# pip alternative
+CC=mpicc pip install --no-cache-dir mpi4py
+
+# Conda forge alternative (not tested)
+conda install -c conda-forge mpi4py
+```
+
+* Python package [`ipyparallel`](https://ipyparallel.readthedocs.io/en/latest/tutorial/intro.html) to start a MPI kernel inside notebooks:
+```bash
+# For working on jupyter notebooks:
+pip install ipyparallel
+```
+
+* For multi-GPU compatibility (provided `cupy` is correctly setup):
+```bash
+# Conda forge alternative (not tested)
+conda install -c conda-forge openmpi mpich
+# Check install
+ompi_info --parsable | grep mpi_built_with_cuda_support #mca:mpi:base:param:mpi_built_with_cuda_support:value:true
+```
+
+To run MPI simulations from the terminal:
+```
+# multi CPU
+mpiexec -n 8 python your_wakis_cpu_script.py
+
+# multi GPU
+mpiexec --mca btl_smcuda_cuda_ipc_max 0 -n 4 python your_wakis_gpu_script.py
 ```
 
 ----
