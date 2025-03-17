@@ -793,6 +793,55 @@ class WakeSolver():
                 d[i] = load[:, i]
         
         return d
+    
+    def save_txt(self, f_name, x_data=None, y_data=None, x_name='X [-]', y_name='Y [-]'):
+        """
+        Saves x and y data to a text file in a two-column format.
+
+        This function exports the provided `x_data` and `y_data` to a `.txt` file, 
+        formatting the output with a header that includes custom column names.
+
+        Parameters
+        ----------
+        f_name : str
+            Name of the output file (without the `.txt` extension).
+        x_data : numpy.ndarray, optional
+            Array containing x-axis data. If None, the file is not saved.
+        y_data : numpy.ndarray, optional
+            Array containing y-axis data. If None, the file is not saved.
+        x_name : str, optional
+            Label for the x-axis column in the output file. Default is `"X [-]"`.
+        y_name : str, optional
+            Label for the y-axis column in the output file. Default is `"Y [-]"`.
+
+        Notes
+        -----
+        - The data is saved in a two-column format where `x_data` and `y_data` 
+        are combined column-wise.
+        - If `x_data` or `y_data` is missing, the function prints a warning and does not save a file.
+
+        Examples
+        --------
+        Save two NumPy arrays to `data.txt`:
+        
+        >>> x = np.linspace(0, 10, 5)
+        >>> y = np.sin(x)
+        >>> save_txt("data", x, y, x_name="Time [s]", y_name="Amplitude")
+        
+        The saved file will look like:
+        
+            Time [s]               Amplitude
+            --------------------------------
+            0.00                   0.00
+            2.50                   0.59
+            5.00                   -0.99
+            7.50                   0.94
+            10.00                  -0.54
+        """
+        if x_data is not None and y_data is not None:
+            np.savetxt(f_name+'.txt', np.c_[x_data, y_data], header='   '+x_name+' '*20+y_name+'\n'+'-'*48)
+        else:
+            print('txt not saved, please provide x_data and y_data')
 
     def load_results(self, folder):
         '''Load all txt from a given folder

@@ -262,7 +262,7 @@ class Dipole:
                 phase=0):
         '''
         Updates the fields E and H every timestep 
-        to introduce a planewave excitation at the given 
+        to introduce a dipole excitation at the given 
         xs, ys slice, moving in z+ direction
 
         Parameters
