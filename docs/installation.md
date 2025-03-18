@@ -97,6 +97,8 @@ conda install mamba -n base -c conda-forge
 mamba install cudatoolkit=11.8.0
 ```
 
+You can find the official CUDA Toolkit in the [NVIDIA development website](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Fedora&target_version=41&target_type=rpm_local)
+
 ## Python Notebooks troubleshooting
 
 ### Matplotlib interactive plots
