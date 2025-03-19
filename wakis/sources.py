@@ -61,17 +61,40 @@ class Beam:
         # update 
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
 
-    def update_mpi(self, solver, t, zmin):
+    def mpi_update(self, solver, t):
         if self.is_first_update:
             self.ixs, self.iys = np.abs(solver.x-self.xsource).argmin(), np.abs(solver.y-self.ysource).argmin()
             self.is_first_update = False
+            if hasattr(solver, 'ZMIN'):
+                self.ZMIN = solver.ZMIN
+            else:
+                self.ZMIN = solver.z.zmin()
+                print('*** global ZMIN not found -> MPI not properly initialized, use `update()` method for single core')
+
         # reference shift
-        s0 = zmin - self.v*self.ti
+        s0 = self.ZMIN - self.v*self.ti
         s = solver.z - self.v*t
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
         # update 
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
+    
+    def plot(self, t):
+        # reference shift
+        s0 = - self.v*self.ti
+        s = - self.v*t
+        # gaussian
+        profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2)) 
+        source = self.q*self.v*profile
+
+        fig, ax = plt.subplots()
+        ax.plot(t, source, 'darkorange')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Current Jz [Cm/s]', color='darkorange')
+        ax.set_ylim(0., +np.abs(source).max()*1.3)
+
+        fig.tight_layout()
+        plt.show()
 
 class PlaneWave:
     def __init__(self, xs=None, ys=None, zs=0, nodes=None, f=None, 
@@ -261,9 +284,8 @@ class Dipole:
                 nodes=10, f=None, amplitude=1.0,
                 phase=0):
         '''
-        Updates the fields E and H every timestep 
-        to introduce a dipole excitation at the given 
-        xs, ys slice, moving in z+ direction
+        Updates the given field and component every timestep
+        to introduce a dipole-like sinusoidal excitation
 
         Parameters
         ---
