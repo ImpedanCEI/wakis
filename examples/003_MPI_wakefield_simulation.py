@@ -25,8 +25,6 @@ comm = MPI.COMM_WORLD  # Get MPI communicator
 rank = comm.Get_rank()  # Process ID
 size = comm.Get_size()  # Total number of MPI processes
 
-print(f"Process {rank} of {size} is running")
-
 # ---------- Domain setup ---------
 
 # Geometry & Materials
@@ -43,28 +41,27 @@ stl_materials = {'cavity': 'vacuum',
 
 # Extract domain bounds from geometry
 solids = pv.read(solid_1) + pv.read(solid_2)
-xmin, xmax, ymin, ymax, zmin, zmax = solids.bounds
+xmin, xmax, ymin, ymax, ZMIN, ZMAX = solids.bounds
 
 # Number of mesh cells
 Nx = 80
 Ny = 80
-Nz = 141
+NZ = 140
 
-# Adjust for MPI & ompute local Z-slice range
-Nz += Nz%(size) #if rank 0 is common, then size-1
-dz = (zmax - zmin) / Nz
-z = np.linspace(zmin, zmax, Nz+1)
+# Adjust for MPI & compute local Z-slice range
+NZ -= NZ%(size) 
+dz = (ZMAX - ZMIN) / NZ
+Z = np.linspace(ZMIN, ZMAX, NZ+1)[:-1] + dz/2
 
 # Allocate mpi node cells
-Nz_mpi = Nz // (size) 
-zmin_mpi = rank * Nz_mpi * dz + zmin
-zmax_mpi= (rank+1) * Nz_mpi * dz + zmin
+Nz = NZ // (size)
+zmin = rank * Nz * dz + ZMIN
+zmax = (rank+1) * Nz * dz + ZMIN
 
-print(f"Process {rank}: Handling Z range {zmin_mpi} to {zmax_mpi}")
+print(f"Process {rank}: Handling Z range {zmin} to {zmax} with {Nz} cells")
 
-grid = GridFIT3D(xmin, xmax, ymin, ymax, 
-                zmin_mpi, zmax_mpi, 
-                Nx, Ny, Nz_mpi, 
+grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, 
+                Nx, Ny, Nz, 
                 stl_solids=stl_solids, 
                 stl_materials=stl_materials,
                 stl_scale=1.0,
@@ -72,7 +69,6 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax,
                 stl_translate=[0,0,0],
                 verbose=1)
 
-# ------------ Beam source & Wake ----------------
 # ------------ Beam source & Wake ----------------
 # Beam parameters
 sigmaz = 10e-2      #[m] -> 2 GHz
@@ -93,7 +89,7 @@ from scipy.constants import c
 beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
             xsource=xs, ysource=ys, ti=3*sigmaz/c)
 
-results_folder = f'001_results_n{rank}/'
+results_folder = f'003_results_n{rank}/'
 
 '''
 wake = WakeSolver(q=q, 
@@ -103,7 +99,7 @@ wake = WakeSolver(q=q,
                   xtest=xt, ytest=yt,
                   add_space=add_space, 
                   results_folder=results_folder,
-                  Ez_file=results_folder+'001_Ez.h5')
+                  Ez_file=results_folder+'Ez.h5')
 '''
 
 # ----------- Solver & Simulation ----------
@@ -111,78 +107,47 @@ wake = WakeSolver(q=q,
 bc_low=['pec', 'pec', 'pec']
 bc_high=['pec', 'pec', 'pec']
 
-if rank > 0:
-    bc_low=['pec', 'pec', 'periodic']
-
-if rank < size - 1:
-    bc_high=['pec', 'pec', 'periodic']
-
 # Solver setup
 solver = SolverFIT3D(grid,
                     bc_low=bc_low, 
                     bc_high=bc_high, 
                     use_stl=True, 
+                    use_mpi=True, # Activate MPI
                     bg='pec' # Background material
                     )
-# Communication between ghost cells
-def communicate_ghost_cells():
-    if rank > 0:
-        for d in ['x','y','z']:
-            comm.Sendrecv(solver.E[:, :, 1,d], 
-                        recvbuf=solver.E[:, :, 0,d],
-                        dest=rank-1, sendtag=0,
-                        source=rank-1, recvtag=1)
+def plot1D_field(field, name='E', y=Ny//2, n=None, results_folder='img/', ymin=None, ymax=None,):
+    if ymin is None:
+        ymin = -field.max()
+    if ymax is None:
+        ymax = field.max()
 
-            comm.Sendrecv(solver.H[:, :, 1,d], 
-                        recvbuf=solver.H[:, :, 0,d],
-                        dest=rank-1, sendtag=0,
-                        source=rank-1, recvtag=1)
-            
-            comm.Sendrecv(solver.J[:, :, 1,d], 
-                        recvbuf=solver.J[:, :, 0,d],
-                        dest=rank-1, sendtag=0,
-                        source=rank-1, recvtag=1)
-            
-    if rank < size - 1:
-        for d in ['x','y','z']:
-            comm.Sendrecv(solver.E[:, :, -2,d], 
-                          recvbuf=solver.E[:, :, -1, d], 
-                          dest=rank+1, sendtag=1,
-                          source=rank+1, recvtag=0)
-            
-            comm.Sendrecv(solver.H[:, :, -2,d], 
-                          recvbuf=solver.H[:, :, -1, d], 
-                          dest=rank+1, sendtag=1,
-                          source=rank+1, recvtag=0)
-            
-            comm.Sendrecv(solver.J[:, :, -2,d], 
-                          recvbuf=solver.J[:, :, -1, d], 
-                          dest=rank+1, sendtag=1,
-                          source=rank+1, recvtag=0)
-
-def compose_field(field, d='z'):
-
-    if field == 'E':
-        local = solver.E[Nx//2, :, :,d].ravel()
-    elif field == 'H':
-        local = solver.H[Nx//2, :, :,d].ravel()
-    elif field == 'J':
-        local = solver.J[Nx//2, :, :,d].ravel()
-
-    buffer = comm.gather(local, root=0)
-    field = None
-
-    if rank == 0:
-        field = np.zeros((Ny, Nz))  # Reinitialize global array
-        for r in range(size):
-            field[:, r*Nz_mpi:(r+1)*Nz_mpi] = np.reshape(buffer[r], (Ny, Nz_mpi))
-    
-    return field
-
-def plot_field(field, name='E', n=None, results_folder='img/'):
-    extent = (zmin, zmax, ymin, ymax)
     fig, ax = plt.subplots()
-    im = ax.imshow(field, cmap='bwr', extent=extent, vmin=-500, vmax=500)
+    ax.plot(field[y, :], c='g')
+    ax.set_title(f'{name} at timestep={n}')
+    ax.set_xlabel('z [m]')
+    ax.set_ylabel('Field amplitude')
+    ax.set_ylim((ymin, ymax))
+
+    #plot vertical lines at subdomain borders
+    for r in range(size):
+        ax.axvline(Nz*(r+1), c='red', alpha=0.5)
+        ax.axvline(Nz*(r), c='blue', alpha=0.5)
+
+    fig.tight_layout()
+    fig.savefig(results_folder+name+'1d_'+str(n).zfill(4)+'.png')
+
+    plt.clf()
+    plt.close(fig)
+
+def plot2D_field(field, name='E', n=None, results_folder='img/', vmin=None, vmax=None,):
+    extent = (ZMIN, ZMAX, ymin, ymax)
+    if vmin is None:
+        vmin = -field.max()
+    if vmax is None:
+        vmax = field.max()
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(field, cmap='bwr', extent=extent, vmin=vmin, vmax=vmax)
     fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
     ax.set_title(f'{name} at timestep={n}')
     ax.set_xlabel('z [m]')
@@ -199,21 +164,32 @@ if rank == 0:
     if not os.path.exists(img_folder): 
         os.mkdir(img_folder)
 
+'''
+# Check global material tensors
+ieps = solver.mpi_gather(solver.ieps, 'z', x=Nx//2)
+sigma = solver.mpi_gather(solver.sigma, 'z', x=Nx//2)
+
+if rank == 0:
+    plot_field(ieps, 'eps^-1z_', n=0, results_folder=img_folder)
+    plot_field(sigma, 'sigmaz_', n=0, results_folder=img_folder)
+'''
+
 Nt = 3000
+
+# Plot beam current vs time
+# beam.plot(np.linspace(0, solver.dt*Nt, Nt+1))
+
 for n in tqdm(range(Nt)):
 
-    beam.update_mpi(solver, n*solver.dt, zmin)
+    beam.mpi_update(solver, n*solver.dt)
 
-    solver.one_step()
-
-    #Communicate slices
-    communicate_ghost_cells()
+    solver.mpi_one_step()
 
     if n%20 == 0:
-        Ez = compose_field('E')
+        Ez = solver.mpi_gather('Ez', x=Nx//2)
         if rank == 0:
-            plot_field(Ez, 'Ez', n=n, results_folder=img_folder)
-
+            #plot2D_field(Ez, 'Ez', n=n, results_folder=img_folder, vmin=-500, vmax=500)
+            plot1D_field(Ez, 'Ez', n=n, results_folder=img_folder, ymin=-800, ymax=800)
         
 # Run with:
 # mpiexec -n 4 python 003_MPI_wakefield_simulation.py
