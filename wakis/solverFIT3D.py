@@ -24,12 +24,19 @@ try:
 except ImportError:
     imported_cupyx = False
 
+try:
+    from mpi4py import MPI
+    imported_mpi = True
+except ImportError:
+    imported_mpi = False
+
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
-                 use_stl=False, use_conductors=False, use_gpu=False,
+                 use_stl=False, use_conductors=False, 
+                 use_gpu=False, use_mpi=False,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
@@ -93,6 +100,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.use_conductors = use_conductors
         self.use_stl = use_stl
         self.use_gpu = use_gpu
+        self.use_mpi = use_mpi
         self.activate_abc = False        # Will turn true if abc BCs are chosen
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
@@ -129,6 +137,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
         self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
 
+        # MPI init
+        if self.use_mpi: 
+            if imported_mpi:
+                self.mpi_initialize()
+                if self.verbose: print(f"MPI initialized for {self.rank} of {self.size}")
+            else:
+                raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
+            
         # Matrices
         if verbose: print('Assembling operator matrices...')
         N = self.N
@@ -221,7 +237,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.iDeps = gpu_sparse_mat(self.iDeps)
                 self.Dsigma = gpu_sparse_mat(self.Dsigma)
             else:
-                print('*** cupyx could not be imported, please check CUDA installation')
+                raise ImportError('*** cupyx could not be imported, please check CUDA installation')
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
@@ -280,6 +296,135 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.activate_abc:
             self.update_abc()
 
+    def mpi_initialize(self):
+        comm = MPI.COMM_WORLD  # Get MPI communicator
+        self.comm = comm
+        self.rank = self.comm.Get_rank()
+        self.size = self.comm.Get_size() 
+
+        # global z quantities [ALLCAPS]
+        self.NZ = self.Nz * self.size
+        self.ZMIN = self.grid.zmin - self.rank * self.Nz * self.dz
+        self.ZMAX = self.ZMIN + self.Nz * self.dz
+        self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ+1)[:-1] + self.dz/2
+
+    def mpi_one_step(self):
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
+            self.attrcleanup()
+
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*self.tDsiDmuiDaC*self.E.toarray()
+                         )
+        
+        self.mpi_communicate_ghosts(self.H)
+        self.mpi_communicate_ghosts(self.J)
+        self.E.fromarray(self.E.toarray() +
+                         self.dt*(self.itDaiDepsDstC * self.H.toarray() 
+                                  - self.iDeps*self.J.toarray()
+                                  )
+                         )
+
+        self.mpi_communicate_ghosts(self.E)
+        # include current computation                 
+        if self.use_conductivity:
+            self.J.fromarray(self.Dsigma*self.E.toarray())
+
+        # update ABC - not supported for MPI
+
+    def mpi_communicate_ghosts(self, field):
+        # ghosts lo
+        if self.rank > 0:
+            for d in ['x','y','z']:
+                self.comm.Sendrecv(field[:, :, 1, d], 
+                            recvbuf=field[:, :, 0, d],
+                            dest=self.rank-1, sendtag=0,
+                            source=self.rank-1, recvtag=1)
+        # ghosts hi
+        if self.rank < self.size - 1:
+            for d in ['x','y','z']:
+                self.comm.Sendrecv(field[:, :, -2, d], 
+                            recvbuf=field[:, :, -1, d], 
+                            dest=self.rank+1, sendtag=1,
+                            source=self.rank+1, recvtag=0)
+                
+    def mpi_gather(self, field, component=None, x=None, y=None):
+        if x is None:
+            x = slice(0, self.Nx)
+        if y is None:
+            y = slice(0, self.Ny)
+
+        if type(field) is str:
+            if len(field) == 2: #support for e.g. field='Ex'
+                component = field[1]
+                field = field[0]
+            elif component is None: 
+                component = 'z'
+                print("[!] `component` not specified, using default component='z'")
+
+            if field == 'E':
+                local = self.E[x, y, :, component].ravel()
+            elif field == 'H':
+                local = self.H[x, y, :, component].ravel()
+            elif field == 'J':
+                local = self.J[x, y, :, component].ravel()
+        else:
+            if component is None: 
+                component = 'z'
+                print("[!] `component` not specified, using default component='z'")
+            local = field[x, y, :, component].ravel() 
+
+        buffer = self.comm.gather(local, root=0)
+        field_comp = None
+
+        if self.rank == 0:
+            if type(x) is int:
+                ny = y.stop-y.start
+                field_comp = np.zeros((ny, self.NZ))
+                for r in range(self.size):
+                    field_comp[:, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (ny, self.Nz)) 
+            elif type(y) is int:
+                nx = x.stop-x.start
+                field_comp = np.zeros((nx, self.NZ))
+                for r in range(self.size):
+                    field_comp[:, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (nx, self.Nz)) 
+            else: # both type slice
+                nx = x.stop-x.start
+                ny = y.stop-y.start
+                field_comp = np.zeros((nx, ny, self.NZ))
+                for r in range(self.size):
+                    field_comp[:, :, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (nx, ny, self.Nz)) 
+
+        return field_comp 
+
+    def mpi_gather_asField(self, field):
+        field = None
+        for d in ['x','y','z']:
+            if type(field) is str:
+                if field == 'E':
+                    local = self.E[:, :, :,d].ravel()
+                elif field == 'H':
+                    local = self.H[:, :, :,d].ravel()
+                elif field == 'J':
+                    local = self.J[:, :, :,d].ravel()
+            else:
+                local = field[:, :, :, d].ravel()
+
+            buffer = self.comm.gather(local, root=0)
+            
+            if self.rank == 0:
+                field = Field(self.Nx, self.Ny, self.NZ) 
+                for r in range(self.size):
+                    field[: ,:, r*self.Nz:(r+1)*self.Nz, d] = np.reshape(buffer[r], (self.Nx, self.Ny, self.Nz))
+        
+        return field 
+
+    def mpi_finalize(self):
+        if self.use_mpi and self.comm is not None:
+            self.comm.Barrier()
+            MPI.Finalize()
+
     def apply_bc_to_C(self):
         '''
         Modifies rows or columns of C and tDs and itDa matrices
@@ -287,6 +432,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         '''
         xlo, ylo, zlo = 1., 1., 1.
         xhi, yhi, zhi = 1., 1., 1.
+
+        # Check BCs for internal MPI subdomains
+        if self.use_mpi and imported_mpi:
+            if self.rank > 0:
+                self.bc_low=['pec', 'pec', 'periodic']
+
+            if self.rank < self.size - 1:
+                self.bc_high=['pec', 'pec', 'periodic']
 
         # Perodic: out == in
         if any(True for x in self.bc_low if x.lower() == 'periodic'):
