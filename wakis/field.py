@@ -128,6 +128,9 @@ class Field:
                 else:
                     field = self.xp.reshape(self.array[2*self.N:3*self.N], (self.Nx, self.Ny, self.Nz), order='F')
                     return field[key[0], key[1], key[2]]
+            elif type(key[3]) is str and key[3].lower() == 'abs':
+                    field = self.get_abs()
+                    return field[key[0], key[1], key[2]]
             else:
                 raise IndexError('Component id not valid')
 
