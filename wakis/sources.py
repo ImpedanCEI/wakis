@@ -53,26 +53,12 @@ class Beam:
         if self.is_first_update:
             self.ixs, self.iys = np.abs(solver.x-self.xsource).argmin(), np.abs(solver.y-self.ysource).argmin()
             self.is_first_update = False
-        # reference shift
-        s0 = solver.z.min() - self.v*self.ti
-        s = solver.z - self.v*t
-        # gaussian
-        profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
-        # update 
-        solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx/solver.dy
-
-    def mpi_update(self, solver, t):
-        if self.is_first_update:
-            self.ixs, self.iys = np.abs(solver.x-self.xsource).argmin(), np.abs(solver.y-self.ysource).argmin()
-            self.is_first_update = False
-            if hasattr(solver, 'ZMIN'):
-                self.ZMIN = solver.ZMIN
+            if hasattr(solver, 'ZMIN'): # support for MPI
+                self.zmin = solver.ZMIN + solver.dz/2
             else:
-                self.ZMIN = solver.z.zmin()
-                print('*** global ZMIN not found -> MPI not properly initialized, use `update()` method for single core')
-
+                self.zmin = solver.z.zmin()
         # reference shift
-        s0 = self.ZMIN - self.v*self.ti
+        s0 = self.zmin - self.v*self.ti
         s = solver.z - self.v*t
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
