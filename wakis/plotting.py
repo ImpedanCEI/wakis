@@ -118,22 +118,11 @@ class PlotMixin:
 
         # Plot field
         if field == 'E':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E[:, :, :, component], self.N)
-
+            self.grid.grid.cell_data[field+component] = np.reshape(self.E[:, :, :, component], self.N)
         elif field == 'H':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H[:, :, :, component], self.N)
-
+            self.grid.grid.cell_data[field+component] = np.reshape(self.H[:, :, :, component], self.N)
         elif field == 'J':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J[:, :, :, component], self.N)
+            self.grid.grid.cell_data[field+component] = np.reshape(self.J[:, :, :, component], self.N)
         else:
             print("`field` value not valid")
 
@@ -307,22 +296,13 @@ class PlotMixin:
 
         # Plot field
         if field == 'E':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.E[:, :, :, component], self.N)
+            self.grid.grid.cell_data[field+component] = np.reshape(self.E[:, :, :, component], self.N)
 
         elif field == 'H':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.H[:, :, :, component], self.N)
+            self.grid.grid.cell_data[field+component] = np.reshape(self.H[:, :, :, component], self.N)
 
         elif field == 'J':
-            if component == 'Abs':
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J.get_abs()[:, :, :], self.N)
-            else:
-                self.grid.grid.cell_data[field+component] = np.reshape(self.J[:, :, :, component], self.N)
+            self.grid.grid.cell_data[field+component] = np.reshape(self.J[:, :, :, component], self.N)
         else:
             print("`field` value not valid")
 
@@ -418,7 +398,6 @@ class PlotMixin:
         else:
             pl.show(full_screen=False)
 
-
     def plot2D(self, field='E', component='z', plane='ZY', pos=0.5, norm=None, 
                vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1, 
                patch_reverse=False, add_patch=False, title=None, off_screen=False, 
@@ -475,7 +454,7 @@ class PlotMixin:
         ymin, ymax = self.grid.ymin, self.grid.ymax
         zmin, zmax = self.grid.zmin, self.grid.zmax
         
-        if len(field) == 2: #support for e.g. field='Ex'
+        if type(field) is str and len(field) == 2: #support for e.g. field='Ex'
             component = field[1]
             field = field[0]
         
@@ -527,32 +506,17 @@ class PlotMixin:
         fig, ax = plt.subplots(1,1, figsize=figsize, dpi=dpi)
 
         if field == 'E':
-            if component == 'Abs':
-                im = ax.imshow(self.E.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.E[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
+            im = ax.imshow(self.E[x, y, z, component], cmap=cmap,  norm=norm, 
+                            extent=extent, origin='lower', vmin=vmin, vmax=vmax,
+                            interpolation=interpolation)
         if field == 'H':
-            if component == 'Abs':
-                im = ax.imshow(self.H.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.H[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
+            im = ax.imshow(self.H[x, y, z, component], cmap=cmap,  norm=norm, 
+                            extent=extent, origin='lower', vmin=vmin, vmax=vmax,
+                            interpolation=interpolation)
         if field == 'J':
-            if component == 'Abs':
-                im = ax.imshow(self.J.get_abs()[x, y, z], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)
-            else:
-                im = ax.imshow(self.J[x, y, z, component], cmap=cmap,  norm=norm, 
-                               extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                               interpolation=interpolation)  
+            im = ax.imshow(self.J[x, y, z, component], cmap=cmap,  norm=norm, 
+                            extent=extent, origin='lower', vmin=vmin, vmax=vmax,
+                            interpolation=interpolation)  
                               
         fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
         ax.set_title(f'Wakis {field}{component}{cut}')
@@ -721,34 +685,19 @@ class PlotMixin:
             else: zorder = i
 
             if field == 'E':
-                if component == 'Abs':
-                    ax.plot(xx, self.E.get_abs()[x, y, z], color=colors[i], zorder=zorder, 
-                            label=f'{field}{component}{cut}', **plotkw)
-                    yax = 'E(Abs) amplitude'
-                else:
-                    ax.plot(xx, self.E[x, y, z, component], color=colors[i], zorder=zorder,
-                            label=f'{field}{component}{cut}', **plotkw)
-                    yax = f'E{component} amplitude'
+                ax.plot(xx, self.E[x, y, z, component], color=colors[i], zorder=zorder,
+                        label=f'{field}{component}{cut}', **plotkw)
+                yax = f'E{component} amplitude'
 
             if field == 'H':
-                if component == 'Abs':
-                    ax.plot(xx, self.H.get_abs()[x, y, z], color=colors[i], zorder=zorder,
-                            label=f'{field}{component}{cut}', **plotkw)
-                    yax = 'H(Abs) amplitude'
-                else:
-                    ax.plot(xx, self.H[x, y, z, component], color=colors[i], zorder=zorder,
-                           label=f'{field}{component}{cut}', **plotkw)
-                    yax = f'H{component} amplitude'
+                ax.plot(xx, self.H[x, y, z, component], color=colors[i], zorder=zorder,
+                        label=f'{field}{component}{cut}', **plotkw)
+                yax = f'H{component} amplitude'
 
             if field == 'J':
-                if component == 'Abs':
-                    ax.plot(xx, self.J.get_abs()[x, y, z], color=colors[i], zorder=zorder,
-                            label=f'{field}{component}{cut}', **plotkw)
-                    yax = 'J(Abs) amplitude'
-                else:
-                    ax.plot(xx, self.J[x, y, z, component], color=colors[i], zorder=zorder,
-                            label=f'{field}{component}{cut}', **plotkw)
-                    yax = f'J{component} amplitude'
+                ax.plot(xx, self.J[x, y, z, component], color=colors[i], zorder=zorder,
+                        label=f'{field}{component}{cut}', **plotkw)
+                yax = f'J{component} amplitude'
                               
         ax.set_title(f'Wakis {field}{component}'+(len(pos_arr)==1)*f'{cut}')
         ax.set_xlabel(xax)
