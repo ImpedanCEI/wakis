@@ -24,11 +24,6 @@ try:
 except ImportError:
     imported_cupyx = False
 
-try:
-    from mpi4py import MPI
-    imported_mpi = True
-except ImportError:
-    imported_mpi = False
 
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
@@ -111,9 +106,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # Grid 
         self.grid = grid
 
-        self.Nx = self.grid.nx
-        self.Ny = self.grid.ny
-        self.Nz = self.grid.nz
+        self.Nx = self.grid.Nx
+        self.Ny = self.grid.Ny
+        self.Nz = self.grid.Nz
         self.N = self.Nx*self.Ny*self.Nz
 
         self.dx = self.grid.dx
@@ -138,12 +133,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
 
         # MPI init
-        if self.use_mpi: 
-            if imported_mpi:
+        if self.use_mpi:
+            if self.grid.use_mpi: 
                 self.mpi_initialize()
-                if self.verbose: print(f"MPI initialized for {self.rank} of {self.size}")
             else:
-                raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
+                print('*** Grid not subdivided for MPI, set `use_mpi`=True also in `GridFIT3D` to enable MPI')
             
         # Matrices
         if verbose: print('Assembling operator matrices...')
@@ -297,16 +291,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.update_abc()
 
     def mpi_initialize(self):
-        comm = MPI.COMM_WORLD  # Get MPI communicator
-        self.comm = comm
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size() 
+        self.comm = self.grid.comm
+        self.rank = self.grid.rank
+        self.size = self.grid.size
 
-        # global z quantities [ALLCAPS]
-        self.NZ = self.Nz * self.size
-        self.ZMIN = self.grid.zmin - self.rank * self.Nz * self.dz
-        self.ZMAX = self.ZMIN + self.Nz * self.dz
-        self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ+1)[:-1] + self.dz/2
+        self.NZ = self.grid.NZ
+        self.ZMIN = self.grid.ZMIN
+        self.ZMAX = self.grid.ZMAX
+        self.Z = self.grid.Z
 
     def mpi_one_step(self):
         if self.step_0:
@@ -318,22 +310,22 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
         
-        self.mpi_communicate_ghosts(self.H)
-        self.mpi_communicate_ghosts(self.J)
+        self.mpi_communicate(self.H)
+        self.mpi_communicate(self.J)
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() 
                                   - self.iDeps*self.J.toarray()
                                   )
                          )
 
-        self.mpi_communicate_ghosts(self.E)
+        self.mpi_communicate(self.E)
         # include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
 
         # update ABC - not supported for MPI
 
-    def mpi_communicate_ghosts(self, field):
+    def mpi_communicate(self, field):
         # ghosts lo
         if self.rank > 0:
             for d in ['x','y','z']:
@@ -349,15 +341,20 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                             dest=self.rank+1, sendtag=1,
                             source=self.rank+1, recvtag=0)
                 
-    def mpi_gather(self, field, component=None, x=None, y=None):
+    def mpi_gather(self, field, x=None, y=None, z=None, component=None):
         if x is None:
             x = slice(0, self.Nx)
         if y is None:
             y = slice(0, self.Ny)
+        if z is None:
+            z = slice(0, self.NZ)
 
         if type(field) is str:
             if len(field) == 2: #support for e.g. field='Ex'
                 component = field[1]
+                field = field[0]
+            elif len(field) == 4: #support for Abs
+                component = field[1:]
                 field = field[0]
             elif component is None: 
                 component = 'z'
@@ -376,30 +373,71 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             local = field[x, y, :, component].ravel() 
 
         buffer = self.comm.gather(local, root=0)
-        field_comp = None
+        _field = None
 
         if self.rank == 0:
-            if type(x) is int:
-                ny = y.stop-y.start
-                field_comp = np.zeros((ny, self.NZ))
+            if type(x) is int and type(y) is int:
+                nz = self.NZ//self.size
+                _field = np.zeros((self.NZ))
                 for r in range(self.size):
-                    field_comp[:, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (ny, self.Nz)) 
+                    zz = np.s_[r*nz:(r+1)*nz]
+                    if r == 0:
+                        _field[zz] = np.reshape(buffer[r], (nz+self.grid.n_ghosts))[:-1] 
+                    elif r == (self.size-1):
+                        _field[zz] = np.reshape(buffer[r], (nz+self.grid.n_ghosts))[1:]  
+                    else:
+                        _field[zz] = np.reshape(buffer[r], (nz+2*self.grid.n_ghosts))[1:-1]
+                _field = _field[z]
+
+            elif type(x) is int:
+                ny = y.stop-y.start
+                nz = self.NZ//self.size
+                _field = np.zeros((ny, self.NZ))
+                for r in range(self.size):
+                    zz = np.s_[r*nz:(r+1)*nz]
+                    if r == 0:
+                        _field[:, zz] = np.reshape(buffer[r], (ny, nz+self.grid.n_ghosts))[:, :-1] 
+                    elif r == (self.size-1):
+                        _field[:, zz] = np.reshape(buffer[r], (ny, nz+self.grid.n_ghosts))[:, 1:]  
+                    else:
+                        _field[:, zz] = np.reshape(buffer[r], (ny, nz+2*self.grid.n_ghosts))[:, 1:-1] 
+                _field = _field[:, z]
+
             elif type(y) is int:
                 nx = x.stop-x.start
-                field_comp = np.zeros((nx, self.NZ))
+                nz = self.NZ//self.size
+                _field = np.zeros((nx, self.NZ))
                 for r in range(self.size):
-                    field_comp[:, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (nx, self.Nz)) 
+                    zz = np.s_[r*nz:(r+1)*nz]
+                    if r == 0:
+                        _field[:, zz] = np.reshape(buffer[r], (nx, nz+self.grid.n_ghosts))[:, :-1] 
+                    elif r == (self.size-1):
+                        _field[:, zz] = np.reshape(buffer[r], (nx, nz+self.grid.n_ghosts))[:, 1:]  
+                    else:
+                        _field[:, zz] = np.reshape(buffer[r], (nx, nz+2*self.grid.n_ghosts))[:, 1:-1] 
+                _field = _field[:, z]
+                        
             else: # both type slice
                 nx = x.stop-x.start
                 ny = y.stop-y.start
-                field_comp = np.zeros((nx, ny, self.NZ))
+                nz = self.NZ//self.size
+                _field = np.zeros((nx, ny, self.NZ))
                 for r in range(self.size):
-                    field_comp[:, :, r*self.Nz:(r+1)*self.Nz] = np.reshape(buffer[r], (nx, ny, self.Nz)) 
+                    zz = np.s_[r*nz:(r+1)*nz]
+                    if r == 0:
+                        _field[:, :, zz] = np.reshape(buffer[r], (nx, ny, nz+self.grid.n_ghosts))[:, :, :-1] 
+                    elif r == (self.size-1):
+                        _field[:, :, zz] = np.reshape(buffer[r], (nx, ny, nz+self.grid.n_ghosts))[:, :, 1:]  
+                    else:
+                        _field[:, :, zz] = np.reshape(buffer[r], (nx, ny, nz+2*self.grid.n_ghosts))[:, :, 1:-1] 
+                _field = _field[:, :, z]
 
-        return field_comp 
+        return _field 
 
     def mpi_gather_asField(self, field):
-        field = None
+
+        _field = Field(self.Nx, self.Ny, self.NZ) 
+
         for d in ['x','y','z']:
             if type(field) is str:
                 if field == 'E':
@@ -412,18 +450,18 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 local = field[:, :, :, d].ravel()
 
             buffer = self.comm.gather(local, root=0)
-            
             if self.rank == 0:
-                field = Field(self.Nx, self.Ny, self.NZ) 
+                nz = self.NZ//self.size
                 for r in range(self.size):
-                    field[: ,:, r*self.Nz:(r+1)*self.Nz, d] = np.reshape(buffer[r], (self.Nx, self.Ny, self.Nz))
+                    zz = np.s_[r*nz:(r+1)*nz]
+                    if r == 0:
+                        _field[:, :, zz, d] = np.reshape(buffer[r], (self.Nx, self.Ny, nz+self.grid.n_ghosts))[:, :, :-1] 
+                    elif r == (self.size-1):
+                        _field[:, :, zz, d] = np.reshape(buffer[r], (self.Nx, self.Ny, nz+self.grid.n_ghosts))[:, :, 1:]  
+                    else:
+                        _field[:, :, zz, d] = np.reshape(buffer[r], (self.Nx, self.Ny, nz+2*self.grid.n_ghosts))[:, :, 1:-1] 
         
-        return field 
-
-    def mpi_finalize(self):
-        if self.use_mpi and self.comm is not None:
-            self.comm.Barrier()
-            MPI.Finalize()
+        return _field 
 
     def apply_bc_to_C(self):
         '''
@@ -433,10 +471,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         xlo, ylo, zlo = 1., 1., 1.
         xhi, yhi, zhi = 1., 1., 1.
 
-        # Check BCs for internal MPI subdomains
-        if self.use_mpi and imported_mpi:
+        # Check BCs for internal MPI subdomains if n_ghost=1
+        if self.use_mpi and self.grid.use_mpi:
             if self.rank > 0:
-                self.bc_low=['pec', 'pec', 'periodic']
+                self.bc_low=['pec', 'pec', 'periodic'] # change to MPI
 
             if self.rank < self.size - 1:
                 self.bc_high=['pec', 'pec', 'periodic']
