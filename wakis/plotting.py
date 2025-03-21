@@ -453,10 +453,20 @@ class PlotMixin:
         xmin, xmax = self.grid.xmin, self.grid.xmax 
         ymin, ymax = self.grid.ymin, self.grid.ymax
         zmin, zmax = self.grid.zmin, self.grid.zmax
+        _z = self.z
+
+        if self.use_mpi:
+            zmin, zmax = self.grid.ZMIN, self.grid.ZMAX
+            Nz = self.grid.NZ
+            _z = self.grid.Z
         
-        if type(field) is str and len(field) == 2: #support for e.g. field='Ex'
-            component = field[1]
-            field = field[0]
+        if type(field) is str:
+            if len(field) == 2: #support for e.g. field='Ex'
+                component = field[1]
+                field = field[0]
+            elif len(field) == 4: #support for e.g. field='EAbs'
+                component = field[1:]
+                field = field[0]
         
         if title is None:
             title = field + component +'2d'
@@ -473,13 +483,13 @@ class PlotMixin:
             if type(plane[0]) is int:
                 cut = f'(a,y,z) a={round(self.x[x],3)}'
                 xax, yax = 'z', 'y'
-                extent = [self.z[z].min(), self.z[z].max(), 
+                extent = [_z[z].min(), _z[z].max(), 
                           self.y[y].min(), self.y[y].max()]    
 
             if type(plane[1]) is int:
                 cut = f'(x,a,z) a={round(self.y[y],3)}'
                 xax, yax = 'z', 'x'
-                extent = [self.z[z].min(), self.z[z].max(), 
+                extent = [_z[z].min(), _z[z].max(), 
                           self.x[x].min(), self.x[x].max()]   
 
         elif plane == 'XY':
@@ -488,13 +498,13 @@ class PlotMixin:
             xax, yax = 'y', 'x'
             extent = [ymin, ymax, xmin, xmax]
 
-        elif plane == 'ZY':
+        elif plane == 'ZY' or plane == 'YZ':
             x, y, z = int(Nx*pos), slice(0,Ny), slice(0,Nz) #plane ZY
             cut = f'(a,y,z) a={round(pos*(xmax-xmin)+xmin,3)}'
             xax, yax = 'z', 'y'
             extent = [zmin, zmax, ymin, ymax]
         
-        elif plane == 'ZX':
+        elif plane == 'ZX' or plane == 'XZ':
             x, y, z = slice(0,Nx),  int(Ny*pos), slice(0,Nz) #plane XZ
             cut = f'(x,a,z) a={round(pos*(ymax-ymin)+ymin,3)}'
             xax, yax = 'z', 'x'
@@ -503,40 +513,55 @@ class PlotMixin:
         else:
             print("Plane needs to be an array of slices [x,y,z] or a str 'XY', 'ZY', 'ZX'")
 
-        fig, ax = plt.subplots(1,1, figsize=figsize, dpi=dpi)
+        if self.use_mpi: # only in rank=0
+            _field = self.mpi_gather(field, x=x, y=y, z=z, component=component)
 
-        if field == 'E':
-            im = ax.imshow(self.E[x, y, z, component], cmap=cmap,  norm=norm, 
-                            extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                            interpolation=interpolation)
-        if field == 'H':
-            im = ax.imshow(self.H[x, y, z, component], cmap=cmap,  norm=norm, 
-                            extent=extent, origin='lower', vmin=vmin, vmax=vmax,
-                            interpolation=interpolation)
-        if field == 'J':
-            im = ax.imshow(self.J[x, y, z, component], cmap=cmap,  norm=norm, 
+            if self.rank == 0:
+                fig, ax = plt.subplots(1,1, figsize=figsize, dpi=dpi)
+                im = ax.imshow(_field, cmap=cmap,  norm=norm, 
+                    extent=extent, origin='lower', vmin=vmin, vmax=vmax,
+                    interpolation=interpolation)  
+            
+                fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+                ax.set_title(f'Wakis {field}{component}{cut}')
+                ax.set_xlabel(xax)
+                ax.set_ylabel(yax)
+                
+                if n is not None:
+                    fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
+                    title += '_'+str(n).zfill(6)
+
+                fig.tight_layout()
+
+                if off_screen:
+                    fig.savefig(title+'.png')
+                    plt.clf()
+                    plt.close(fig)
+                elif return_handles:
+                    return fig, ax
+                else:
+                    plt.show(block=False)
+        else:
+            if field == 'E':
+                _field = self.E[x, y, z, component]
+            if field == 'H':
+                _field = self.H[x, y, z, component]
+            if field == 'J':
+                _field = self.J[x, y, z, component]
+
+            im = ax.imshow(_field, cmap=cmap,  norm=norm, 
                             extent=extent, origin='lower', vmin=vmin, vmax=vmax,
                             interpolation=interpolation)  
                               
-        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'Wakis {field}{component}{cut}')
-        ax.set_xlabel(xax)
-        ax.set_ylabel(yax)
+            fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+            ax.set_title(f'Wakis {field}{component}{cut}')
+            ax.set_xlabel(xax)
+            ax.set_ylabel(yax)
 
-        # Patch stl
-        if add_patch is not None:
-            if type(add_patch) is str:
-                mask = np.reshape(self.grid.grid[add_patch], (Nx, Ny, Nz))
-                patch = np.ones((Nx, Ny, Nz))
-                if patch_reverse:
-                    patch[mask] = np.nan 
-                else:
-                    patch[np.logical_not(mask)] = np.nan 
-                ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
-
-            elif type(add_patch) is list:
-                for solid in add_patch:
-                    mask = np.reshape(self.grid.grid[solid], (Nx, Ny, Nz))
+            # Patch stl - not supported when running MPI
+            if add_patch is not None:
+                if type(add_patch) is str:
+                    mask = np.reshape(self.grid.grid[add_patch], (Nx, Ny, Nz))
                     patch = np.ones((Nx, Ny, Nz))
                     if patch_reverse:
                         patch[mask] = np.nan 
@@ -544,20 +569,30 @@ class PlotMixin:
                         patch[np.logical_not(mask)] = np.nan 
                     ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
 
-        if n is not None:
-            fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
-            title += '_'+str(n).zfill(6)
+                elif type(add_patch) is list:
+                    for solid in add_patch:
+                        mask = np.reshape(self.grid.grid[solid], (Nx, Ny, Nz))
+                        patch = np.ones((Nx, Ny, Nz))
+                        if patch_reverse:
+                            patch[mask] = np.nan 
+                        else:
+                            patch[np.logical_not(mask)] = np.nan 
+                        ax.imshow(patch[x,y,z], cmap='Greys', extent=extent, origin='lower', alpha=patch_alpha)
 
-        fig.tight_layout()
+            if n is not None:
+                fig.suptitle('$'+str(field)+'_{'+str(component)+'}$ field, timestep='+str(n))
+                title += '_'+str(n).zfill(6)
 
-        if off_screen:
-            fig.savefig(title+'.png')
-            plt.clf()
-            plt.close(fig)
-        elif return_handles:
-            return fig, ax
-        else:
-            plt.show(block=False)
+            fig.tight_layout()
+
+            if off_screen:
+                fig.savefig(title+'.png')
+                plt.clf()
+                plt.close(fig)
+            elif return_handles:
+                return fig, ax
+            else:
+                plt.show(block=False)
 
     def plot1D(self, field='E', component='z', line='z', pos=[0.5], 
                xscale='linear', yscale='linear', xlim=None, ylim=None, 
