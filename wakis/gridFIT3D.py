@@ -8,6 +8,12 @@ import pyvista as pv
 
 from .field import Field
 
+try:
+    from mpi4py import MPI
+    imported_mpi = True
+except ImportError:
+    imported_mpi = False
+
 class GridFIT3D:
     """
     Class holding the grid information and 
@@ -46,11 +52,13 @@ class GridFIT3D:
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, stl_solids=None, stl_materials=None, 
+                Nx, Ny, Nz, use_mpi=True, 
+                stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
                 stl_colors=None, verbose=1, tol=1e-3):
         
         self.verbose = verbose
+        self.use_mpi = use_mpi
 
         # domain limits
         self.xmin = xmin
@@ -65,9 +73,6 @@ class GridFIT3D:
         self.dx = (xmax - xmin) / Nx
         self.dy = (ymax - ymin) / Ny
         self.dz = (zmax - zmin) / Nz
-
-        # Compatibility with FDTD grid obj
-        self.nx, self.ny, self.nz = Nx, Ny, Nz
         
         # stl info
         self.stl_solids = stl_solids
@@ -77,6 +82,18 @@ class GridFIT3D:
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
 
+        # MPI subdivide domain 
+        if self.use_mpi: 
+            self.ZMIN = None
+            self.ZMAX = None
+            self.NZ = None
+            self.Z = None
+            if imported_mpi:
+                self.mpi_initialize()
+                if self.verbose: print(f"MPI initialized for {self.rank} of {self.size}")
+            else:
+                raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
+            
         # primal Grid G
         self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
         self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
@@ -84,7 +101,7 @@ class GridFIT3D:
 
         #tolerance for stl import tol*min(dx,dy,dz)
         self.tol = tol 
-
+            
         # grid
         if verbose: print('Generating grid...')
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
@@ -129,6 +146,58 @@ class GridFIT3D:
             self.mark_cells_in_stl()
             if stl_colors is None:
                 self.assign_colors()
+
+    def mpi_initialize(self):
+        comm = MPI.COMM_WORLD  # Get MPI communicator
+        self.comm = comm
+        self.rank = self.comm.Get_rank()
+        self.size = self.comm.Get_size() 
+
+        # global z quantities [ALLCAPS]
+        self.ZMIN = self.zmin
+        self.ZMAX = self.zmax
+        self.NZ = self.Nz - self.Nz%(self.size) # ensure multiple of MPI size
+        self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ+1)[:-1] + self.dz/2
+
+        # MPI subdomain quantities 
+        self.Nz = self.NZ // (self.size) 
+        self.dz = (self.ZMAX - self.ZMIN) / self.NZ
+        self.zmin = self.rank * self.Nz * self.dz + self.ZMIN
+        self.zmax = (self.rank+1) * self.Nz * self.dz + self.ZMIN 
+        
+        # Add ghost cells
+        self.n_ghosts = 1
+        if self.rank > 0:
+            self.zmin += - self.n_ghosts * self.dz
+            self.Nz += self.n_ghosts
+        if self.rank < (self.size-1):
+            self.zmax += self.n_ghosts * self.dz
+            self.Nz += self.n_ghosts
+
+        # Support for single core
+        if self.rank == 0 and self.size == 1: 
+            self.zmax += self.n_ghosts * self.dz
+            self.Nz += self.n_ghosts
+            
+    def mpi_gather_asGrid(self):
+        _grid = None
+        if self.rank == 0:
+            print(f"Generating global grid from {self.ZMIN} to {self.ZMAX}")
+            _grid = GridFIT3D(self.xmin, self.xmax, 
+                            self.ymin, self.ymax,
+                            self.ZMIN, self.ZMAX,
+                            self.Nx, self.Ny, self.NZ,
+                            use_mpi=False,
+                            stl_solids=self.stl_solids,
+                            stl_materials=self.stl_materials,
+                            stl_scale=self.stl_scale,
+                            stl_rotate=self.stl_rotate,
+                            stl_translate=self.stl_translate,
+                            stl_colors=self.stl_colors,
+                            verbose=self.verbose,
+                            tol=self.tol,
+                            )
+        return _grid
 
     def mark_cells_in_stl(self):
 
