@@ -542,6 +542,7 @@ class PlotMixin:
                 else:
                     plt.show(block=False)
         else:
+            fig, ax = plt.subplots(1,1, figsize=figsize, dpi=dpi)
             if field == 'E':
                 _field = self.E[x, y, z, component]
             if field == 'H':
@@ -643,15 +644,24 @@ class PlotMixin:
         xmin, xmax = self.grid.xmin, self.grid.xmax 
         ymin, ymax = self.grid.ymin, self.grid.ymax
         zmin, zmax = self.grid.zmin, self.grid.zmax
-        
+        _z = self.z
+
+        if self.use_mpi:
+            zmin, zmax = self.grid.ZMIN, self.grid.ZMAX
+            Nz = self.grid.NZ
+            _z = self.grid.Z
+            if self.rank == 0:
+                fig, ax = plt.subplots(1,1, figsize=figsize)
+        else:
+            fig, ax = plt.subplots(1,1, figsize=figsize)
+
+
         plotkw = {'lw':1.2, 'ls':'-'}
         
         if colors is None:
             colors = ['k', 'tab:red', 'tab:blue', 'tab:green', 
                     'tab:orange', 'tab:purple', 'tab:pink']
         plotkw.update(kwargs)
-
-        fig, ax = plt.subplots(1,1, figsize=figsize)
 
         if len(field) == 2: #support for e.g. field='Ex'
             component = field[1]
@@ -674,33 +684,33 @@ class PlotMixin:
                 if type(line[2]) is slice:  
                     cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
                     xax = 'z'
-                    xx = self.z[z]
-                    xlims = (self.z[z].min(), self.z[z].max())
+                    xx = _z[z]
+                    xlims = (_z[z].min(), _z[z].max())
                 
                 #x-axis
                 elif type(line[0]) is slice:  
-                    cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
+                    cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(_z[z],3)}'
                     xax = 'x'
                     xx = self.x[x]
                     xlims = (self.x[x].min(), self.x[x].max())
 
                 #y-axis
                 elif type(line[1]) is slice:  
-                    cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
+                    cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(_z[z],3)}'
                     xax = 'y'
                     xx = self.y[y]
                     xlims = (self.y[y].min(), self.y[y].max())
 
             elif line.lower() == 'x':
                 x, y, z = slice(0,Nx), int(Ny*pos), int(Nz*pos) #x-axis
-                cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(self.z[z],3)}'
+                cut = f'(x,a,b) a={round(self.y[y],3)}, b={round(_z[z],3)}'
                 xax = 'x'
                 xx = self.x[x]
                 xlims = (xmin, xmax)
 
             elif line.lower() == 'y':
                 x, y, z = int(Nx*pos), slice(0,Ny), int(Nz*pos) #y-axis
-                cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(self.z[z],3)}'
+                cut = f'(a,y,b) a={round(self.x[x],3)}, b={round(_z[z],3)}'
                 xax = 'y'
                 xx = self.y[y]
                 xlims = (ymin, ymax)
@@ -709,7 +719,7 @@ class PlotMixin:
                 x, y, z = int(Nx*pos), int(Ny*pos), slice(0,Nz) #z-axis
                 cut = f'(a,b,z) a={round(self.x[x],3)}, b={round(self.y[y],3)}'
                 xax = 'z'
-                xx = self.z[z]
+                xx = _z[z]
                 xlims = (zmin, zmax)
             
             else:
@@ -719,47 +729,85 @@ class PlotMixin:
                 zorder = 10
             else: zorder = i
 
-            if field == 'E':
-                ax.plot(xx, self.E[x, y, z, component], color=colors[i], zorder=zorder,
-                        label=f'{field}{component}{cut}', **plotkw)
-                yax = f'E{component} amplitude'
+            if self.use_mpi: # only in rank=0
+                _field = self.mpi_gather(field, x=x, y=y, z=z, component=component)
 
-            if field == 'H':
-                ax.plot(xx, self.H[x, y, z, component], color=colors[i], zorder=zorder,
-                        label=f'{field}{component}{cut}', **plotkw)
-                yax = f'H{component} amplitude'
+                if self.rank == 0:
+                    ax.plot(xx, _field, color=colors[i], zorder=zorder,
+                            label=f'{field}{component}{cut}', **plotkw)
+            else:
+                if field == 'E':
+                    _field = self.E[x, y, z, component]
+                if field == 'H':
+                    _field = self.H[x, y, z, component]
+                if field == 'J':
+                    _field = self.J[x, y, z, component]
 
-            if field == 'J':
-                ax.plot(xx, self.J[x, y, z, component], color=colors[i], zorder=zorder,
-                        label=f'{field}{component}{cut}', **plotkw)
-                yax = f'J{component} amplitude'
-                              
-        ax.set_title(f'Wakis {field}{component}'+(len(pos_arr)==1)*f'{cut}')
-        ax.set_xlabel(xax)
-        ax.set_ylabel(yax, color=colors[0])
-        ax.set_xlim(xlims)
+                ax.plot(xx, _field, color=colors[i], zorder=zorder,
+                    label=f'{field}{component}{cut}', **plotkw)
 
-        ax.set_xscale(xscale)
-        ax.set_yscale(yscale)
+        if not self.use_mpi:
+            yax = f'{field}{component} amplitude'
+                            
+            ax.set_title(f'Wakis {field}{component}'+(len(pos_arr)==1)*f'{cut}')
+            ax.set_xlabel(xax)
+            ax.set_ylabel(yax, color=colors[0])
+            ax.set_xlim(xlims)
 
-        if len(pos_arr) > 1:
-            ax.legend(loc=1)
+            ax.set_xscale(xscale)
+            ax.set_yscale(yscale)
 
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
+            if len(pos_arr) > 1:
+                ax.legend(loc=1)
 
-        if n is not None:
-            fig.suptitle('$'+field+'_{'+component+'}$ field, timestep='+str(n))
-            title += '_'+str(n).zfill(6)
+            if xlim is not None:
+                ax.set_xlim(xlim)
+            if ylim is not None:
+                ax.set_ylim(ylim)
 
-        fig.tight_layout()
+            if n is not None:
+                fig.suptitle('$'+field+'_{'+component+'}$ field, timestep='+str(n))
+                title += '_'+str(n).zfill(6)
 
-        if off_screen:
-            fig.savefig(title+'.png')
-            plt.clf()
-            plt.close(fig)
+            fig.tight_layout()
 
-        else:
-            plt.show()
+            if off_screen:
+                fig.savefig(title+'.png')
+                plt.clf()
+                plt.close(fig)
+
+            else:
+                plt.show()
+
+        elif self.use_mpi and self.rank == 0:
+            yax = f'{field}{component} amplitude'
+                            
+            ax.set_title(f'Wakis {field}{component}'+(len(pos_arr)==1)*f'{cut}')
+            ax.set_xlabel(xax)
+            ax.set_ylabel(yax, color=colors[0])
+            ax.set_xlim(xlims)
+
+            ax.set_xscale(xscale)
+            ax.set_yscale(yscale)
+
+            if len(pos_arr) > 1:
+                ax.legend(loc=1)
+
+            if xlim is not None:
+                ax.set_xlim(xlim)
+            if ylim is not None:
+                ax.set_ylim(ylim)
+
+            if n is not None:
+                fig.suptitle('$'+field+'_{'+component+'}$ field, timestep='+str(n))
+                title += '_'+str(n).zfill(6)
+
+            fig.tight_layout()
+
+            if off_screen:
+                fig.savefig(title+'.png')
+                plt.clf()
+                plt.close(fig)
+
+            else:
+                plt.show()
