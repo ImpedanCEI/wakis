@@ -61,6 +61,10 @@ class PlotMixin:
         n: int, optional
             Timestep number to be added to the plot title and figsave title.
         '''
+        if self.use_mpi:
+            print('*** plot3D is not supported when `use_mpi=True`')
+            return
+
         import pyvista as pv
 
         if len(field) == 2: #support for e.g. field='Ex'
@@ -257,6 +261,10 @@ class PlotMixin:
             PyVista's add_mesh optional arguments: 
             https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
         '''
+        if self.use_mpi:
+            print('*** plot3D is not supported when `use_mpi=True`')
+            return
+        
         import pyvista as pv
 
         if len(field) == 2: #support for e.g. field='Ex'
