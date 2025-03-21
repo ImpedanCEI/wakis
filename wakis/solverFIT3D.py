@@ -471,13 +471,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         xlo, ylo, zlo = 1., 1., 1.
         xhi, yhi, zhi = 1., 1., 1.
 
-        # Check BCs for internal MPI subdomains if n_ghost=1
+        # Check BCs for internal MPI subdomains 
         if self.use_mpi and self.grid.use_mpi:
             if self.rank > 0:
-                self.bc_low=['pec', 'pec', 'periodic'] # change to MPI
+                self.bc_low=['pec', 'pec', 'mpi'] 
 
             if self.rank < self.size - 1:
-                self.bc_high=['pec', 'pec', 'periodic']
+                self.bc_high=['pec', 'pec', 'mpi']
 
         # Perodic: out == in
         if any(True for x in self.bc_low if x.lower() == 'periodic'):
