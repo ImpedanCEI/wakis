@@ -52,7 +52,7 @@ class GridFIT3D:
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, use_mpi=True, 
+                Nx, Ny, Nz, use_mpi=False, 
                 stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
                 stl_colors=None, verbose=1, tol=1e-3):
