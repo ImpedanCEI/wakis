@@ -8,11 +8,14 @@ import h5py
 from tqdm import tqdm
 from scipy.constants import c as c_light
 
+from wakis.sources import Beam
+
 class RoutinesMixin():
 
-    def emsolve(self, Nt, source=None, save=False, fields=['E'], components=['Abs'], 
-            every=1, subdomain=None, plot=False, plot_every=1, use_etd=False, 
-            plot3d=False, **kwargs):
+    def emsolve(self, Nt, source=None, 
+                save=False, fields=['E'], components=['Abs'], save_every=1, subdomain=None, 
+                plot=False, plot_every=1, use_etd=False, 
+                plot3d=False, **kwargs):
         '''
         Run the simulation and save the selected field components in HDF5 files
         for every timestep. Each field will be saved in a separate HDF5 file 'Xy.h5'
@@ -34,7 +37,7 @@ class RoutinesMixin():
         components: list, default ['z']
             Field compoonent ('x', 'y', 'z', 'Abs') to save. It will be overriden
             if a component is specified in the`field` parameter
-        every: int, default 1
+        save_every: int, default 1
             Number of timesteps between saves
         subdomain: list, default None
             Slice [x,y,z] of the domain to be saved
@@ -74,17 +77,15 @@ class RoutinesMixin():
 
             hfs = {}
             for field in fields:
-
                 if len(field) == 1:
                     for component in components:
                         hfs[field+component] = h5py.File(field+component+'.h5', 'w')
-
                 else:
                     hfs[field] = h5py.File(field+'.h5', 'w')
 
             for hf in hfs:
                 hf['x'], hf['y'], hf['z'] = self.x, self.y, self.z
-                hf['t'] = np.arange(0, Nt*self.dt, every*self.dt)
+                hf['t'] = np.arange(0, Nt*self.dt, save_every*self.dt)
 
             if subdomain is not None:
                 xx, yy, zz = subdomain
@@ -119,7 +120,7 @@ class RoutinesMixin():
             if source is not None: 
                 source.update(self, n*self.dt)
 
-            if save:
+            if save and n%save_every == 0:
                 for field in hfs.keys():
                     try:
                         d = getattr(self, field[0])[xx,yy,zz,field[1:]]
@@ -145,9 +146,13 @@ class RoutinesMixin():
             for hf in hfs:
                 hf.close()
 
-    def wakesolve(self, wakelength, wake=None, 
-                  save_J=False, add_space=None, use_etd=False,
-                  plot=False, plot_from=None, plot_every=1, plot_until=None, 
+    def wakesolve(self, wakelength, 
+                  wake=None, 
+                  compute_plane='both', 
+                  plot=False, plot_from=None, plot_every=1, plot_until=None,
+                  save_J=False, 
+                  add_space=None, #for legacy
+                  use_edt=None, #deprecated 
                   **kwargs):
         '''
         Run the EM simulation and compute the longitudinal (z) and transverse (x,y)
@@ -200,25 +205,9 @@ class RoutinesMixin():
         if wake is not None: self.wake = wake
         if self.wake is None:
             raise('Wake solver information not passed to the solver instantiation')
-        
-        self.wake.wakelength = wakelength
-        self.Ez_file = self.wake.Ez_file
 
-        # beam parameters
-        self.q = self.wake.q
-        self.ti = self.wake.ti
-        self.sigmaz = self.wake.sigmaz
-        self.beta = self.wake.beta
-        self.v = self.beta*c_light
-
-        # source position
-        self.xsource, self.ysource = self.wake.xsource, self.wake.ysource
-        self.ixs, self.iys = np.abs(self.x-self.xsource).argmin(), np.abs(self.y-self.ysource).argmin()
-        
-        # integration path (test position)
-        self.xtest, self.ytest = self.wake.xtest, self.wake.ytest
-        self.ixt, self.iyt = np.abs(self.x-self.xtest).argmin(), np.abs(self.y-self.ytest).argmin()
-        self.add_space = add_space
+        if add_space is not None: #legacy support
+            self.wake.skip_cells = add_space
 
         # plot params defaults
         if plot:
@@ -226,62 +215,77 @@ class RoutinesMixin():
                     'cmap':'rainbow', 'patch_reverse':True,  
                     'off_screen': True, 'interpolation':'spline36'}
             plotkw.update(kwargs)
+        
+        # integration path (test position)
+        self.xtest, self.ytest = self.wake.xtest, self.wake.ytest
+        self.ixt, self.iyt = np.abs(self.x-self.xtest).argmin(), np.abs(self.y-self.ytest).argmin()
+        if compute_plane.lower() == 'longitudinal':
+            xx, yy = self.ixt, self.iyt
+        else:
+            xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)            
 
-        def beam(self, t):
-            '''
-            Update the current J every timestep 
-            to introduce a gaussian beam 
-            moving in +z direction
-            '''
-            s0 = self.z.min() - self.v*self.ti
-            s = self.z - self.v*t
-
-            # gaussian
-            profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
-
-            # update 
-            self.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/self.dx/self.dy
-            
-        tmax = (wakelength + self.ti*self.v + (self.z.max()-self.z.min()))/self.v #[s]
-        Nt = int(tmax/self.dt)
-        xx, yy = slice(self.ixt-1, self.ixt+2), slice(self.iyt-1, self.iyt+2)
-        if add_space is not None and add_space !=0:
-            zz = slice(add_space, -add_space)
+        # Compute simulation time 
+        self.wake.wakelength = wakelength
+        self.ti = self.wake.ti
+        self.v = self.wake.v
+        if self.use_mpi:  #E- should it be zmin, zmax instead?
+            z = self.Z # use global coords
+            zz = slice(0, self.NZ)
         else: 
+            z = self.z
             zz = slice(0, self.Nz)
 
+        tmax = (wakelength + self.ti*self.v + (z.max()-z.min()))/self.v #[s]
+        Nt = int(tmax/self.dt)
+        self.tmax, self.Nt = tmax, Nt
+
+        # Add beam source
+        beam = Beam(q=self.wake.q, 
+                    sigmaz=self.wake.sigmaz, 
+                    beta=self.wake.beta,
+                    xsource=self.wake.xsource, ysource=self.wake.ysource, 
+                    )
+        
         # hdf5 
+        self.Ez_file = self.wake.Ez_file
         hf = h5py.File(self.Ez_file, 'w')
-        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], self.z[zz]
+        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
         hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
         if save_J:
             hfJ = h5py.File('Jz.h5', 'w')
-            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], self.z[zz]
+            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
             hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
 
-        # get update equations
-        if use_etd:
-            update = self.one_step_etd
+        # get update equations routine
+        if self.use_mpi:
+            field_update = self.mpi_one_step
         else:
-            update = self.one_step
+            field_update = self.one_step
 
         if plot_until is None: plot_until = Nt
         if plot_from is None: plot_from = int(self.ti/self.dt)
+
+        def save_to_h5(self, hf, field, x, y, z, comp, n):
+            if self.use_mpi:
+                _field = self.mpi_gather(field, x, y, z, comp)
+                hf['#'+str(n).zfill(5)] = _field
+            else:
+                hf['#'+str(n).zfill(5)] = getattr(self, field)[x, y, z, comp] 
 
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
 
             # Initial condition
-            beam(self, n*self.dt)
+            beam.update(self, n*self.dt)
 
             # Save
-            hf['#'+str(n).zfill(5)] = self.E[xx, yy, zz, 'z'] 
+            save_to_h5(self, hf, 'E', xx, yy, zz, 'z', n) 
             if save_J:
-                hfJ['#'+str(n).zfill(5)] = self.J[xx, yy, zz, 'z'] 
+                save_to_h5(self, hfJ, 'J', xx, yy, zz, 'z', n) 
             
             # Advance
-            update()
+            field_update()
             
             # Plot
             if plot:
@@ -294,16 +298,5 @@ class RoutinesMixin():
         if save_J:
             hfJ.close()
         
-        # wake computation 
-        self.wake.solve()
-
-        self.wakelength = wakelength
-        self.s = self.wake.s
-        self.WP = self.wake.WP
-        self.WPx = self.wake.WPx
-        self.WPy = self.wake.WPy
-        self.Z = self.wake.Z
-        self.Zx = self.wake.Zx
-        self.Zy = self.wake.Zy
-        self.lambdas = self.wake.lambdas 
-        self.lambdaf = self.wake.lambdaf     
+        # Compute wakefield magnitudes is done inside WakeSolver
+        self.wake.solve(compute_plane=compute_plane)
