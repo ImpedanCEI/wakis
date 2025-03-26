@@ -19,8 +19,9 @@ class WakeSolver():
 
     def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
-                 chargedist=None, ti=None, add_space=0, Ez_file='Ez.h5', 
-                 save=True, results_folder='results/',
+                 chargedist=None, ti=None, 
+                 compute_plane='both', skip_cells=0, add_space=None, 
+                 Ez_file='Ez.h5', save=True, results_folder='results/',
                  verbose=0, logfile=False):
         '''
         Parameters
@@ -116,7 +117,11 @@ class WakeSolver():
         self.xtest, self.ytest = xtest, ytest
         self.chargedist = chargedist
         self.ti = ti
-        self.add_space = add_space
+        self.skip_cells = skip_cells
+        self.compute_plane = compute_plane
+
+        if add_space is not None: #legacy support for add_space
+            self.skip_cells = add_space
 
         # Injection time
         if ti is not None:
@@ -161,27 +166,38 @@ class WakeSolver():
         if self.log:
             self.params_to_log()
 
-    def solve(self, **kwargs):
+    def solve(self, compute_plane=None, **kwargs):
         '''
         Perform the wake potential and impedance for
         longitudinal and transverse plane 
         '''
+        if compute_plane is None:
+            compute_plane = self.compute_plane
+            
         for key, val in kwargs.items():
             setattr(self, key, val)
         
         t0 = time.time()
 
-        # Obtain longitudinal Wake potential
-        self.calc_long_WP_3d()
+        if compute_plane.lower() == 'both' or 'transverse':
+            # Obtain longitudinal Wake potential
+            self.calc_long_WP_3d()
 
-        #Obtain transverse Wake potential
-        self.calc_trans_WP()
+            #Obtain transverse Wake potential
+            self.calc_trans_WP()
 
-        #Obtain the longitudinal impedance
-        self.calc_long_Z()
+            #Obtain the longitudinal impedance
+            self.calc_long_Z()
 
-        #Obtain transverse impedance
-        self.calc_trans_Z()
+            #Obtain transverse impedance
+            self.calc_trans_Z()
+        
+        elif compute_plane == 'longitudinal':
+            # Obtain longitudinal Wake potential
+            self.calc_long_WP()
+
+            #Obtain the longitudinal impedance
+            self.calc_long_Z()
 
         #Elapsed time
         t1 = time.time()
@@ -224,21 +240,23 @@ class WakeSolver():
         elif self.Ez_hf is None:
             self.read_Ez()
 
-        # Aux variables
+        # time variables
         nt = len(self.t)
         dt = self.t[2]-self.t[1]
         ti = self.ti
 
+        # longitudinal variables
         if self.zf is None: self.zf = self.z
-
-        nz = len(self.zf)
         dz = self.zf[2]-self.zf[1]
-        zmax = np.max(self.zf)
-        zmin = np.min(self.zf)        
+        zmax = np.max(self.zf) #should it be domain's edge instead?
+        zmin = np.min(self.zf)       
 
-        if self.add_space:
-            zmax += self.add_space*dz
-            zmin -= self.add_space*dz
+        if self.skip_cells !=0:
+            zz = slice(self.skip_cells, -self.skip_cells)
+        else:
+            zz = np.s_[:]
+        z = self.zf[zz]
+        nz = len(z)
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -262,28 +280,26 @@ class WakeSolver():
             self.log('*** rounding error in number of timesteps')
 
         # Assembly Ez field
-        if self.Ezt is None:
-            self.log('Assembling Ez field...')
-            Ezt = np.zeros((nz,nt))     #Assembly Ez field
-            Ez = self.Ez_hf[keys[0]]
+        self.log('Assembling Ez field...')
+        Ezt = np.zeros((nz,nt))     #Assembly Ez field
+        Ez = self.Ez_hf[keys[0]]
 
-            if len(Ez.shape) == 3:
-                for n in range(nt):
-                    Ez = self.Ez_hf[keys[n]]
-                    Ezt[:, n] = Ez[Ez.shape[0]//2+1,Ez.shape[1]//2+1,:]
-            
-            elif len(Ez.shape) == 1:
-                for n in range(nt):
-                    Ezt[:, n] = self.Ez_hf[keys[n]]
-
-            self.Ezt = Ezt
+        if len(Ez.shape) == 3:
+            for n in range(nt):
+                Ez = self.Ez_hf[keys[n]]
+                Ezt[:, n] = Ez[Ez.shape[0]//2+1,Ez.shape[1]//2+1,zz]
+        
+        elif len(Ez.shape) == 1:
+            for n in range(nt):
+                Ezt[:, n] = self.Ez_hf[keys[n]]
+        self.Ezt = Ezt
 
         # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
         print('Calculating longitudinal wake potential WP(s)...')
-        with tqdm(total=len(s)*len(self.zf)) as pbar:
+        with tqdm(total=len(s)*len(z)) as pbar:
             for n in range(len(s)):    
                 for k in range(nz): 
-                    ts = (self.zf[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
+                    ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
                     if it < nt:
                         WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
@@ -328,21 +344,23 @@ class WakeSolver():
         if self.Ez_hf is None:
             self.read_Ez()
 
-        # Aux variables
+        # time variables
         nt = len(self.t)
         dt = self.t[2]-self.t[1]
         ti = self.ti
 
-        # Longitudinal dimension
+        # longitudinal varianles
         if self.zf is None: self.zf = self.z
-        nz = len(self.zf)
         dz = self.zf[2]-self.zf[1]
-        zmax = np.max(self.zf)
-        zmin = np.min(self.zf)               
+        zmax = np.max(self.zf) 
+        zmin = np.min(self.zf)              
 
-        if self.add_space:
-            zmax += self.add_space*dz
-            zmin -= self.add_space*dz
+        if self.skip_cells !=0:
+            zz = slice(self.skip_cells, -self.skip_cells)
+        else:
+            zz = np.s_[:]
+        z = self.zf[zz]
+        nz = len(z)
 
         # Set Wake length and s
         if self.wakelength is not None: 
@@ -376,14 +394,15 @@ class WakeSolver():
                     # Assembly Ez field
                     for n in range(nt):
                         Ez = self.Ez_hf[keys[n]]
-                        Ezt[:, n] = Ez[Ez.shape[0]//2+i,Ez.shape[1]//2+j,:]
+                        Ezt[:, n] = Ez[Ez.shape[0]//2+i,Ez.shape[1]//2+j, zz]
 
                     # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
                     for n in range(len(s)):    
-                        for k in range(0, nz): 
-                            ts = (self.zf[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
+                        for k in range(nz): 
+                            ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                             it = int(ts/dt)                 #find index for t
-                            WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
+                            if it < nt:
+                                WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
                         
                         pbar.update(1)
 
