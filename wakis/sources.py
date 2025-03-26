@@ -56,7 +56,7 @@ class Beam:
             if hasattr(solver, 'ZMIN'): # support for MPI
                 self.zmin = solver.ZMIN + solver.dz/2
             else:
-                self.zmin = solver.z.zmin()
+                self.zmin = solver.z.min()
         # reference shift
         s0 = self.zmin - self.v*self.ti
         s = solver.z - self.v*t
