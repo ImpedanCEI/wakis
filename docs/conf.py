@@ -90,6 +90,7 @@ html_theme_options = {
     'home_page_in_toc': True,
     'display_version': False,
     'collapse_navigation': False,
+    'navigation_depth': 1,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

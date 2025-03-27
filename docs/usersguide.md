@@ -6,12 +6,11 @@ Since `wakis` has been developed for computing bea, coupling impedance for parti
 
 The guide will go into detailed step-by-step on how to write the simulation script and visualize or access the computed data.
 
-```{toctree} 
-:caption: Table of Contents
-:maxdepth: 3
+```{contents} 
+:depth: 3
 ```
 
-## Simulation step-by-step
+## 🪜 Simulation step-by-step
 ### Import modules
 
 The first part of a python script always includes importing external sources of code e.g., `packages` or `modules`. In `wakis`, we use:
@@ -245,8 +244,8 @@ Since `wakis` supports anisotropy, the tensors are 3D matrices of sizes `[Nx, Ny
 Material tensors $\varepsilon$, $\mu$, and $\sigma$, and electromagnetic fields $E$, $H$ and $J$ are created as `Field` objects, the class in `field.py`. This class allows for optimized access to matrix values, conversion to array format using the lexico-grapihc index and inspection methods ìnspect()` via 2D plots to confirm that the tensor are built correctly before running the simulation.
 ```
 ### Running a simulation
-
 {#running-a-simulation}
+
 Once the domain and geometry are defined in `grid` and the fields and internal operators have been instantiated with `solver`, an electromagnetic time-domain simulation can be run provided some initial conditions. The simplest way to run the code, step-by-step, is by calling the routine `solver.one_setp()`:
 ```python
 # Run one step (advance from t=0 to t=dt)
@@ -345,7 +344,7 @@ class CustomSource:
 Combining `wakis` sources, geometry capabilities and material tensors, many different physical phenomena can be simulated with `wakis`: laser pulses, interaction with plasma, waveguides... For particle accelerators, the `Beam` class was created but the profile and trajectory can be easily modified to simulate advanced impedance effects.
 
 
-## Using `wakis` as a Wakefield solver
+## 🕹️ Using `wakis` as a Wakefield solver for beam-coupling impedance
 
 ### A few words about beam-coupling impedance and wakefields
 
@@ -404,11 +403,11 @@ plt.plot(wake.f, np.abs(wake.Zx)) #plot absolute of Zx
 plt.plot(wake.f, np.abs(wake.Zy)) #plot absolute of Zy
 ```
 
-## Extrapolate a partially decayed wake with [`IDDEFIX`](https://github.com/ImpedanCEI/IDDEFIX)
+## 📈 Extrapolate a partially decayed wake with [`IDDEFIX`](https://github.com/ImpedanCEI/IDDEFIX)
 IDDEFIX is a physics-informed evolutionary optimization framework that fits a resonator-based model (parameterized by R, f, Q) to wakefield simulation data. It leverages Differential Evolution to optimize these parameters, enabling efficient classification and extrapolation of electromagnetic wakefield behavior. This allows for reduced simulation time while maintaining long-term accuracy, akin to time-series forecasting in machine learning. Developed by Sebastien Joly and Malthe Raschke, it is part of the Wakis ecosystem of python packages developed at CERN, and available in the [ImpedanCEI](https://github.com/ImpedanCEI/) organization.
 
 ```{seealso}
-Specific documentation for [`IDDEFIX`](https://github.com/ImpedanCEI/IDDEFIX) is available at http://iddefix.readthedocs.io/ 
+Specific documentation for [`IDDEFIX`](https://github.com/ImpedanCEI/IDDEFIX) is available at [http://iddefix.readthedocs.io/](http://iddefix.readthedocs.io/)
 ```
 
 ### Import simulation results
@@ -511,7 +510,7 @@ Z_pd_min = DE_model.get_impedance_from_fitFunction(f_pd, use_minimization=True) 
 # Plot comparison
 fig1, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
 ax[0].plot(wake30.s, wake30.WP, c='k', alpha=0.8,label='Wakis wl=30 m')
-ax[0].plot(wake30.s, WP_pd*1e-10, c='tab:red', lw=1.5, label='iddefix')
+ax[0].plot(wake30.s, -WP_pd*1e-12, c='tab:red', lw=1.5, label='iddefix')
 ax[0].set_xlabel('s [cm]')
 ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='tab:red')
 ax[0].legend()
@@ -552,9 +551,9 @@ ax[0].set_xlabel('s [cm]')
 ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='tab:red')
 ax[0].legend()
 
-ax[1].plot(f_fd*1e-9, np.abs(Z_fd), c='tab:blue', alpha=0.8, lw=2, label='Abs')
-ax[1].plot(f_fd*1e-9, np.real(Z_fd), ls='--', c='tab:blue', lw=1.5, label='Real')
-ax[1].plot(f_fd*1e-9, np.imag(Z_fd), ls=':', c='tab:blue', lw=1.5, label='Imag')
+ax[1].plot(f_fd*1e-9, np.abs(Z_fd), c='tab:blue', alpha=0.8, lw=2, label='Fully decayed, Abs')
+ax[1].plot(f_fd*1e-9, np.real(Z_fd), ls='--', c='tab:blue', lw=1.5, label='Fully decayed, Real')
+ax[1].plot(f_fd*1e-9, np.imag(Z_fd), ls=':', c='tab:blue', lw=1.5, label='Fully decayed, Imag')
 ax[1].set_xlabel('f [GHz]')
 ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='tab:blue')
 ax[1].legend()
@@ -562,7 +561,7 @@ ax[1].legend()
 fig1.tight_layout()
 ```
 
-## Compute non-equidistant Fourier Transforms with [`neffint`](https://github.com/ImpedanCEI/neffint)
+## 🧮 Compute non-equidistant Fourier Transforms with [`neffint`](https://github.com/ImpedanCEI/neffint)
 Neffint is an acronym for Non-equidistant Filon Fourier integration. This is a python package for computing Fourier integrals using a method based on Filon's rule with non-equidistant grid spacing. Developed by Eskil Vik and Nicolas Mounet, it is part of the Wakis ecosystem of python packages developed at CERN, and available in the [ImpedanCEI](https://github.com/ImpedanCEI/) organization. 
 
 `neffint` has been integrated in `IDDEFIX` as an alternative method to compute Fourier Transforms:
@@ -583,11 +582,11 @@ frequency, impedance = iddefix.compute_neffint(time_data, wake_data,
 Check out `IDDEFIX`'s [test_001](https://github.com/ImpedanCEI/IDDEFIX/blob/main/tests/001_test_fft.py) for a comparison of all the different FFT methods available
 ```
 
-## Estimate the beam induced heating of the simulated impedance with [`BIHC`](https://github.com/ImpedanCEI/BIHC)
+## 🌡️ Estimate the beam induced heating of the simulated impedance with [`BIHC`](https://github.com/ImpedanCEI/BIHC)
 Beam Induced Heating Computation (BIHC) tool is a package that allows the estimation of the dissipated power due to the passage of a particle beam inside an accelerator component. The dissipated power value depends on the characteristics of the particle beam (**beam spectrum and intensity**) and on the characteristics of the consdiered accelerator component (**beam-coupling impedance**). BIHC helps generating different beam filling schemes, bunch profiles, bunch intensities, and load machine parameters for the different accelerators at CERN.
 
 ```{seealso}
-Specific documentation for [`BIHC`](https://github.com/ImpedanCEI/BIHC) is available at https://bihc.readthedocs.io/ 
+Specific documentation for [`BIHC`](https://github.com/ImpedanCEI/BIHC) is available at [https://bihc.readthedocs.io/](https://bihc.readthedocs.io/) 
 ```
 
 ### Generate beam parameters

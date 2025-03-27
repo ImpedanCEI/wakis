@@ -4,6 +4,10 @@ This section covers how to install `wakis` package for developers and users.
 
 The installation guide is writen for Linux, but `wakis` code and dependencies are 100% python so it can run in other operating systems. For developers using Windows, we recommend checking the [WSL setup guide](#WSL) to install and setup the Windows subsystem for linux.
 
+```{contents} 
+:depth: 3
+```
+
 ## Installing from Github
 
 ### For users
