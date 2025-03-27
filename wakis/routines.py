@@ -248,15 +248,35 @@ class RoutinesMixin():
         
         # hdf5 
         self.Ez_file = self.wake.Ez_file
-        hf = h5py.File(self.Ez_file, 'w')
-        hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
-        hf['t'] = np.arange(0, Nt*self.dt, self.dt)
+        hf = None  # needed for MPI
+        if self.use_mpi:
+            if self.rank==0:
+                hf = h5py.File(self.Ez_file, 'w')
+                hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
+                hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
-        if save_J:
-            hfJ = h5py.File('Jz.h5', 'w')
-            hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
-            hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+                if save_J:
+                    hfJ = h5py.File('Jz.h5', 'w')
+                    hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
+                    hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+        else:
+            hf = h5py.File(self.Ez_file, 'w')
+            hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
+            hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
+            if save_J:
+                hfJ = h5py.File('Jz.h5', 'w')
+                hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
+                hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
+
+        def save_to_h5(self, hf, field, x, y, z, comp, n):
+            if self.use_mpi:
+                _field = self.mpi_gather(field, x, y, z, comp)
+                if self.rank == 0:
+                    hf['#'+str(n).zfill(5)] = _field
+            else:
+                hf['#'+str(n).zfill(5)] = getattr(self, field)[x, y, z, comp] 
+        
         # get update equations routine
         if self.use_mpi:
             field_update = self.mpi_one_step
@@ -265,13 +285,6 @@ class RoutinesMixin():
 
         if plot_until is None: plot_until = Nt
         if plot_from is None: plot_from = int(self.ti/self.dt)
-
-        def save_to_h5(self, hf, field, x, y, z, comp, n):
-            if self.use_mpi:
-                _field = self.mpi_gather(field, x, y, z, comp)
-                hf['#'+str(n).zfill(5)] = _field
-            else:
-                hf['#'+str(n).zfill(5)] = getattr(self, field)[x, y, z, comp] 
 
         print('Running electromagnetic time-domain simulation...')
         for n in tqdm(range(Nt)):
@@ -293,10 +306,22 @@ class RoutinesMixin():
                     self.plot2D(field='E', component='z', n=n, **plotkw)
                 else:
                     pass
+                
+        if self.use_mpi:
+            if self.rank==0:
+                hf.close()
+                if save_J:
+                    hfJ.close()
 
-        hf.close()
-        if save_J:
-            hfJ.close()
+                # Compute wakefield magnitudes is done inside WakeSolver
+                self.wake.solve(compute_plane=compute_plane)
+        else:
+            hf.close()
+            if save_J:
+                hfJ.close()
+
+            # Compute wakefield magnitudes is done inside WakeSolver
+            self.wake.solve(compute_plane=compute_plane)
+            
         
-        # Compute wakefield magnitudes is done inside WakeSolver
-        self.wake.solve(compute_plane=compute_plane)
+        
