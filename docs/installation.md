@@ -128,47 +128,56 @@ os.environ['PYVISTA_USE_OSMESA'] = 'True'
 To run multi-CPU parallelized simulations, Wakis needs the following packages:
 
 * OpenMPI installed in your operating system:
+* Python package [`mpi4py`](https://mpi4py.readthedocs.io/en/stable/)
+* Python package [`ipyparallel`](https://ipyparallel.readthedocs.io/en/latest/tutorial/intro.html) to start a MPI kernel inside notebooks
+
+The preferred install method is through `conda-forge`:
 ```bash
-# Linux sudo alternative, mpi
-sudo apt update
-sudo sudo apt install openmpi-bin openmpi-common libopenmpi-dev
-# Conda forge alternative (not tested)
+# Conda forge openmpi
 conda install -c conda-forge openmpi
+
 # Check install
 which mpicc #/usr/bin/mpicc
 which mpiexec #/usr/bin/mpiexec
-```
 
-* Python package [`mpi4py`](https://mpi4py.readthedocs.io/en/stable/)
-```bash
-# pip alternative
-CC=mpicc pip install --no-cache-dir mpi4py
-
-# Conda forge alternative (not tested)
+# Conda forge alternative
 conda install -c conda-forge mpi4py
-```
 
-* Python package [`ipyparallel`](https://ipyparallel.readthedocs.io/en/latest/tutorial/intro.html) to start a MPI kernel inside notebooks:
-```bash
 # For working on jupyter notebooks:
 pip install ipyparallel
 ```
 
-* For multi-GPU compatibility (provided `cupy` is correctly setup):
+Alternatively, for sudo users, installation through `apt`+`pip` has also proven to work:
 ```bash
-# Conda forge alternative (not tested)
-conda install -c conda-forge openmpi mpich
+# sudo alternative (ubuntu)
+sudo apt update
+sudo sudo apt install openmpi-bin openmpi-common libopenmpi-dev
+# mpi4py through pip
+CC=mpicc pip install --no-cache-dir mpi4py
+# For working on jupyter notebooks:
+pip install ipyparallel
+```
+
+* `OpenMPI` is built in Linux with multi-GPU compatibility (provided `cupy` is correctly setup):
+```bash
 # Check install
-ompi_info --parsable | grep mpi_built_with_cuda_support #mca:mpi:base:param:mpi_built_with_cuda_support:value:true
+ompi_info --parsable | grep mpi_built_with_cuda_support 
+# output should be: 
+# mca:mpi:base:param:mpi_built_with_cuda_support:value:true
+
+# If False, set environment variable to use CUDA-aware before launching your MPI processes
+export OMPI_MCA_opal_cuda_support=true
 ```
 
 To run MPI simulations from the terminal:
-```
+```bash
 # multi CPU
 mpiexec -n 8 python your_wakis_cpu_script.py
 
 # multi GPU
 mpiexec --mca btl_smcuda_cuda_ipc_max 0 -n 4 python your_wakis_gpu_script.py
+# or:
+mpiexec --mca opal_cuda_support 1 -n 4 python your_wakis_gpu_script.py
 ```
 
 ----
