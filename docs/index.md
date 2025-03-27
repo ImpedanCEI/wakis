@@ -3,8 +3,6 @@ sd_hide_title: true
 ---
 # 🔎 Overview
 
-<img src="img/wakis-logo-pink.png" alt="wakis logo" width="250"/>
-
 ## Welcome to `wakis` documentation
 
 > **wakis**: 3D Time-domain **Wak**e and **I**mpedance **S**olver
