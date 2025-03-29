@@ -244,7 +244,6 @@ Since `wakis` supports anisotropy, the tensors are 3D matrices of sizes `[Nx, Ny
 Material tensors $\varepsilon$, $\mu$, and $\sigma$, and electromagnetic fields $E$, $H$ and $J$ are created as `Field` objects, the class in `field.py`. This class allows for optimized access to matrix values, conversion to array format using the lexico-grapihc index and inspection methods ìnspect()` via 2D plots to confirm that the tensor are built correctly before running the simulation.
 ```
 ### Running a simulation
-{#running-a-simulation}
 
 Once the domain and geometry are defined in `grid` and the fields and internal operators have been instantiated with `solver`, an electromagnetic time-domain simulation can be run provided some initial conditions. The simplest way to run the code, step-by-step, is by calling the routine `solver.one_setp()`:
 ```python
