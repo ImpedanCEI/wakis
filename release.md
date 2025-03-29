@@ -29,7 +29,7 @@
 * 🌊 **WakeSolver**
   * Refactored to internally store the full longitudinal domain.
   * `skip_cells` now acts only at analysis level, preserving resolution.
-  * `add_space` and `use_edt` retained for compatibility, but `add_space` is deprecated for new parameter `skip_cells`
+    * `add_space` and `use_edt` retained for compatibility, but `add_space` is deprecated for new parameter `skip_cells`
   * Future-ready structure for distributed wake solving with MPI.
   * Improved numerical robustness by preventing indexing errors in `WakePotential` integration.
 
@@ -44,6 +44,11 @@
 * 📁 Notebooks:
   * `005` → MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
 
+* 📖 Documentation:
+  * User's guide: Major revision, added Wake extrapolation with `iddefix`, Wake function calculation with `neffint` and power loss calculation with `BIHC`
+  * Intallation guide: added MPI setup instructions
+  * Added table of contents for enhanced navigation.
+
 ## 🐛 Bugfixes
 * Fixed crash in `plot3D` and `plot3DonSTL` when `use_mpi=True`.
 * Fixed default `use_mpi=True` to now default to `False` for general usage.
@@ -57,7 +62,15 @@
 
 ## 📝 Full changelog
 `git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
-
+* 2025-03-29  docs: small typo (elenafuengar)
+* 2025-03-27  style: revised notebook 004, in particular the iddefix extrapolation (elenafuengar)
+* 2025-03-27  feature: include wakefield simulation in example 003 (elenafuengar)
+* 2025-03-27  docs: fix sidebar TOC in conf.py, add TOC to installation and user guide, minor fixes (elenafuengar)
+* 2025-03-27  feature: add wakefield simulation to MPI example and extrapolation to fully decayed (elenafuengar)
+* 2025-03-27  feature: MPI wakefield simulation with `solver.wakesolve` is now working (elenafuengar)
+* 2025-03-27  docs: update MPI installation after testing on imp machines (elenafuengar)
+* 2025-03-27  docs: fix in `index.md` for missing logo (elenafuengar)
+* 2025-03-26  docs: prepare v0.5.2 release (elenafuengar)
 * 2025-03-26  feature: support for MPI in `wakesolve` in progress + refact: wakesolve saves now all longitudinal values, `skip_cells` will only be applied inside `WakeSolver`. `add_space` and `use_edt` kept for legacy (elenafuengar)
 * 2025-03-26  test: adjust tes_001 to `WakeSolver` refactor in previous commit (elenafuengar)
 * 2025-03-26  fix: add `if` statement in wake potential calculation to catch rounding errors (profiler indicates only 0.1ns overhead) + refact: `add_space` now deprecated for `skip_cells'. This parameter now adjusts the slicing of z instead of modyfing zmin and zmax, since `solver.wakesolve` will now save all the longitudinal data (elenafuengar)
@@ -84,4 +97,4 @@
 * 2025-03-16  docs: update README & citation (elenafuengar)
 * 2025-03-14  docs: add PR template (elenafuengar)
 * 2025-03-13  fix: update default injection time to account for beta (elenafuengar)
-* 2025-03-13  feature: add `dpi` and `return_handles` as kwargs (elen_*
+* 2025-03-13  feature: add `dpi` and `return_handles` as kwargs (elenafuengar)
