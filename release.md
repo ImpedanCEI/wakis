@@ -1,4 +1,4 @@
-# v0.5.2 Draft
+# v0.6.0 Draft
 *Comming soon!*
 
 ## 🚀 New Features

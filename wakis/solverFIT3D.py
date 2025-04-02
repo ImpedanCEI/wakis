@@ -856,6 +856,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             state.create_dataset("E", data=self.E.toarray().get())
             state.create_dataset("J", data=self.J.toarray().get())
 
+        # TODO: support MPI savestate
+
         else:
             state.create_dataset("H", data=self.H.toarray())
             state.create_dataset("E", data=self.E.toarray())
@@ -886,6 +888,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.E.fromarray(state["E"][:])
         self.H.fromarray(state["H"][:])
         self.J.fromarray(state["J"][:])
+
+        # TODO: support MPI loadstate
 
         state.close()
 
