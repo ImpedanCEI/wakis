@@ -102,46 +102,46 @@ if not os.path.exists(img_folder):
     os.mkdir(img_folder)
       
 # -------------- Custom time loop  -----------------
+run_timeloop = False
+if run_timeloop:
+    Nt = 3000
+    # Plot beam current vs time
+    # beam.plot(np.linspace(0, solver.dt*Nt, Nt+1))
 
-Nt = 3000
+    plot_inspect = True
+    plot_2D = False
+    plot_1D = False
 
-# Plot beam current vs time
-# beam.plot(np.linspace(0, solver.dt*Nt, Nt+1))
+    for n in tqdm(range(Nt)):
 
-plot_inspect = True
-plot_2D = False
-plot_1D = False
+        beam.update(solver, n*solver.dt)
 
-for n in tqdm(range(Nt)):
+        solver.mpi_one_step()
 
-    beam.update(solver, n*solver.dt)
+        # Plot inspect every 20 timesteps
+        if n%20 == 0 and plot_inspect:
+            E = solver.mpi_gather_asField('E')
+            if rank == 0:
+                fig, ax = E.inspect(figsize=[20,6], plane='YZ', show=False, handles=True)
+                fig.savefig(img_folder+'Einspect_'+str(n).zfill(4)+'.png')
+                plt.close(fig)
 
-    solver.mpi_one_step()
+        # Plot E abs in 2D every 20 timesteps
+        if n%20 == 0 and plot_2D:
+            solver.plot2D(field='E', component='Abs', 
+                        plane='YZ', pos=0.5, 
+                        cmap='rainbow', vmin=0, vmax=500., interpolation='hanning',
+                        off_screen=True, title=img_folder+'Ez2d', n=n)
 
-    # Plot inspect every 20 timesteps
-    if n%20 == 0 and plot_inspect:
-        E = solver.mpi_gather_asField('E')
-        if rank == 0:
-            fig, ax = E.inspect(figsize=[20,6], plane='YZ', show=False, handles=True)
-            fig.savefig(img_folder+'Einspect_'+str(n).zfill(4)+'.png')
-            plt.close(fig)
-
-    # Plot E abs in 2D every 20 timesteps
-    if n%20 == 0 and plot_2D:
-        solver.plot2D(field='E', component='Abs', 
-                    plane='YZ', pos=0.5, 
-                    cmap='rainbow', vmin=0, vmax=500., interpolation='hanning',
-                    off_screen=True, title=img_folder+'Ez2d', n=n)
-
-    # Plot E z in 1D at diferent transverse positions `pos` every 20 timesteps
-    if n%20 == 0 and plot_1D:
-        solver.plot1D(field='E', component='z', 
-              line='z', pos=[0.45, 0.5, 0.55], 
-              xscale='linear', yscale='linear',
-              off_screen=True, title=img_folder+'Ez1d', n=n)
+        # Plot E z in 1D at diferent transverse positions `pos` every 20 timesteps
+        if n%20 == 0 and plot_1D:
+            solver.plot1D(field='E', component='z', 
+                line='z', pos=[0.45, 0.5, 0.55], 
+                xscale='linear', yscale='linear',
+                off_screen=True, title=img_folder+'Ez1d', n=n)
       
 # -------------- using Wakefield routine  -----------------
-run_wakefield = False
+run_wakefield = True
 if run_wakefield:
 
     # ------------ Beam source ----------------
@@ -171,7 +171,7 @@ if run_wakefield:
     solver.reset_fields()
 
     # Solver run
-    plotkw2D = {'title':'001_img/Ez', 
+    plotkw2D = {'title': img_folder+'Ez', 
             'add_patch':'cavity', 'patch_alpha':1.0,
             'patch_reverse' : True,  # patch logical_not('cavity')
             'vmin':-1e3, 'vmax':1e3, # colormap limits
@@ -181,6 +181,7 @@ if run_wakefield:
                       slice(skip_cells, -skip_cells)]}   # z
 
     solver.wakesolve(wakelength=wakelength, 
+                    wake=wake,
                     plot=False, # turn False for speedup
                     plot_every=30, plot_until=3000, **plotkw2D
                     )
@@ -201,7 +202,7 @@ if run_wakefield:
         ax[1].legend()
 
         fig1.tight_layout()
-        fig1.savefig('001_results/001_longitudinal.png')
+        fig1.savefig('003_results/longitudinal.png')
         #plt.show()
 
         # Plot transverse x wake potential and impedance
@@ -218,7 +219,7 @@ if run_wakefield:
         ax[1].legend()
 
         fig2.tight_layout()
-        fig2.savefig('001_results/001_transverse_x.png')
+        fig2.savefig('003_results/transverse_x.png')
         #plt.show()
 
         # Plot transverse y wake potential and impedance
@@ -235,14 +236,14 @@ if run_wakefield:
         ax[1].legend()
 
         fig3.tight_layout()
-        fig3.savefig('001_results/001_transverse_y.png')
+        fig3.savefig('003_results/transverse_y.png')
         #plt.show()
 
     # Plot Electric field component in 1D for several transverse positions
     solver.plot1D(field='E', component='z', 
                 line='z', pos=[0.4, 0.5, 0.6], 
                 xscale='linear', yscale='linear',
-                off_screen=True, title='001_img/Ez1d')
+                off_screen=True, title=img_folder+'Ez1d')
     #plt.show()
 
     # ----------- 2d plots results --------------------
@@ -254,7 +255,7 @@ if run_wakefield:
                 plane='XY', pos=0.5, 
                 cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
                 add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
-                off_screen=True, title='001_img/Ez2d')
+                off_screen=True, title=img_folder+'Ez2d')
     #plt.show()
 
 
@@ -275,7 +276,7 @@ if run_wakefield:
                     stl_with_field='cavity', field_opacity=1.0,
                     stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
                     #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
-                    off_screen=False, zoom=1.2, title='001_img/Ez3d')
+                    off_screen=False, zoom=1.2, title='003_img/Ez3d')
             
 
 # --------------------- Extra -----------------------
