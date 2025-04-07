@@ -28,7 +28,7 @@
 * CUDA-aware MPI parallelization with `mpi4py` and `ipyparallel` *coming soon!*
 
 🧩 Other complementary tools in the ecosystem:
-* Wakefield extrapolation with PIML [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX) evolutionary algorithms
+* Wakefield extrapolation via broadband resonator fitting with PIML [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX) evolutionary algorithms
 * Non-equidistant Filon Fourier integration with [`neffint`](https://github.com/ImpedanCEI/neffint)
 * Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
 
@@ -46,6 +46,13 @@ Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchma
 * Conductive cubic cavity below cutoff
 * Lossy pillbox cavity (cylindrical) above cutoff
 * Simulations using beams with different relativistic $\beta$
+
+Check 🌐📁 [`CEI-logo/](https://github.com/ImpedanCEI/CEI-logo) for a fun & complete beam-coupling impedance workflow tutorial, including:
+* **001**: Electromagnetic simulation preparation, inspection & 1d, 2d, 3d plotting
+* **002**: Wakefield simulation on GPU
+* **003**: Extrapolation of wakefield simulation to fully decayed with [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX). Conversion to wake function for beam dynamics simulation with [`neffint`](https://github.com/ImpedanCEI/neffint).
+* **004**: Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
+This playground was used to generate the CERN [ABP-CEI section](https://indico.cern.ch/event/1519352/contributions/6393071/attachments/3031114/5351148/CEIinfo-20250313.pdf) logo 🎨🖌️
 
 🔁 To be informed of the latest features/bug fixes pushed to `main`, check the [`release.md`](https://github.com/ImpedanCEI/wakis/blob/main/release.md)
 
@@ -95,9 +102,9 @@ pip install neffint iddefix bihc  # Optional tools
 These effects can be characterized through the beam coupling impedance in the frequency domain and wake potential in the time domain. Accurate evaluation of these properties is essential for predicting dissipated power and maintaining beam stability. 
 `wakis` is an open-source tool that can compute wake potential and impedance for both longitudinal and transverse planes for general 3D structures. 
 
-* 🌱 `wakis` was firstly presented at the **14th International Particle Accelerator Conference** (IPAC23) as a post-processing tool: https://doi.org/10.18429/JACoW-IPAC2023-WEPL170
+* 🌱 `wakis` was firstly presented at the **International Particle Accelerator Conference in 2023** (IPAC23) as a post-processing tool: https://doi.org/10.18429/JACoW-IPAC2023-WEPL170
   
-* 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **14th International Computational Accelerator Physics Conference** (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
+* 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **14th International Computational Accelerator Physics Conference in 2024** (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
 
 ## Citing `Wakis`
 🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using bihc in your scientific research, please help our scientific visibility by citing this work:
