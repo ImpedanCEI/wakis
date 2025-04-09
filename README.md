@@ -61,6 +61,7 @@ For specific needs, please contact the developer 👩‍💻👋
 
 ## Installation
 Wakis supports **Python 3.9 - 3.11** and can be installed in any `conda` environment.
+
 📖 **For a detailed installation guide (GPU, MPI setup, FAQs), check our [documentation](https://wakis.readthedocs.io/en/latest/installation.html).**
 
 ### Users: Install via PyPI  
@@ -107,9 +108,9 @@ These effects can be characterized through the beam coupling impedance in the fr
 * 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **14th International Computational Accelerator Physics Conference in 2024** (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
 
 ## Citing `Wakis`
-🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using bihc in your scientific research, please help our scientific visibility by citing this work:
+🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using Wakis in your scientific research, please help our scientific visibility by citing this work:
 
-> [1] E. de la Fuente Garcia et. al., “Wakis”. Zenodo, Mar. 12, 2025. doi: [10.5281/zenodo.15011421](https://doi.org/10.5281/zenodo.15011421). 
+> [1] E. de la Fuente Garcia et. al., “Wakis: 3D Electromagnetic Time-Domain Wakefield and Impedance Solver”. Zenodo, Mar. 12, 2025. doi: [10.5281/zenodo.15011421](https://doi.org/10.5281/zenodo.15011421). 
 
 
 
