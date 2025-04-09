@@ -47,7 +47,7 @@ Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchma
 * Lossy pillbox cavity (cylindrical) above cutoff
 * Simulations using beams with different relativistic $\beta$
 
-Check 🌐📁 [`CEI-logo/](https://github.com/ImpedanCEI/CEI-logo) for a fun & complete beam-coupling impedance workflow tutorial, including:
+Check 🌐📁 [`CEI-logo/`](https://github.com/ImpedanCEI/CEI-logo) for a fun & complete beam-coupling impedance workflow tutorial, including:
 * **001**: Electromagnetic simulation preparation, inspection & 1d, 2d, 3d plotting
 * **002**: Wakefield simulation on GPU
 * **003**: Extrapolation of wakefield simulation to fully decayed with [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX). Conversion to wake function for beam dynamics simulation with [`neffint`](https://github.com/ImpedanCEI/neffint).
