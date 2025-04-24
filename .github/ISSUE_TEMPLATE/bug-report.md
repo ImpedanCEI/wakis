@@ -6,6 +6,7 @@ labels: ''
 assignees: elenafuengar
 
 ---
+## \U0001F41B Bug report
 
 **💬 Describe the bug**  
 A clear and concise description of what the bug is. What did you expect to happen, and what happened instead?
