@@ -6,6 +6,8 @@ labels: ''
 assignees: elenafuengar
 
 ---
+## Feature request 💡
+Suggest an idea that should be implemented in Wakis ⚙️💖
 
 **🧩 Is your feature request related to a problem? Please describe.**  
 A clear and concise description of the underlying problem or limitation.  
@@ -13,7 +15,7 @@ _Example: "I'm always frustrated when [...]"_
 
 ---
 
-**💡 Describe the solution you'd like**  
+**🔍 Describe the solution you'd like**  
 What would the ideal solution look like? Be specific!  
 _Example: "I wish I could [...], and the solver would automatically [...]"_
 
