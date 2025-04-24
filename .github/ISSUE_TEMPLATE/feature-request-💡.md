@@ -1,5 +1,5 @@
 ---
-name: "\U0001F4A1Feature request "
+name: "Feature request \U0001F4A1"
 about: "Suggest an idea that should be implemented in Wakis ⚙️\U0001F496"
 title: "[Feature\U0001F4A1]"
 labels: ''
