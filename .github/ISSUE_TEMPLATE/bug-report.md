@@ -6,7 +6,8 @@ labels: ''
 assignees: elenafuengar
 
 ---
-## \U0001F41B Bug report
+##  Bug report 🐛
+Create a bug report to help us improve Wakis robustness🦾💖
 
 **💬 Describe the bug**  
 A clear and concise description of what the bug is. What did you expect to happen, and what happened instead?
