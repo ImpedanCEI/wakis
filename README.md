@@ -32,6 +32,10 @@
 * Non-equidistant Filon Fourier integration with [`neffint`](https://github.com/ImpedanCEI/neffint)
 * Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
 
+📣 Tag and version changes are decribed in each Wakis [Github Release](https://github.com/ImpedanCEI/wakis/releases):
+* To be informed of the latest features/bug fixes pushed to `main`, check the draft [`release.md`](https://github.com/ImpedanCEI/wakis/blob/main/release.md)
+* For specific needs, please contact the developer 👩‍💻👋: elena.de.la.fuente.garcia@cern.ch
+
 ## How to use
 📖 Documentation, powered by `sphinx`, is available at [wakis.readthedocs.io](https://wakis.readthedocs.io/en/latest/index.html)
 
@@ -41,26 +45,21 @@ Check 📁 `examples/` and `notebooks/` for different physical applications:
 * Custom perturbation interacting with PEC geometry 
 * Wakefield simulation of accelerator cavity on CPU, GPU and with MPI
 
-Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchmarks) for beam-coupling impedance calculations & comparisons to the commercial tool CST® Wakefield solver:
+Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchmarks) for beam-coupling impedance calculations & comparisons to the commercial tool *CST® Wakefield solver*:
 * PEC cubic cavity below cutoff (mm) and above cutoff (cm)
 * Conductive cubic cavity below cutoff
 * Lossy pillbox cavity (cylindrical) above cutoff
 * Simulations using beams with different relativistic $\beta$
 
 Check 🌐📁 [`CEI-logo/`](https://github.com/ImpedanCEI/CEI-logo) for a fun & complete beam-coupling impedance workflow tutorial, including:
-* **001**: Electromagnetic simulation preparation, inspection & 1d, 2d, 3d plotting
+* **001**: Electromagnetic simulation preparation, inspection & 1d, 2d, 3d plotting.
 * **002**: Wakefield simulation on GPU
 * **003**: Extrapolation of wakefield simulation to fully decayed with [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX). Conversion to wake function for beam dynamics simulation with [`neffint`](https://github.com/ImpedanCEI/neffint).
 * **004**: Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
-This playground was used to generate the CERN [ABP-CEI section](https://indico.cern.ch/event/1519352/contributions/6393071/attachments/3031114/5351148/CEIinfo-20250313.pdf) logo 🎨🖌️
-
-🔁 To be informed of the latest features/bug fixes pushed to `main`, check the [`release.md`](https://github.com/ImpedanCEI/wakis/blob/main/release.md)
-
-For specific needs, please contact the developer 👩‍💻👋
-* elena.de.la.fuente.garcia@cern.ch
 
 ## Installation
-Wakis supports **Python 3.9 - 3.11** and can be installed in any `conda` environment.
+Wakis supports `Python 3.9 - 3.11` and can be installed in any `conda` environment.
+
 📖 **For a detailed installation guide (GPU, MPI setup, FAQs), check our [documentation](https://wakis.readthedocs.io/en/latest/installation.html).**
 
 ### Users: Install via PyPI  
@@ -107,7 +106,7 @@ These effects can be characterized through the beam coupling impedance in the fr
 * 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **14th International Computational Accelerator Physics Conference in 2024** (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
 
 ## Citing `Wakis`
-🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using bihc in your scientific research, please help our scientific visibility by citing this work:
+🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using Wakis in your scientific research, please help our scientific visibility by citing this work:
 
 > [1] E. de la Fuente Garcia et. al., “Wakis”. Zenodo, Mar. 12, 2025. doi: [10.5281/zenodo.15011421](https://doi.org/10.5281/zenodo.15011421). 
 
