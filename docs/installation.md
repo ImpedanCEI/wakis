@@ -94,9 +94,19 @@ pip install cupy-rocm-4-3
 # For AMD ROCm 5.0
 pip install cupy-rocm-5-0
 ```
+Or go for a `conda-forge` installation of both cupy and the CUDA Toolkit (RECOMMENDED):
 
-The toolkits can be installed using `conda-forge` and `mamba` or from the source. Notice the version compatibility between GPU drivers and Toolkit to [choose the adequate version](https://docs.nvidia.com/deeplearning/cudnn/latest/reference/support-matrix.html):
 ```
+conda install -c conda-forge cupy cuda-version=11.8
+```
+
+The toolkits can be installed using `conda`, `conda-forge`, `mamba` or from the source. Notice the version compatibility between GPU drivers and Toolkit to [choose the adequate version](https://docs.nvidia.com/deeplearning/cudnn/latest/reference/support-matrix.html):
+```
+# Conda alternative [RECOMENDED]
+conda install cudatoolkit cuda-version=11 # for cuda 11.xx
+conda install cuda-cudart cuda-version=12 # for cuda 12.xx
+
+# Mamba alternative
 conda install mamba -n base -c conda-forge
 mamba install cudatoolkit=11.8.0
 ```
@@ -164,12 +174,20 @@ pip install ipyparallel
 
 * `OpenMPI` is built in Linux with multi-GPU compatibility (provided `cupy` is correctly setup):
 ```bash
-# Check install
+# To check CUDA-aware ompi, try:
 ompi_info --parsable | grep mpi_built_with_cuda_support 
 # output should be: 
 # mca:mpi:base:param:mpi_built_with_cuda_support:value:true
 
-# If False, set environment variable to use CUDA-aware before launching your MPI processes
+# Alternatively, try:
+ompi_info | grep -i cuda
+# output should contain: 
+# MPI extensions: affinity, cuda, pcollreq
+```
+Before launching an MPI simulation, make sure to set the environment variable `OMPI_MCA_opal_cuda_support` to `true`:
+
+```bash
+# Set environment variable to use CUDA-aware before launching your MPI processes
 export OMPI_MCA_opal_cuda_support=true
 ```
 
