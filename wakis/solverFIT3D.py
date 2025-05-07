@@ -850,15 +850,27 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             - If `close=True`, nothing is returned.
             - If `close=False`, returns an open `h5py.File` object for further manipulation.
         """
-        state = h5py.File(filename, "w") 
-        if imported_cupyx:
+        
+        if self.use_mpi: # MPI savestate
+            E = self.mpi_gather_asField('E')
+            H = self.mpi_gather_asField('H')
+            J = self.mpi_gather_asField('J')
+
+            if self.rank == 0:
+                    state = h5py.File(filename, "w") 
+                    state.create_dataset("H", data=self.H.toarray())
+                    state.create_dataset("E", data=self.E.toarray())
+                    state.create_dataset("J", data=self.J.toarray())
+            # TODO: check for MPI-GPU
+
+        elif self.use_gpu: # GPU savestate
+            state = h5py.File(filename, "w") 
             state.create_dataset("H", data=self.H.toarray().get())
             state.create_dataset("E", data=self.E.toarray().get())
             state.create_dataset("J", data=self.J.toarray().get())
 
-        # TODO: support MPI savestate
-
-        else:
+        else: # CPU savestate
+            state = h5py.File(filename, "w") 
             state.create_dataset("H", data=self.H.toarray())
             state.create_dataset("E", data=self.E.toarray())
             state.create_dataset("J", data=self.J.toarray())
