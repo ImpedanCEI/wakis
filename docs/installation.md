@@ -65,17 +65,33 @@ pip install -r requirements.txt
 
 ## Python installation
 
-If a python installation has not been setup yet, we recommend using [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. Miniconda can be installed and activated by:
+If a python installation has not been setup yet, we recommend using [miniforge](https://conda-forge.org/download/) (free of license) or [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. 
+
+Miniforge executable can be obtained from the website (Windows/Linux) [https://conda-forge.org/download/](https://conda-forge.org/download/), or from the terminal (Linux):
+
+```
+# get, install and activate miniforge
+wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+conda activate
+```
+
+Miniconda can also be installed and activated from the terminal:
 
 ```
 # get, install and activate miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh 
 source miniconda3/bin/activate
+```
 
+We encourage the users to create a dedicated python environment with python <=3.11, >=3.9
+```
 # create dev python environment
 conda create --name wakis-env python=3.11
 conda activate wakis-env
+
+# pip install wakis and other useful packages
 ```
 
 ## GPU setup
@@ -146,6 +162,14 @@ To run multi-CPU parallelized simulations, Wakis needs the following packages:
 * Python package [`ipyparallel`](https://ipyparallel.readthedocs.io/en/latest/tutorial/intro.html) to start a MPI kernel inside notebooks
 
 The preferred install method is through `conda-forge`:
+
+```
+# All at once [recommended]
+conda install -c conda-forge mpi4py openmpi
+```
+
+In case openmpi fails, sometimes installing them separately helps:
+
 ```bash
 # Conda forge openmpi
 conda install -c conda-forge openmpi
@@ -154,7 +178,7 @@ conda install -c conda-forge openmpi
 which mpicc #/usr/bin/mpicc
 which mpiexec #/usr/bin/mpiexec
 
-# Conda forge alternative
+# Conda forge mpi4py
 conda install -c conda-forge mpi4py
 
 # For working on jupyter notebooks:
