@@ -68,7 +68,7 @@ However, real-world accelerator components like:
 - RF-shielded bellows
 - Complex collimators or cavities
 
-...often have **no analytical solution**. These must be addressed through **full 3D numerical simulations** of Maxwell’s equations [Maxwell, 1997](https://cds.cern.ch/record/2769595), using finite differences, finite elements, or finite integration. 
+...often have **no analytical solution**. These must be addressed through **full 3D numerical simulations** of Maxwell’s equations [Maxwell, 1865](https://royalsocietypublishing.org/doi/10.1098/rstl.1865.0008), using finite differences, finite elements, or finite integration. 
 
 ```{tip}
 * **🧑‍🏫 Why Use Time-Domain Solvers?**
