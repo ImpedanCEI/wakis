@@ -287,15 +287,64 @@ class Field:
 
         return obj
 
-    def compute_ijk(self, n):
-        if n > (self.N):
+    def compute_ijk(self, n, as_slice=False):
+
+        if type(n) is slice:
+            n = xp.arange(n.start or 0, n.stop or self.N, n.step or 1)
+
+        elif type(n) is int:
+            n = xp.array([n])
+
+        if np.any(n > self.N):
             raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
 
         k = n//(self.Nx*self.Ny)
         i = (n-k*self.Nx*self.Ny)%self.Nx
         j = (n-k*self.Nx*self.Ny)//self.Nx
 
-        return i, j, k
+        if i.size == 1:
+            return int(i[0]), int(j[0]), int(k[0]) 
+
+        elif as_slice:
+            def to_slice(arr):
+                if xp.all(np.diff(arr) == 1):  # check if contiguous
+                    return slice(arr[0], arr[-1] + 1)
+                else:
+                    return arr  # fallback np.arr
+
+            return to_slice(i), to_slice(j), to_slice(k)
+
+        else:
+            return i, j, k # np.array
+    
+    def compute_n(self, i, j, k):
+
+        if isinstance(i, slice) or isinstance(j, slice) or isinstance(k, slice):
+            if isinstance(i, slice):
+                i = xp.arange(i.start or 0, i.stop or self.Nx)
+            if isinstance(j, slice):
+                j = xp.arange(j.start or 0, j.stop or self.Ny)
+            if isinstance(k, slice):
+                k = xp.arange(k.start or 0, k.stop or self.Nz)
+
+            ii, jj, kk = xp.meshgrid(i, j, k, indexing='ij')
+            nn = ii + self.Nx * (jj + self.Ny * kk)
+            n = xp.ravel(nn, order='F')
+
+            del ii, jj, kk, nn
+
+        elif isinstance(i, int) and isinstance(j, int) and isinstance(k, int):
+            if i >= self.Nx or j >= self.Ny or k >= self.Nz:
+                raise IndexError("Index out of bounds")
+            n = i + self.Nx * (j + self.Ny * k)
+
+        else: 
+            raise TypeError("i, j, k must be type int or slice")
+        
+        if self.on_gpu:
+            n.get()
+
+        return n #arr of indexes
 
     def get_abs(self, as_matrix=True):
         '''Computes the absolute or magnitude

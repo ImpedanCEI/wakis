@@ -6,6 +6,7 @@
 from tqdm import tqdm
 
 import numpy as np
+import cupy as cp
 import time
 import h5py
 
@@ -300,6 +301,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ZMAX = self.grid.ZMAX
         self.Z = self.grid.Z
 
+        self.idx_lo_send = self.E.compute_n(slice(0, self.Nx), slice(0, self.Ny), 1)
+        self.idx_lo_recv = self.E.compute_n(slice(0, self.Nx), slice(0, self.Ny), 0)
+        self.idx_hi_send = self.E.compute_n(slice(0, self.Nx), slice(0, self.Ny), -2)
+        self.idx_hi_recv = self.E.compute_n(slice(0, self.Nx), slice(0, self.Ny), -1)
+
     def mpi_one_step(self):
         if self.step_0:
             self.set_ghosts_to_0()
@@ -325,10 +331,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # update ABC - not supported for MPI
 
-    def mpi_communicate(self, field):
-        if self.use_gpu:
-            field.from_gpu()
-
+    def mpi_communicate_cpu(self, field):
         # ghosts lo
         if self.rank > 0:
             for d in ['x','y','z']:
@@ -343,9 +346,44 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                             recvbuf=field[:, :, -1, d], 
                             dest=self.rank+1, sendtag=1,
                             source=self.rank+1, recvtag=0)
-        
+
+    def mpi_communicate(self, field):
         if self.use_gpu:
-            field.to_gpu()
+            cp.cuda.get_current_stream().synchronize()
+        # ghosts lo
+        if self.rank > 0:
+            self.comm.Sendrecv(field.field_x[self.idx_lo_send], 
+                        recvbuf=field.field_x[self.idx_lo_recv], 
+                        dest=self.rank-1, sendtag=0,
+                        source=self.rank-1, recvtag=1)
+            # field y
+            self.comm.Sendrecv(field.field_y[self.idx_lo_send], 
+                        recvbuf=field.field_y[self.idx_lo_recv], 
+                        dest=self.rank-1, sendtag=0,
+                        source=self.rank-1, recvtag=1)
+            # field z
+            self.comm.Sendrecv(field.field_z[self.idx_lo_send], 
+                        recvbuf=field.field_z[self.idx_lo_recv], 
+                        dest=self.rank-1, sendtag=0,
+                        source=self.rank-1, recvtag=1)
+
+        # ghosts hi
+        if self.rank < self.size - 1:
+            # field x
+            self.comm.Sendrecv(field.field_x[self.idx_hi_send], 
+                        recvbuf=field.field_x[self.idx_hi_recv], 
+                        dest=self.rank+1, sendtag=1,
+                        source=self.rank+1, recvtag=0)
+            # field y
+            self.comm.Sendrecv(field.field_y[self.idx_hi_send], 
+                        recvbuf=field.field_y[self.idx_hi_recv], 
+                        dest=self.rank+1, sendtag=1,
+                        source=self.rank+1, recvtag=0)
+            # field z
+            self.comm.Sendrecv(field.field_z[self.idx_hi_send], 
+                        recvbuf=field.field_z[self.idx_hi_recv], 
+                        dest=self.rank+1, sendtag=1,
+                        source=self.rank+1, recvtag=0)
 
     def mpi_gather(self, field, x=None, y=None, z=None, component=None):
         if x is None:

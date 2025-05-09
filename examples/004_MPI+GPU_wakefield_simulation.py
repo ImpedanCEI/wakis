@@ -31,7 +31,9 @@ rank = comm.Get_rank()  # Process ID
 size = comm.Get_size()  # Total number of MPI processes
 
 # ------- GPU setup --------------
-os.environ['CUDA_VISIBLE_DEVICES']=str(rank+2)
+import cupy
+cupy.cuda.Device(rank+1).use()
+#os.environ['CUDA_VISIBLE_DEVICES']=str(rank+2)
 
 # ---------- Domain setup ---------
 
@@ -95,7 +97,7 @@ solver = SolverFIT3D(grid,
                     bc_high=bc_high, 
                     use_stl=True, 
                     use_mpi=True, # Activate MPI
-                    use_gpu=True,
+                    use_gpu=True, # Activate GPU
                     bg='pec' # Background material
                     )
 
@@ -104,9 +106,9 @@ if not os.path.exists(img_folder) and rank == 0:
     os.mkdir(img_folder)
       
 # -------------- Custom time loop  -----------------
-run_timeloop = False
+run_timeloop = True
 if run_timeloop:
-    Nt = 400
+    Nt = 4000
     # Plot beam current vs time
     # beam.plot(np.linspace(0, solver.dt*Nt, Nt+1))
 
@@ -143,7 +145,7 @@ if run_timeloop:
                 off_screen=True, title=img_folder+'Ez1d', n=n)
       
 # -------------- using Wakefield routine  -----------------
-run_wakefield = True
+run_wakefield = False
 if run_wakefield:
 
     # ------------ Beam source ----------------
