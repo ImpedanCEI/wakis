@@ -4,7 +4,7 @@
 # ########################################### #
 
 # Run with:
-# mpiexec -n 2 python 004_MPI_wakefield_simulation.py
+# mpiexec -n 2 python 004_MPI+GPU_wakefield_simulation.py
 # where 2 is the number of GPU devices
 
 import os
@@ -104,7 +104,7 @@ if not os.path.exists(img_folder) and rank == 0:
     os.mkdir(img_folder)
       
 # -------------- Custom time loop  -----------------
-run_timeloop = True
+run_timeloop = False
 if run_timeloop:
     Nt = 400
     # Plot beam current vs time
@@ -143,7 +143,7 @@ if run_timeloop:
                 off_screen=True, title=img_folder+'Ez1d', n=n)
       
 # -------------- using Wakefield routine  -----------------
-run_wakefield = False
+run_wakefield = True
 if run_wakefield:
 
     # ------------ Beam source ----------------
@@ -204,7 +204,7 @@ if run_wakefield:
         ax[1].legend()
 
         fig1.tight_layout()
-        fig1.savefig('003_results/longitudinal.png')
+        fig1.savefig('004_results/longitudinal.png')
         #plt.show()
 
         # Plot transverse x wake potential and impedance
@@ -221,7 +221,7 @@ if run_wakefield:
         ax[1].legend()
 
         fig2.tight_layout()
-        fig2.savefig('003_results/transverse_x.png')
+        fig2.savefig('004_results/transverse_x.png')
         #plt.show()
 
         # Plot transverse y wake potential and impedance
@@ -238,7 +238,7 @@ if run_wakefield:
         ax[1].legend()
 
         fig3.tight_layout()
-        fig3.savefig('003_results/transverse_y.png')
+        fig3.savefig('004_results/transverse_y.png')
         #plt.show()
 
     # Plot Electric field component in 1D for several transverse positions
@@ -278,7 +278,7 @@ if run_wakefield:
                     stl_with_field='cavity', field_opacity=1.0,
                     stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
                     #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
-                    off_screen=False, zoom=1.2, title='003_img/Ez3d')
+                    off_screen=False, zoom=1.2, title='004_img/Ez3d')
             
 
 # --------------------- Extra -----------------------

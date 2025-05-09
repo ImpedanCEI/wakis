@@ -102,6 +102,22 @@ class Field:
         else:
             raise IndexError('Component id not valid')
     
+    def to_gpu(self):
+        if imported_cupy:
+            self.array = self.xp.asarray(self.array) # to cupy arr
+            self.on_gpu = True
+        else:
+            print('*** CuPy is not imported')
+            pass
+
+    def from_gpu(self):
+        if self.on_gpu:
+            self.array = self.array.get() # to numpy arr
+            self.on_gpu = False
+        else:
+            print('*** GPU is not enabled')
+            pass
+
     def __getitem__(self, key):
 
         if type(key) is tuple:

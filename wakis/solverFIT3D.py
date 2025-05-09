@@ -326,6 +326,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # update ABC - not supported for MPI
 
     def mpi_communicate(self, field):
+        if self.use_gpu:
+            field.from_gpu()
+
         # ghosts lo
         if self.rank > 0:
             for d in ['x','y','z']:
@@ -340,7 +343,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                             recvbuf=field[:, :, -1, d], 
                             dest=self.rank+1, sendtag=1,
                             source=self.rank+1, recvtag=0)
-                
+        
+        if self.use_gpu:
+            field.to_gpu()
+
     def mpi_gather(self, field, x=None, y=None, z=None, component=None):
         if x is None:
             x = slice(0, self.Nx)
