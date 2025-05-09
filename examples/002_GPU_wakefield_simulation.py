@@ -78,8 +78,8 @@ wake = WakeSolver(q=q,
                   xsource=xs, ysource=ys, 
                   xtest=xt, ytest=yt,
                   add_space=add_space, 
-                  results_folder='001_results/',
-                  Ez_file='001_results/001_Ez.h5')
+                  results_folder='002_results/',
+                  Ez_file='002_results/002_Ez.h5')
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -87,10 +87,10 @@ bc_low=['pec', 'pec', 'pec']
 bc_high=['pec', 'pec', 'pec']
 
 # on-the-fly plotting parameters
-if not os.path.exists('001_img/'): 
-    os.mkdir('001_img/')
+if not os.path.exists('002_img/'): 
+    os.mkdir('002_img/')
 
-plotkw2D = {'title':'001_img/Ez', 
+plotkw2D = {'title':'002_img/Ez', 
             'add_patch':'cavity', 'patch_alpha':1.0,
             'patch_reverse' : True,  # patch logical_not('cavity')
             'vmin':-1e3, 'vmax':1e3, # colormap limits
@@ -122,7 +122,7 @@ solver = SolverFIT3D(grid, wake,
 # Solver run
 solver.wakesolve(wakelength=wakelength, 
                  add_space=add_space,
-                 plot=True, # turn False for speedup
+                 plot=False, # turn False for speedup
                  plot_every=30, plot_until=3000, **plotkw2D
                  )
 
@@ -141,7 +141,7 @@ ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig1.tight_layout()
-fig1.savefig('001_results/001_longitudinal.png')
+fig1.savefig('002_results/002_longitudinal.png')
 #plt.show()
 
 # Plot transverse x wake potential and impedance
@@ -158,7 +158,7 @@ ax[1].set_ylabel('Transverse impedance X [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig2.tight_layout()
-fig2.savefig('001_results/001_transverse_x.png')
+fig2.savefig('002_results/002_transverse_x.png')
 #plt.show()
 
 # Plot transverse y wake potential and impedance
@@ -175,13 +175,13 @@ ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig3.tight_layout()
-fig3.savefig('001_results/001_transverse_y.png')
+fig3.savefig('002_results/002_transverse_y.png')
 #plt.show()
 
 # Plot Electric field component in 2D using imshow
 solver.plot1D(field='E', component='z', 
               line='z', pos=0.5, xscale='linear', yscale='linear',
-              off_screen=True, title='001_img/Ez1d')
+              off_screen=True, title='002_img/Ez1d')
 #plt.show()
 
 # ----------- 2d plots results --------------------
@@ -193,12 +193,12 @@ solver.plot2D(field='E', component='z',
               plane='XY', pos=0.5, 
               cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
               add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
-              off_screen=True, title='001_img/Ez2d')
+              off_screen=True, title='002_img/Ez2d')
 #plt.show()
 
 
 # BONUS: Generate an animation from the plots generated during the simulation
 #        Needs imagemagick package -> `apt install imagemagick`
-# os.system('convert -loop 0 -delay 5 001_img/Ez_*.png 001_img/Ez_sim.gif')
+# os.system('convert -loop 0 -delay 5 002_img/Ez_*.png 002_img/Ez_sim.gif')
 
         
