@@ -1,5 +1,5 @@
 # v0.6.0 Draft
-*Comming soon!*
+*Coming soon!*
 
 ## 🚀 New Features
 
@@ -8,60 +8,113 @@
   * `plot1D` now supports field visualization independently of MPI use.
   * `Plot2D` supports parallel execution.
   * Error handling added for `plot3D` and `plot3DonSTL` when `use_mpi = True`.
-  * Support for `dpi` and `return_handles` in plot utilities.
+  * Support for `dpi` and `return_handles` in plot utilities to further customize plots.
+  * Enhanced examples and notebook suite visualization cells.
 
 * 🧱 **GridFIT3D**
   * Added `mpi_initialize()` to handle domain decomposition (Z-slicing).
   * New method `mpi_gather_asGrid()` to retrieve the full global grid from distributed subdomains.
-
+  * Full support for multi-GPU domain decomposition through `cupy` (CUDA-aware, Linux only).
+  * Improved communication layer for subdomain synchronization via ghost cells.
+  
 * ⚡ **SolverFIT3D**
   * MPI-compatible time-stepping routine `mpi_one_step()` using a leapfrog scheme.
   * `mpi_communicate()` to send/receive boundary field values between subdomains.
   * `mpi_gather()` to retrieve field data as a NumPy array and `mpi_gather_asField()` to reconstruct a `Field` object.
   * MPI-safe support integrated into `update()` and field getter logic.
-
+  * Introduced `save_state()` method for checkpointing during MPI runs together with `load_state()`. Added support for MPI save state too.
+  * Feature in progress: multiGPU support (`use_GPU=True` when `use_MPI=True`) for distributed simulations (*Linux only!*).
+  
 * 📥 **Sources**
   * **Beam**:
     * Added `plot(t)` to visualize beam current evolution.
     * Generalized `update()` to work with or without MPI.
     * Enhanced support for time-aligned injection with beta and MPI shifts.
+    * New example for MPI+GPU simulation (*topic in progress*).
 
 * 🌊 **WakeSolver**
   * Refactored to internally store the full longitudinal domain.
   * `skip_cells` now acts only at analysis level, preserving resolution.
-    * `add_space` and `use_edt` retained for compatibility, but `add_space` is deprecated for new parameter `skip_cells`
-  * Future-ready structure for distributed wake solving with MPI.
+    * `add_space` and `use_edt` retained for compatibility, but `add_space` is deprecated for new parameter `skip_cells`, more adequate to its utility (i.e. skip cells in the integration path).
+  * Future-ready structure for distributed wake solving with MPI-aware GPU.
   * Improved numerical robustness by preventing indexing errors in `WakePotential` integration.
+  * Enhanced extrapolation method with `iddefix`.
+  * New example `004` for wakefield simulation with MPI+GPU configuration.
+
+* 🛡️ **Security & Documentation**
+  * Added `SECURITY.md` to describe supported versions and vulnerability reporting.
+  * Improved installation guide with Miniforge (supports both Windows/Linux) and MPI setup instructions.
+  * Added new issue templates for **Bug Report** and **Feature Request** with markdown formatting and emojis for readability.
+  * Addition of the **Physics Guide**, with detailed physics models and numerical methods explanations.
+  * User's guide updated to include Wake extrapolation with `iddefix`, Wake function calculation with `neffint`, and power loss calculation with `BIHC`.
+  * Added a **Table of Contents (ToC)** to the documentation for easier navigation.
+  * Expanded installation guide with multiGPU configuration and MPI-aware domain partitioning.
 
 ## 💗 Other Tag highlights
 
 * 🔁 Nightly tests with GitHub Actions:
   * Enabled infrastructure for MPI-based test cases (`test_003`, `test_005`).
+  * Improved test coverage for MPI and GPU simulations.
+  * MultiGPU end-to-end tests for distributed domain synchronization.
 
-* 📁 Examples:
+* 📁 **Examples**:
   * `003` → MPI wakefield simulation using `mpi4py`.
+  * `004a` → Fit wake potential data directly with the wake potential resonator formalism.
+  * `004b` → Fit impedance from wake potential data using `compute_deconvolution()`.
+  * `005` → Full MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
+  * New example with MPI + GPU configuration for large-scale simulations.
 
-* 📁 Notebooks:
-  * `005` → MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
+* 📁 **Notebooks**:
+  * `005` → Full MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
+  * New Jupyter notebook showcasing multiGPU configuration.
 
-* 📖 Documentation:
-  * User's guide: Major revision, added Wake extrapolation with `iddefix`, Wake function calculation with `neffint` and power loss calculation with `BIHC`
-  * Intallation guide: added MPI setup instructions
-  * Added table of contents for enhanced navigation.
-
-## 🐛 Bugfixes
+## 🐛 **Bugfixes**
 * Fixed crash in `plot3D` and `plot3DonSTL` when `use_mpi=True`.
 * Fixed default `use_mpi=True` to now default to `False` for general usage.
-* Fixed a typo in `solver.z.min()`.
-* Fixed potential rounding error in wake potential integration with negligible performance impact (~0.1ns).
-* Corrected default beam injection time to align with CST Wakefield Solver reference.
+* Fixed a typo in beam injection routine `solver.z.min()`.
+* Fixed potential rounding error in wake potential integration with negligible performance impact (~0.1ns) -> solves [issue #12](https://github.com/ImpedanCEI/wakis/issues/12)
+* Corrected default beam injection time to align with CST Wakefield Solver reference in beta<1 cases.
+* Fixed minor typos in the documentation.
+* Fixed synchronization issues with MPI runs when saving states.
+* Resolved encoding issues when installing in Windows editable mode.
+* Corrected result folder naming in GPU example `002`.
 
-## 👋👩‍💻 New Contributors
-
+## 👋👩‍💻 **New Contributors**
 * [**@mctfr**](https://github.com/mctfr) – Contributed improvements to installation instructions in the documentation.
 
-## 📝 Full changelog
+## 📝 **Full changelog**
 `git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
+
+
+## 📝 **Full changelog**
+`git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
+
+* 2025-05-09  feature: multiGPU working (Ubuntu) -but needs optimization (elenafuengar)
+* 2025-05-09  style: revise GPU example 002, fix folder result name (Elena De La Fuente Garcia)
+* 2025-05-09  build: fix encoding when installing editable in Windows (Elena De La Fuente Garcia)
+* 2025-05-08  docs: add miniforge (Windows/Linux) to python installation guide (elenafuengar)
+* 2025-05-08  docs: fix reference typo (elenafuengar)
+* 2025-05-07  feature: support `save_state` for MPI runs (elenafuengar)
+* 2025-05-06  docs: fix few mistakes spotted after RTD deployment (elenafuengar)
+* 2025-05-06  docs: minor changes to adapt to the physics guide content (elenafuengar)
+* 2025-05-06  docs: revised physics guide, `make html` passed (elenafuengar)
+* 2025-05-05  docs: first version of physics guide (elenafuengar)
+* 2025-05-02  feat: new example for MPI+GPU simulation (in progress) (elenafuengar)
+* 2025-04-29  docs: update installation with MPI-GPU findings (elenafuengar)
+* 2025-04-24  Update README.md (Elena de la Fuente García)
+* 2025-04-24  Create SECURITY.md (Elena de la Fuente García)
+* 2025-04-24  Update and rename feature-request-💡.md to feature-request.md (Elena de la Fuente García)
+* 2025-04-24  Update bug-report.md (Elena de la Fuente García)
+* 2025-04-24  Update and rename bug-report-🐛.md to bug-report.md (Elena de la Fuente García)
+* 2025-04-24  Update and rename 💡feature-request-.md to feature-request-💡.md (Elena de la Fuente García)
+* 2025-04-24  Add issue templates (bug & feature) (Elena de la Fuente García)
+* 2025-04-09  docs: small typo in readme (Elena de la Fuente García)
+* 2025-04-07  docs: update readme with playground contents (elenafuengar)
+* 2025-04-02  build: update release draft version to 0.6.0 (elenafuengar)
+* 2025-04-02  tests: add MPI test files and test script in progress (elenafuengar)
+* 2025-04-02  build: add neffint, iddefix and bihc as dependencies (elenafuengar)
+* 2025-04-02  style: fix results folder and plot kwargs (elenafuengar)
+* 2025-03-29  docs: update release.md (elenafuengar)
 * 2025-03-29  docs: small typo (elenafuengar)
 * 2025-03-27  style: revised notebook 004, in particular the iddefix extrapolation (elenafuengar)
 * 2025-03-27  feature: include wakefield simulation in example 003 (elenafuengar)
