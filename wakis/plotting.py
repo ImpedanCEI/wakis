@@ -4,6 +4,7 @@
 # ########################################### #
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 class PlotMixin:
         
@@ -454,7 +455,6 @@ class PlotMixin:
             Interpolation method to pass to matplotlib imshow e.g., 'none',
             'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36',
         '''
-        import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
         Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
@@ -646,8 +646,6 @@ class PlotMixin:
             Default kwargs used: 
                 kwargs = {'color':'g', 'lw':1.2, 'ls':'-'}
         '''
-        import matplotlib.pyplot as plt
-
         Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
         xmin, xmax = self.grid.xmin, self.grid.xmax 
         ymin, ymax = self.grid.ymin, self.grid.ymax
@@ -819,3 +817,6 @@ class PlotMixin:
 
             else:
                 plt.show()
+
+class PlotWakeMixin:
+
