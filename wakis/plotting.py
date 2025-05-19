@@ -818,5 +818,3 @@ class PlotMixin:
             else:
                 plt.show()
 
-class PlotWakeMixin:
-
