@@ -85,10 +85,6 @@
 ## 📝 **Full changelog**
 `git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
 
-
-## 📝 **Full changelog**
-`git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
-
 * 2025-05-09  feature: multiGPU working (Ubuntu) -but needs optimization (elenafuengar)
 * 2025-05-09  style: revise GPU example 002, fix folder result name (Elena De La Fuente Garcia)
 * 2025-05-09  build: fix encoding when installing editable in Windows (Elena De La Fuente Garcia)
