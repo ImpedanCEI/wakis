@@ -1,6 +1,6 @@
 # This is a basic workflow that is manually triggered
 
-name: manual_tests_CPU_python10
+name: manual_tests_MPI_python10
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
