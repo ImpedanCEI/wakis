@@ -178,7 +178,7 @@ class TestMPILossyCavity:
 
             Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2), z=np.s_[::5])
             if solver.rank == 0:
-                print(Ez)
+                #print(Ez)
                 assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples MPI failed"
         else:
             Nt = 3000
@@ -188,7 +188,7 @@ class TestMPILossyCavity:
                 solver.one_step()
             
             Ez = solver.E[int(Nx/2), int(Ny/2), np.s_[::5], 'z']
-            print(Ez)
+            #print(Ez)
             assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples failed"
 
 
@@ -283,11 +283,11 @@ class TestMPILossyCavity:
         global solver
         if use_mpi:
             if solver.rank == 0:
-                print(wake.WP[::50])
+                #print(wake.WP[::50])
                 assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
                 assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
         else:
-            print(wake.WP[::50])
+            #print(wake.WP[::50])
             assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
 
@@ -296,13 +296,13 @@ class TestMPILossyCavity:
         global solver
         if use_mpi:
             if solver.rank == 0:
-                print(wake.Z[::20])
+                #print(wake.Z[::20])
                 assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples MPI failed"
                 assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples MPI failed"
                 assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples MPI failed"
                 assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum MPI failed"
         else:
-            print(wake.Z[::20])
+            #print(wake.Z[::20])
             assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples failed"
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
