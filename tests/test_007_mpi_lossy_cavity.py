@@ -83,8 +83,6 @@ class TestMPILossyCavity:
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
     img_folder = 'tests/007_img/'
-    if not os.path.exists(img_folder): 
-        os.mkdir(img_folder)
 
     def test_mpi_import(self):
         # ---------- MPI setup ------------
@@ -106,6 +104,7 @@ class TestMPILossyCavity:
         print(f"Using mpi: {use_mpi}")
 
     def test_mpi_simulation(self):
+
         # ---------- Domain setup ---------
 
         # Geometry & Materials
@@ -167,6 +166,14 @@ class TestMPILossyCavity:
                             use_mpi=use_mpi, # Activate MPI
                             bg='pec' # Background material
                             )
+        
+        # -------------- Output folder ---------------------
+        if use_mpi and solver.rank == 0:
+            if not os.path.exists(self.img_folder): 
+                os.mkdir(self.img_folder)
+        elif not use_mpi:
+            if not os.path.exists(self.img_folder): 
+                os.mkdir(self.img_folder)
 
         # -------------- Custom time loop  -----------------
         if use_mpi:
