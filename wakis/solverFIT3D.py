@@ -348,6 +348,59 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             field.to_gpu()
 
     def mpi_gather(self, field, x=None, y=None, z=None, component=None):
+        '''
+        Gather a specific component or slice of a distributed field from all MPI ranks.
+
+        This function collects a selected component of a field (E, H, J, or custom) 
+        from all MPI processes along the z-axis and reconstructs the global field data 
+        on the root rank (rank 0). The user can specify slices or single indices 
+        along x, y, and z to control the subset of data gathered.
+
+        Parameters
+        ----------
+        field : str or Field obj
+            The field to gather. If a string, it must begin with one of:
+            - `'E'`, `'H'`, or `'J'` followed optionally by a component label 
+            (e.g., `'Ex'`, `'Hz'`, `'JAbs'`). 
+            If no component is specified, defaults to `'z'`.
+
+        x : int or slice, optional
+            Range of x-indices to gather. If None, defaults to the full x-range.
+
+        y : int or slice, optional
+            Range of y-indices to gather. If None, defaults to the full y-range.
+
+        z : int or slice, optional
+            Range of z-indices to gather. If None, defaults to the full z-range.
+
+        component : str or slice, optional
+            Component of the field to gather ('x', 'y', 'z', or a slice). 
+            If None and not inferred from `field`, defaults to `'z'`.
+
+        Returns
+        -------
+        numpy.ndarray or None
+            The gathered field values assembled on rank 0 with shape depending on
+            the selected slices along (x, y, z). Returns `None` on non-root ranks.
+
+        Notes
+        -----
+        - Assumes field data is distributed along the z-dimension.
+        - Automatically handles removal of ghost cells in reconstruction.
+        - Field components are inferred from the input `field` string or the 
+        `component` argument.
+        - This method supports full 3D subvolume extraction or 1D/2D slices 
+        for performance diagnostics and visualization.
+
+        Examples
+        --------
+        >>> # Gather Ex component on full domain on rank 0
+        >>> global_Ex = solver.mpi_gather('Ex')
+        
+        >>> # Gather a 2D yz-slice at x=10 of the J field
+        >>> yz_J = solver.mpi_gather('J', x=10)
+        '''
+
         if x is None:
             x = slice(0, self.Nx)
         if y is None:
@@ -382,7 +435,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         _field = None
 
         if self.rank == 0:
-            if type(x) is int and type(y) is int:
+            if type(x) is int and type(y) is int:  # 1d array at x=a, y=b
                 nz = self.NZ//self.size
                 _field = np.zeros((self.NZ))
                 for r in range(self.size):
@@ -395,7 +448,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                         _field[zz] = np.reshape(buffer[r], (nz+2*self.grid.n_ghosts))[1:-1]
                 _field = _field[z]
 
-            elif type(x) is int:
+            elif type(x) is int:    # 2d slice at x=a
                 ny = y.stop-y.start
                 nz = self.NZ//self.size
                 _field = np.zeros((ny, self.NZ))
@@ -409,7 +462,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                         _field[:, zz] = np.reshape(buffer[r], (ny, nz+2*self.grid.n_ghosts))[:, 1:-1] 
                 _field = _field[:, z]
 
-            elif type(y) is int:
+            elif type(y) is int:  # 2d slice at y=a
                 nx = x.stop-x.start
                 nz = self.NZ//self.size
                 _field = np.zeros((nx, self.NZ))
@@ -423,7 +476,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                         _field[:, zz] = np.reshape(buffer[r], (nx, nz+2*self.grid.n_ghosts))[:, 1:-1] 
                 _field = _field[:, z]
                         
-            else: # both type slice
+            else: # both type slice -> 3d array
                 nx = x.stop-x.start
                 ny = y.stop-y.start
                 nz = self.NZ//self.size
@@ -441,6 +494,36 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         return _field 
 
     def mpi_gather_asField(self, field):
+        '''
+        Gather distributed field data from all MPI ranks and return a global Field object.
+
+        This method collects the specified electromagnetic field data (E, H, or J) 
+        from all MPI processes and assembles it into a single global `Field` object 
+        on the root rank (rank 0). The field data can be specified as a string 
+        ('E', 'H', or 'J') or as a `wakis.Field` object.
+
+        Parameters
+        ----------
+        field : str or Field obj
+            The field to gather. If a string, it must be one of:
+            - `'E'` for the electric field
+            - `'H'` for the magnetic field
+            - `'J'` for the current density
+
+            Passing a `wakis.Field` is also supported (e.g. ieps, imu, sigma)
+
+        Returns
+        -------
+        Field
+            A `wakis.Field` object containing the gathered global field data 
+            with shape (Nx, Ny, NZ, 3). Only returned on rank 0. On other 
+            ranks, the returned value is undefined and should not be used.
+
+        Notes
+        -----
+        - This method assumes the field is distributed along the `z`-axis.
+        - Ghost cells are removed appropriately when reassembling the global field.
+        '''
 
         _field = Field(self.Nx, self.Ny, self.NZ) 
 
@@ -835,8 +918,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         del self.Ds, self.iDa, self.tDs, self.itDa
         del self.C
 
-    def save_state(self, filename="solver_state.h5",
-                   close=True):
+    def save_state(self, filename="solver_state.h5", close=True):
         """Save the solver state to an HDF5 file.
         
         This function saves only the key state variables (`H`, `E`, `J`) that are updated
