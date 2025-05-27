@@ -85,6 +85,23 @@
 ## 📝 **Full changelog**
 `git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
 
+|   **78 commits**   | 📚 Docs | 🧪 Tests | 🐛 Fixes | 🎨 Style | ✨ Features | Other |
+|----------------|---------|----------|-----------|------------|--------------| ----- |
+| % of Commits   | 30.3%   | 10.5%    | 9.2%     | 10.5%      | 22.4%        |  17.1     |
+
+
+* 2025-05-27  (HEAD -> main, origin/main, origin/HEAD) docs: add docstrings for `mpi_gather` and `mpi_gather_asField` (elenafuengar)
+* 2025-05-26  tests: fix mpi folder creation issues (elenafuengar)
+* 2025-05-23  tests: only allowed 2 procs per CI workflow... (elenafuengar)
+* 2025-05-23  tests: reduce MPI pipeline to only 007 (elenafuengar)
+* 2025-05-23  fix: update run workflow name (elenafuengar)
+* 2025-05-23  tests: add MPI CI/CD on manual py3.10 (elenafuengar)
+* 2025-05-23  test: add 007 to pytest pipeline (elenafuengar)
+* 2025-05-22  style: remove duplicates, prepare for release (elenafuengar)
+* 2025-05-23  tests: passing 007 for single core and mpiexec! (elenafuengar)
+* 2025-05-19  fix: nightly test report fix (elenafuengar)
+* 2025-05-14  style: move mpl.plt import (elenafuengar)
+* 2025-05-13  docs: update release draft, prepare for deployment (elenafuengar)
 * 2025-05-09  feature: multiGPU working (Ubuntu) -but needs optimization (elenafuengar)
 * 2025-05-09  style: revise GPU example 002, fix folder result name (Elena De La Fuente Garcia)
 * 2025-05-09  build: fix encoding when installing editable in Windows (Elena De La Fuente Garcia)
