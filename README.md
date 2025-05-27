@@ -9,7 +9,7 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/wakis?style=flat-square&color=blue)
 ![PyPI - License](https://img.shields.io/pypi/l/wakis?style=flat-square&color=pink)
 ![Tokei - LOC](https://tokei.rs/b1/github/ImpedanCEI/wakis?category=code?/style=square&color=green)
-![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14988677.svg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15527405.svg)](https://doi.org/10.5281/zenodo.15527405)
 
 
 `wakis` is a **3D Time-domain Electromagnetic solver** that solves the Integral form of Maxwell's equations using the Finite Integration Technique (FIT) numerical method. It computes the longitudinal and transverse **wake potential and beam-coupling impedance** from the simulated electric and magnetic fields. It is also a multi-purpose solver, capable of simulating planewaves interaction with nano-structures, optical diffraction, and much more!
@@ -25,7 +25,7 @@
 * 1d, 2d, 3d built-in plotting on-the-fly
 * Optimized memory consumption
 * GPU acceleration using `cupy/cupyx`
-* CUDA-aware MPI parallelization with `mpi4py` and `ipyparallel` *coming soon!*
+* CUDA-aware MPI parallelization with `mpi4py` and `ipyparallel`: added in[#v0.6.0](https://github.com/ImpedanCEI/wakis/releases/tag/v0.6.0)
 
 🧩 Other complementary tools in the ecosystem:
 * Wakefield extrapolation via broadband resonator fitting with PIML [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX) evolutionary algorithms
@@ -56,6 +56,7 @@ Check 🌐📁 [`CEI-logo/`](https://github.com/ImpedanCEI/CEI-logo) for a fun &
 * **002**: Wakefield simulation on GPU
 * **003**: Extrapolation of wakefield simulation to fully decayed with [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX). Conversion to wake function for beam dynamics simulation with [`neffint`](https://github.com/ImpedanCEI/neffint).
 * **004**: Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
+* **005**: MPI simulation example in notebooks with `ipyparallel` and `mpi4py`
 
 ## Installation
 Wakis supports `Python 3.9 - 3.11` and can be installed in any `conda` environment.
@@ -92,6 +93,7 @@ cd wakis/
 conda create --name wakis-env python=3.11
 conda activate wakis-env
 pip install -r requirements.txt
+pip install -e .  # install wakis in editable mode
 pip install neffint iddefix bihc  # Optional tools
 ```
 🛠️ **Want to contribute?**  To merge your changes into `main`, create a **Pull Request (PR)** following our [PR template](https://github.com/ImpedanCEI/wakis/blob/main/.github/pull_request_template.md).
@@ -103,12 +105,14 @@ These effects can be characterized through the beam coupling impedance in the fr
 
 * 🌱 `wakis` was firstly presented at the **International Particle Accelerator Conference in 2023** (IPAC23) as a post-processing tool: https://doi.org/10.18429/JACoW-IPAC2023-WEPL170
   
-* 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **14th International Computational Accelerator Physics Conference in 2024** (ICAP24): https://indico.gsi.de/event/19249/contributions/82636/
+* 🌳 It has now evolved from a post-processing tool to a full 3D electromagnetic, time domain solver; and has been presented at the **ICAP24: The 14th International Computational Accelerator Physics Conference in 2024**: https://indico.gsi.de/event/19249/contributions/82636/
+
+* 🌸 A dedicated paper has been submitted and will be presented at **IPAC'25: The 16th International Particle Accelerator Conference**: https://indico.jacow.org/event/81/contributions/8026/ 
 
 ## Citing `Wakis`
 🔖 Each Wakis release is linked to a [Zenodo](https://zenodo.org/records/15011421) publication under a unique [DOI](https://doi.org/10.5281/zenodo.15011421). If you are using Wakis in your scientific research, please help our scientific visibility by citing this work:
 
-> [1] E. de la Fuente Garcia et. al., “Wakis”. Zenodo, Mar. 12, 2025. doi: [10.5281/zenodo.15011421](https://doi.org/10.5281/zenodo.15011421). 
+> [1] E. de la Fuente Garcia et. al., “Wakis”. Zenodo, 2025. doi: https://doi.org/10.5281/zenodo.15527405
 
 
 
