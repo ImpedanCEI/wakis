@@ -25,13 +25,13 @@ The first part of a python script always includes importing external sources of 
 Optionally, one can use `os` or `sys` packages to handle the PATH and directory creations. The first part of any simulaiton script could look similar to:
 
 ```python
-import numpy as np
-import matplotlib.pyplot as plt
-import os, sys
-import pyvista as pv
-import h5py
-from tqdm import tqdm
-from scipy.constants import c as c_light
+import numpy as np               # for handling arrays
+import matplotlib.pyplot as plt  # for plotting
+import os, sys                   # for path handling
+import pyvista as pv             # for geometry modelling and 3D visualization
+import h5py                      # for data save/import 
+from tqdm import tqdm            # for time loop prpgress bar
+from scipy.constants import c as c_light    # speed of light constant
 ```
 
 Next step is to import the `wakis` classes that will allow to run the electromagnetic simulations:
@@ -76,6 +76,24 @@ geometry = pv.read(stl_shell) + pv.read(stl_cavity)
 geometry.plot() # add pyvista **kwargs to make a fancier plot
 ```
 ![geometry plot example using a few pyvista **kwargs](img/geometry_plot.png)
+
+Some [example `.stl` files](https://github.com/ImpedanCEI/wakis/tree/main/notebooks/data) are available in the GitHub repository for the `notebooks/` and `examples` folders. However, `PyVista` allows to generate importable geometry really easy through Constructive Solid Geometry (CSG). CSG is a modeling technique where complex geometries are built by combining simple primitives (like cubes, spheres, cylinders, cones) using Boolean operations: Union (+) combines two solids, Intersection (*) keeps only the overlapping volume or Difference (−): subtracts one solid from another. An example on how to generate a pillbox cavity using CSG is shown bellow:
+
+```
+import pyvista as pv
+
+# create 2 cylinders oriented in the z-direction
+pipe = pv.Cylinder(direction=(0,0,1.), radius=0.12, height=1)
+cavity = pv.Cylinder(direction=(0,0,1.), radius=0.5, height=0.3)
+
+# combine them and plot
+surf = pipe + cavity
+surf.plot()
+
+# save
+surf.save('geometry.stl', binary=False)
+```
+
 
 ```{seealso}
 Check [PyVista's documentation](https://docs.pyvista.org/version/stable/user-guide/simple.html#plotting) for more advanced 3d plotting
