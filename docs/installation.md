@@ -20,7 +20,7 @@ You can also upgrade to the latest version frequently by doing `pip install waki
 To use `wakis` in python notebooks, the option `pip install wakis['notebook']` is preferred. See the section on [troubleshooting](#python-notebooks-troubleshooting) if an error pops up when rendering 3D plots.
 
 ### For developers
-To start using wakis and access the python scripts that compose the code, you can `git clone`it from the main repository:
+Wakis development is managed through [Wakis GitHub](https://github.com/ImpedanCEI/wakis). We encourage developers to use Github CLI from Windows/Linux. If you need to download it, refer to the official [Git Downloads](https://git-scm.com/downloads). To start using wakis and access the python scripts that compose the code, you can `git clone` it from the main repository:
 ```
 # SSH:
 git clone git@github.com:ImpedanCEI/wakis.git
@@ -34,7 +34,14 @@ On a previously created conda environment, one can proceed installing the depend
 pip install -r requirements.txt
 ```
 
-If you would like to improve and make changes in `wakis`, we encorage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
+You can also pip install wakis on editable mode [RECOMMENDED]:
+```
+git clone git@github.com:ImpedanCEI/wakis.git
+cd wakis
+pip install -e .
+```
+
+If you would like to improve and push changes to `wakis`, we encorage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
 
 To contribute, first fork the repository, create a new branch, and submit a pull request. Step-by-step:
 
@@ -92,6 +99,9 @@ conda create --name wakis-env python=3.11
 conda activate wakis-env
 
 # pip install wakis and other useful packages
+pip install wakis                # minimal installation for scripts
+pip install wakis['notebook']    # complete installation for notebook use 
+pip install bihc neffint iddefix # optional satellite packages
 ```
 
 ## GPU setup
