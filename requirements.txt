@@ -94,7 +94,7 @@ pyparsing==3.1.2
 pytest
 python-dateutil==2.9.0.post0
 python-json-logger==2.0.7
-pyvista==0.43.10
+pyvista==0.45.2
 PyYAML==6.0.1
 pyzmq==26.0.3
 referencing==0.35.1
