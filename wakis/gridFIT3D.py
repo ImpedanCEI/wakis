@@ -94,7 +94,7 @@ class GridFIT3D:
             else:
                 raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
             
-        # primal Grid G
+        # primal Grid G [TODO - upgrade to smart snappy grid]
         self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
         self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
         self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
@@ -153,18 +153,27 @@ class GridFIT3D:
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size() 
 
+        # Error handling for Nz < size
+        if self.Nz < self.size:
+            raise ValueError(f"Nz ({self.Nz}) must be greater than or equal to the number of MPI processes ({self.size}).")
+        
         # global z quantities [ALLCAPS]
         self.ZMIN = self.zmin
         self.ZMAX = self.zmax
         self.NZ = self.Nz - self.Nz%(self.size) # ensure multiple of MPI size
         self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ+1)[:-1] + self.dz/2
 
+        if self.verbose and self.rank==0: 
+            print(f"Global grid ZMIN={self.ZMIN}, ZMAX={self.ZMAX}, NZ={self.NZ}")
+
         # MPI subdomain quantities 
         self.Nz = self.NZ // (self.size) 
         self.dz = (self.ZMAX - self.ZMIN) / self.NZ
         self.zmin = self.rank * self.Nz * self.dz + self.ZMIN
         self.zmax = (self.rank+1) * self.Nz * self.dz + self.ZMIN 
-        
+
+        if self.verbose: print(f"MPI rank {self.rank} of {self.size} initialized with \
+                                zmin={self.zmin}, zmax={self.zmax}, Nz={self.Nz}")
         # Add ghost cells
         self.n_ghosts = 1
         if self.rank > 0:
