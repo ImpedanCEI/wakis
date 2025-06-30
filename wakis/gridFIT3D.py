@@ -5,6 +5,8 @@
 
 import numpy as np
 import pyvista as pv
+from functools import partial
+from scipy.optimize import minimize 
 
 from .field import Field
 
@@ -52,13 +54,18 @@ class GridFIT3D:
     """
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, use_mpi=False, 
+                Nx, Ny, Nz, 
+                use_mpi=False, 
+                use_mesh_refinement=False,
+                snap_points=None,
                 stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
                 stl_colors=None, verbose=1, tol=1e-3):
         
+        if verbose: print('Generating grid...')
         self.verbose = verbose
         self.use_mpi = use_mpi
+        self.use_mesh_refinement = use_mesh_refinement
 
         # domain limits
         self.xmin = xmin
@@ -95,15 +102,20 @@ class GridFIT3D:
                 raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
             
         # primal Grid G [TODO - upgrade to smart snappy grid]
-        self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
-        self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
-        self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
+        self.snap_points = snap_points
+        self.x, self.y, self.z = None, None, None 
 
-        #tolerance for stl import tol*min(dx,dy,dz)
-        self.tol = tol 
+        if self.use_mesh_refinement:
+            if verbose: print('Applying mesh refinement...')
+            if self.snap_points is None and stl_solids is not None:
+                self.compute_snap_points()
+            self.refine_xyz_axis()
+        else:
+            self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
+            self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
+            self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
             
         # grid
-        if verbose: print('Generating grid...')
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -142,6 +154,9 @@ class GridFIT3D:
         self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
         del aux
         
+        #tolerance for stl import tol*min(dx,dy,dz)
+        if verbose: print('Importing STL solids...')
+        self.tol = tol 
         if stl_solids is not None:
             self.mark_cells_in_stl()
             if stl_colors is None:
@@ -208,7 +223,7 @@ class GridFIT3D:
                             )
         return _grid
 
-    def mark_cells_in_stl(self):
+    def mark_cells_in_stl(self): #TODO: pass tol as arg
 
         if self.verbose: print('Importing stl solids...')
 
@@ -269,6 +284,72 @@ class GridFIT3D:
 
         return surf
     
+    def compute_snap_points(self, stl_keys=None, snap_tol=1e-5):
+
+        # Support for user-defined stl_keys as list
+        if stl_keys is None:
+            stl_keys = self.stl_solids.keys()
+
+        # Union of all the surfaces
+        # [TODO]: should use | for union instead or +?
+        model = None
+        for key in stl_keys:
+            solid = self.read_stl(key)
+            if model is None:
+                model = solid
+            else:
+                model = model + solid  
+    
+        edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
+
+        # Extract points lying in the X-Z plane (Y ≈ 0)
+        xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
+        # Extract points lying in the Y-Z plane (X ≈ 0)
+        yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
+        # Extract points lying in the X-Y plane (Z ≈ 0)
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+
+        self.snap_points = np.r_[xz_plane_points, yz_plane_points, xy_plane_points]
+
+        # get the unique x, y, z coordinates
+        x_snaps = np.unique(np.round(self.snap_points[:, 0], 5))
+        y_snaps = np.unique(np.round(self.snap_points[:, 1], 5))
+        z_snaps = np.unique(np.round(self.snap_points[:, 2], 5))
+
+        # Include simulation domain bounds
+        self.x_snaps = np.unique(np.concatenate(([self.xmin], x_snaps, [self.xmax])))
+        self.y_snaps = np.unique(np.concatenate(([self.zmin], y_snaps, [self.zmax])))
+        self.z_snaps = np.unique(np.concatenate(([self.ymin], z_snaps, [self.ymax])))
+
+    def refine_axis(self, xmin, xmax, Nx, x_snaps, verbose=False):
+
+        # Loss function to minimize cell size spread
+        def loss_function(new_points, snaps):
+            x = np.sort(np.unique(np.append(snaps, new_points)))
+            return np.std(np.diff(sorted(x)))
+
+        # Uniformly distributed points as initial guess
+        x0 = np.linspace(xmin, xmax, Nx - len(x_snaps)) 
+        objective_function = partial(loss_function, x_snaps)
+
+        # minimize segment length spread for the test points 
+        result = minimize(objective_function,
+                            x0=x0,
+                            bounds=[(xmin, xmax)] * (len(x0)),
+                            method='L-BFGS-B', 
+                            tol=(xmax-xmin)/len(x0)*1e-6,
+                            options={'maxiter': 1e6,
+                                    'disp': verbose,
+                                    }
+                            )
+        # Include snaps and sort
+        x = np.sort(np.unique(np.append(x_snaps, result.x)))
+        return x
+
+    def refine_xyz_axis(self, snap_points=None):
+        pass
+
+
     def assign_colors(self):
         '''Classify colors assigned to each solid
         based on the categories in `material_colors` dict
