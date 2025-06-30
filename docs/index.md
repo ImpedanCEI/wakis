@@ -32,11 +32,12 @@ The source code is available in the `wakis` [GitHub repository](https://github.c
 
 ```{toctree} 
 :caption: Table of Contents
-:maxdepth: 3
+:maxdepth: 2
 
 index.md
 installation.md
 usersguide.md
 physicsguide.md
+releases.md
 wakis.rst
 ```
