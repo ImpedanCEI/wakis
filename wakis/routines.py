@@ -7,8 +7,9 @@ import numpy as np
 import h5py
 from tqdm import tqdm
 from scipy.constants import c as c_light
-
+from field_monitors import FieldMonitor
 from wakis.sources import Beam
+from typing import Optional
 
 class RoutinesMixin():
 
@@ -152,6 +153,8 @@ class RoutinesMixin():
                   plot=False, plot_from=None, plot_every=1, plot_until=None,
                   save_J=False, 
                   add_space=None, #for legacy
+                  use_field_monitor=False,
+                  field_monitor: Optional[FieldMonitor] = None,
                   use_edt=None, #deprecated 
                   **kwargs):
         '''
@@ -299,6 +302,10 @@ class RoutinesMixin():
             
             # Advance
             field_update()
+
+
+            if use_field_monitor:
+                field_monitor.update()
             
             # Plot
             if plot:
@@ -323,5 +330,3 @@ class RoutinesMixin():
             # Compute wakefield magnitudes is done inside WakeSolver
             self.wake.solve(compute_plane=compute_plane)
             
-        
-        
