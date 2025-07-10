@@ -7,8 +7,8 @@ import numpy as np
 import h5py
 from tqdm import tqdm
 from scipy.constants import c as c_light
-from field_monitors import FieldMonitor
 from wakis.sources import Beam
+from wakis.field_monitors import FieldMonitor
 from typing import Optional
 
 class RoutinesMixin():
@@ -304,9 +304,9 @@ class RoutinesMixin():
             field_update()
 
 
-            if use_field_monitor:
-                field_monitor.update()
-            
+            if use_field_monitor and field_monitor is not None:
+                field_monitor.update(self.E, self.dt)
+
             # Plot
             if plot:
                 if n%plot_every == 0 and n<plot_until and n>plot_from:
