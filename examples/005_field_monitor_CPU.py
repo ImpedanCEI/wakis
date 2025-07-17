@@ -89,8 +89,6 @@ solver = SolverFIT3D(grid, wake,
 # CREATE field monitor
 monitor = FieldMonitor(frequencies=[0.549e9]) # we assume we already found the fundamental mode frequency
 
-print(solver.N)
-
 # Solver run
 solver.wakesolve(wakelength=wakelength,
                  add_space=add_space,
