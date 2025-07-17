@@ -69,8 +69,8 @@ wake = WakeSolver(q=q,
                   xsource=xs, ysource=ys,
                   xtest=xt, ytest=yt,
                   add_space=add_space,
-                  results_folder='001_results/',
-                  Ez_file='001_results/001_Ez.h5')
+                  results_folder='005_results/',
+                  Ez_file='005_results/005_Ez.h5')
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -89,6 +89,7 @@ solver = SolverFIT3D(grid, wake,
 # CREATE field monitor
 monitor = FieldMonitor(frequencies=[0.549e9]) # we assume we already found the fundamental mode frequency
 
+print(solver.N)
 
 # Solver run
 solver.wakesolve(wakelength=wakelength,
@@ -105,19 +106,15 @@ if not os.path.exists(results_folder):
 
 freq_field = monitor.get_components()
 np.savez('./005_results/field_at_frequencies.npz', Ex=freq_field['Ex'], Ey=freq_field['Ey'], Ez=freq_field['Ez'])
+grid = solver.grid.grid
+solver.grid.grid.save("./005_results/Ez_field.vtk")
 
-# visualise mode
-# plot slice at middle Z index
 Ez = freq_field['Ez'][0] # Z field at the first frequency (only frequency in our case)
-z_index = Ez.shape[2] // 2
-slice_Ez = Ez[:, :, z_index]
+Ez_flat = np.reshape(Ez, solver.N)
 
-plt.figure(figsize=(6, 5), dpi=120)
-plt.imshow(np.abs(slice_Ez.T), cmap='inferno', origin='lower')
-plt.title(f"|Ez| at z={z_index}")
-plt.xlabel('x')
-plt.ylabel('y')
-plt.colorbar(label='|Ez| [arb units]')
-plt.tight_layout()
-plt.show()
+solver.grid.grid.cell_data['Ez_mag'] = np.real(Ez_flat)
+# interactive slice
+pl = pv.Plotter()
+pl.add_mesh_clip_plane(grid, scalars='Ez_mag', cmap='inferno', show_scalar_bar=True)
+pl.show()
 
