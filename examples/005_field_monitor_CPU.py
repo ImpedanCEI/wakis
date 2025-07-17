@@ -104,8 +104,6 @@ if not os.path.exists(results_folder):
 
 freq_field = monitor.get_components()
 np.savez('./005_results/field_at_frequencies.npz', Ex=freq_field['Ex'], Ey=freq_field['Ey'], Ez=freq_field['Ez'])
-grid = solver.grid.grid
-solver.grid.grid.save("./005_results/Ez_field.vtk")
 
 Ez = freq_field['Ez'][0] # Z field at the first frequency (only frequency in our case)
 Ez_flat = np.reshape(Ez, solver.N)
@@ -113,6 +111,6 @@ Ez_flat = np.reshape(Ez, solver.N)
 solver.grid.grid.cell_data['Ez_mag'] = np.real(Ez_flat)
 # interactive slice
 pl = pv.Plotter()
-pl.add_mesh_clip_plane(grid, scalars='Ez_mag', cmap='inferno', show_scalar_bar=True)
+pl.add_mesh_clip_plane(solver.grid.grid, scalars='Ez_mag', cmap='inferno', show_scalar_bar=True)
 pl.show()
 
