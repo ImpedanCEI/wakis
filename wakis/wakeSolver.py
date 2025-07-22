@@ -681,6 +681,106 @@ class WakeSolver():
 
         if self.save:
             np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
+    \
+    def get_SmartBounds(self, freq_data=None, impedance_data=None,
+                        minimum_peak_height=1.0, distance=3, inspect_bounds=True,
+                        Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9]
+                        ):
+        import iddefix
+
+        self.log('\nCalculating bounds using the Smart Bound Determination...')
+        # Smart bounds
+        # Find the main resonators and estimate the bounds -courtesy of Malthe Raschke!
+        bounds = iddefix.SmartBoundDetermination(freq_data, np.real(impedance_data), minimum_peak_height=minimum_peak_height,
+                                                Rs_bounds=Rs_bounds, Q_bounds=Q_bounds, fres_bounds=fres_bounds)
+        
+        bounds.find(minimum_peak_height=minimum_peak_height, distance=distance)
+        
+        if inspect_bounds:
+            bounds.inspect()
+            bounds.to_table()
+            return bounds.N_resonators, bounds.parameterBounds
+        
+        bounds.to_table()
+        return bounds 
+
+
+    def extrapolate_wake(self, freq_data=None, impedance_data=None, 
+                         wakelength=None, plane='longitudinal', dim='z', 
+                         parameterBounds=None, N_resonators=None, DE_kernel='CMAES',
+                         maxiter=1e5, cmaes_sigma=0.01, popsize=150, tol=1e-3,
+                         use_minimization=True, minimization_margin=[0.3, 0.2, 0.01],
+                         minimum_peak_height=1.0, distance=3, inspect_bounds=False,
+                         Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9],
+                         ):
+        import iddefix
+
+        if freq_data is None or impedance_data is None:
+            if plane == 'longitudinal' and dim == 'z':
+                freq_data = self.f
+                impedance_data = self.Z
+            elif plane == 'transverse':
+                if dim == 'x':
+                    freq_data = self.fx
+                    impedance_data = self.Zx
+                elif dim == 'y':
+                    freq_data = self.fy
+                    impedance_data = self.Zy
+                else:
+                    raise ValueError('Invalid dimension. Use dim = "x" or "y".')
+            else:
+                raise ValueError('Invalid plane or dimension. Use plane = "longitudinal" or "transverse" and choose the dimension dim = "z", "x" or "y".') 
+            
+        if parameterBounds is None or N_resonators is None:
+            bounds = self.get_SmartBounds(parameterBounds=parameterBounds, 
+                                        N_resonators=N_resonators, 
+                                        minimum_peak_height=minimum_peak_height, 
+                                        distance=distance, 
+                                        inspect_bounds=inspect_bounds,
+                                        Rs_bounds=Rs_bounds, Q_bounds=Q_bounds, fres_bounds=fres_bounds)
+            N_resonators = bounds.N_resonators
+            parameterBounds = bounds.parameterBounds
+
+        # Build the differential evolution model
+        print('Extrapolating wake potential using Differential Evolution...')
+        self.log('\nExtrapolating wake potential using Differential Evolution...')
+        
+        objectiveFunction=iddefix.ObjectiveFunctions.sumOfSquaredErrorReal
+        DE_model = iddefix.EvolutionaryAlgorithm(freq_data, 
+                                                np.real(impedance_data), 
+                                                N_resonators=N_resonators, 
+                                                parameterBounds=parameterBounds,
+                                                plane=plane,
+                                                fitFunction='impedance', 
+                                                wake_length=wakelength, # in [m]
+                                                objectiveFunction=objectiveFunction,
+                                                ) 
+
+        if DE_kernel == 'DE':
+            DE_model.run_differential_evolution(maxiter=maxiter,
+                                                popsize=popsize,
+                                                tol=tol,
+                                                mutation=(0.3, 0.8),
+                                                crossover_rate=0.5)
+        elif DE_kernel == 'CMAES':
+            DE_model.run_cmaes(maxiter=maxiter,
+                                popsize=popsize,
+                                sigma=cmaes_sigma,)
+        
+        if use_minimization:
+            self.log('Running minimization algorithm...')
+            DE_model.run_minimization_algorithm(minimization_margin)
+
+        self.DE_model = DE_model
+        self.log(DE_model.warning)
+
+        # Get the extrapolated wake potential
+        t_extrapolated = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
+        wake_extrapolated = DE_model.get_wake_potential(self.s/c_light, sigma=self.sigmaz/c_light, 
+                                    use_minimization=use_minimization)
+        
+        self.log('\nExtrapolating wake potential using Differential Evolution...')
+        return t_extrapolated, wake_extrapolated
 
     @staticmethod
     def calc_impedance_from_wake(wake, s=None, t=None, fmax=None, 
