@@ -17,7 +17,7 @@ class WakeSolver():
     calculation from 3D time domain E fields
     '''
 
-    def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
+    def __init__(self, wakelength=None, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
                  chargedist=None, ti=None, 
                  compute_plane='both', skip_cells=0, add_space=None, 
@@ -26,6 +26,8 @@ class WakeSolver():
         '''
         Parameters
         ----------
+        wakelength : float, optional
+            Wakelength to be simulated. If not provided, it will be calculated from the Ez field data.
         q : float
             Beam total charge in [C]
         sigmaz : float 
@@ -141,7 +143,7 @@ class WakeSolver():
         self.x, self.y, self.z = None, None, None #full simulation domain
 
         #solver init
-        self.wakelength = None
+        self.wakelength = wakelength
         self.s = None
         self.lambdas = None
         self.WP = None
@@ -681,7 +683,7 @@ class WakeSolver():
 
         if self.save:
             np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
-    \
+    
     def get_SmartBounds(self, freq_data=None, impedance_data=None,
                         minimum_peak_height=1.0, distance=3, inspect_bounds=True,
                         Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9]
@@ -699,15 +701,15 @@ class WakeSolver():
         if inspect_bounds:
             bounds.inspect()
             bounds.to_table()
-            return bounds.N_resonators, bounds.parameterBounds
+            return bounds
         
         bounds.to_table()
         return bounds 
 
 
-    def extrapolate_wake(self, freq_data=None, impedance_data=None, 
-                         wakelength=None, plane='longitudinal', dim='z', 
-                         parameterBounds=None, N_resonators=None, DE_kernel='CMAES',
+    def get_DEmodel_fitting(self, freq_data=None, impedance_data=None, 
+                         plane='longitudinal', dim='z', 
+                         parameterBounds=None, N_resonators=None, DE_kernel='DE',
                          maxiter=1e5, cmaes_sigma=0.01, popsize=150, tol=1e-3,
                          use_minimization=True, minimization_margin=[0.3, 0.2, 0.01],
                          minimum_peak_height=1.0, distance=3, inspect_bounds=False,
@@ -742,7 +744,7 @@ class WakeSolver():
             parameterBounds = bounds.parameterBounds
 
         # Build the differential evolution model
-        print('Extrapolating wake potential using Differential Evolution...')
+        print('Fitting the impedance using Differential Evolution...')
         self.log('\nExtrapolating wake potential using Differential Evolution...')
         
         objectiveFunction=iddefix.ObjectiveFunctions.sumOfSquaredErrorReal
@@ -752,18 +754,19 @@ class WakeSolver():
                                                 parameterBounds=parameterBounds,
                                                 plane=plane,
                                                 fitFunction='impedance', 
-                                                wake_length=wakelength, # in [m]
+                                                wake_length=self.wakelength, # in [m]
                                                 objectiveFunction=objectiveFunction,
                                                 ) 
 
         if DE_kernel == 'DE':
-            DE_model.run_differential_evolution(maxiter=maxiter,
+            DE_model.run_differential_evolution(maxiter=int(maxiter),
                                                 popsize=popsize,
                                                 tol=tol,
                                                 mutation=(0.3, 0.8),
                                                 crossover_rate=0.5)
-        elif DE_kernel == 'CMAES':
-            DE_model.run_cmaes(maxiter=maxiter,
+            
+        elif DE_kernel == 'CMAES': #TODO: fix UnboundLocalError
+            DE_model.run_cmaes(maxiter=int(maxiter),
                                 popsize=popsize,
                                 sigma=cmaes_sigma,)
         
@@ -773,15 +776,57 @@ class WakeSolver():
 
         self.DE_model = DE_model
         self.log(DE_model.warning)
+        if self.verbose:
+            print(DE_model.warning)
+
+        return DE_model
+
+    def get_extrapolated_wake(self, wakelength, sigma=None, use_minimization=True):             
+        '''
+        Get the extrapolated wake potential [V/pC] from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+    
+        if sigma is None:
+            sigma = self.sigmaz/c_light
 
         # Get the extrapolated wake potential
-        t_extrapolated = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
-        wake_extrapolated = DE_model.get_wake_potential(self.s/c_light, sigma=self.sigmaz/c_light, 
+        # TODO: add beta
+        t = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
+        wake_potential = self.DE_model.get_wake_potential(t, sigma=sigma, 
                                     use_minimization=use_minimization)
         
-        self.log('\nExtrapolating wake potential using Differential Evolution...')
-        return t_extrapolated, wake_extrapolated
+        s = t * c_light  # Convert time to distance [m]
+        return s, -wake_potential*1e-12 # in [V/pC] + CST convention
 
+    def get_extrapolated_wake_function(self, wakelength, use_minimization=True):
+        '''
+        Get the extrapolated wake function (a.k.a. Green function) from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+        
+        t = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
+        wake_function = self.DE_model.get_wake(t, use_minimization=use_minimization)
+        return t, wake_function
+
+    def get_extrapolated_impedance(self, f=None, use_minimization=True,
+                                   wakelength=None):
+        '''
+        Get the extrapolated impedance [Ohm] from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+
+        if f is None:
+            f = self.DE_model.frequency_data
+
+        impedance = self.DE_model.get_impedance(frequency_data=f,
+                                                use_minimization=use_minimization, 
+                                                wakelength=wakelength)
+        return f, impedance
+    
     @staticmethod
     def calc_impedance_from_wake(wake, s=None, t=None, fmax=None, 
                                     samples=None, verbose=True):
