@@ -55,12 +55,13 @@ class GridFIT3D:
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, 
+                x=None, y=None, z=None, 
                 use_mpi=False, 
-                use_mesh_refinement=False, refinement_method='insert',
+                use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
                 snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
-                stl_colors=None, verbose=1, tol=1e-3):
+                stl_colors=None, verbose=1, stl_tol=1e-3):
         
         if verbose: print('Generating grid...')
         self.verbose = verbose
@@ -88,6 +89,8 @@ class GridFIT3D:
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
+        if stl_solids is not None:
+            self._prepare_stl_dicts()
 
         # MPI subdivide domain 
         if self.use_mpi: 
@@ -102,17 +105,28 @@ class GridFIT3D:
                 raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
             
         # primal Grid G base axis x, y, z
+        self.x = x
+        self.y = y
+        self.z = z
         self.refinement_method = refinement_method
         self.snap_points = snap_points
         self.snap_tol = snap_tol
         self.snap_solids = snap_solids # if None, use all stl_solids
-        self.x, self.y, self.z = None, None, None 
 
-        if self.use_mesh_refinement:
+        if self.x is not None and self.y is not None and self.z is not None:
+            # allow user to set the grid axis manually
+            self.Nx = len(self.x) - 1
+            self.Ny = len(self.y) - 1
+            self.Nz = len(self.z) - 1
+            self.dx = np.min(np.diff(self.x)) 
+            self.dy = np.min(np.diff(self.y))  
+            self.dz = np.min(np.diff(self.z))
+
+        elif self.use_mesh_refinement:
             if verbose: print('Applying mesh refinement...')
             if self.snap_points is None and stl_solids is not None:
                 self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
-            self.refine_xyz_axis(method=refinement_method)  # obtain self.x, self.y, self.z
+            self.refine_xyz_axis(method=refinement_method, tol=refinement_tol)  # obtain self.x, self.y, self.z
         else:
             self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
             self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
@@ -123,7 +137,7 @@ class GridFIT3D:
 
         # tolerance for stl import tol*min(dx,dy,dz)
         if verbose: print('Importing STL solids...')
-        self.tol = tol 
+        self.tol = stl_tol 
         if stl_solids is not None:
             self.mark_cells_in_stl()
             if stl_colors is None:
@@ -229,10 +243,7 @@ class GridFIT3D:
                             )
         return _grid
 
-    def mark_cells_in_stl(self):
-
-        if self.verbose: print('Importing stl solids...')
-
+    def _prepare_stl_dicts(self):
         if type(self.stl_solids) is not dict:
             if type(self.stl_solids) is str:
                 self.stl_solids = {'Solid 1' : self.stl_solids}
@@ -260,6 +271,8 @@ class GridFIT3D:
                 stl_translate[key] = self.stl_translate
             self.stl_translate = stl_translate
 
+    def mark_cells_in_stl(self):
+        # Obtain masks with grid cells inside each stl solid
         tol = np.min([self.dx, self.dy, self.dz])*self.tol
         for key in self.stl_solids.keys():
 
@@ -289,7 +302,8 @@ class GridFIT3D:
 
         return surf
     
-    def compute_snap_points(self, snap_solids=None, snap_tol=1e-5):
+    def compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
+        if self.verbose: print('* Calculating snappy points...')
         # Support for user-defined stl_keys as list
         if snap_solids is None:
             snap_solids = self.stl_solids.keys()
@@ -322,8 +336,46 @@ class GridFIT3D:
 
         # Include simulation domain bounds
         self.x_snaps = np.unique(np.concatenate(([self.xmin], x_snaps, [self.xmax])))
-        self.y_snaps = np.unique(np.concatenate(([self.zmin], y_snaps, [self.zmax])))
-        self.z_snaps = np.unique(np.concatenate(([self.ymin], z_snaps, [self.ymax])))
+        self.y_snaps = np.unique(np.concatenate(([self.ymin], y_snaps, [self.ymax])))
+        self.z_snaps = np.unique(np.concatenate(([self.zmin], z_snaps, [self.zmax])))
+
+    def plot_snap_points(self, snap_solids=None, snap_tol=1e-8):
+        # TODO
+        # Support for user-defined stl_keys as list
+        if snap_solids is None:
+            snap_solids = self.stl_solids.keys()
+
+        # Union of all the surfaces
+        # [TODO]: should use | for union instead or +?
+        model = None
+        for key in snap_solids:
+            solid = self.read_stl(key)
+            if model is None:
+                model = solid
+            else:
+                model = model + solid  
+    
+        edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
+
+        # Extract points lying in the X-Z plane (Y ≈ 0)
+        xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
+        # Extract points lying in the Y-Z plane (X ≈ 0)
+        yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
+        # Extract points lying in the X-Y plane (Z ≈ 0)
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+
+        xz_cloud = pv.PolyData(xz_plane_points)
+        yz_cloud = pv.PolyData(yz_plane_points)
+        xy_cloud = pv.PolyData(xy_plane_points)
+
+        pl = pv.Plotter()
+        pl.add_mesh(model, color='white', opacity=0.5, label='base STL')
+        pl.add_mesh(edges, color='black', line_width=5, opacity=0.8,)
+        pl.add_mesh(xz_cloud, color='green', point_size=20, render_points_as_spheres=True, label='XZ plane points')
+        pl.add_mesh(yz_cloud, color='orange', point_size=20, render_points_as_spheres=True, label='YZ plane points')
+        pl.add_mesh(xy_cloud, color='magenta', point_size=20, render_points_as_spheres=True, label='XY plane points')
+        pl.add_legend()
+        pl.show()
 
     def refine_axis(self, xmin, xmax, Nx, x_snaps, 
                     method='insert', tol=1e-12):
@@ -388,24 +440,33 @@ class GridFIT3D:
                                 gtol=tol,
                                 ftol=tol,
                                 xtol=tol,
-                                verbose=self.verbose,
+                                verbose=1,
                                 args=(x0.copy(), is_snap.copy()),
                                 )
         # transform back to [xmin, xmax]
         return result.x*(xmax-xmin)+xmin 
 
-    def refine_xyz_axis(self, method='insert', tol=1e-12):
+    def refine_xyz_axis(self, method='insert', tol=1e-6):
         '''Refine the grid in the x, y, z axis
         using the snap points extracted from the stl solids.
         The snap points are used to refine the grid '''
 
-        self.x = self.refine_axis(self.xmin, self.xmax, self.Nx,
+        if self.verbose: print(f'* Refining x axis with {len(self.x_snaps)} snaps...')
+        self.x = self.refine_axis(self.xmin, self.xmax, self.Nx+1, self.x_snaps,
                                   method=method, tol=tol)
-        self.y = self.refine_axis(self.ymin, self.ymax, self.Ny,
+        
+        if self.verbose: print(f'* Refining y axis with {len(self.y_snaps)} snaps...')
+        self.y = self.refine_axis(self.ymin, self.ymax, self.Ny+1, self.y_snaps,
                                   method=method, tol=tol)
-        self.z = self.refine_axis(self.zmin, self.zmax, self.Nz,
+        
+        if self.verbose: print(f'* Refining z axis with {len(self.z_snaps)} snaps...')
+        self.z = self.refine_axis(self.zmin, self.zmax, self.Nz+1, self.z_snaps,
                                   method=method, tol=tol)
 
+        self.Nx = len(self.x) - 1
+        self.Ny = len(self.y) - 1       
+        self.Nz = len(self.z) - 1
+        print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
 
     def assign_colors(self):
         '''Classify colors assigned to each solid
