@@ -6,7 +6,7 @@
 import numpy as np
 import pyvista as pv
 from functools import partial
-from scipy.optimize import minimize 
+from scipy.optimize import least_squares
 
 from .field import Field
 
@@ -56,8 +56,8 @@ class GridFIT3D:
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, 
                 use_mpi=False, 
-                use_mesh_refinement=False,
-                snap_points=None,
+                use_mesh_refinement=False, refinement_method='insert',
+                snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
                 stl_colors=None, verbose=1, tol=1e-3):
@@ -101,21 +101,35 @@ class GridFIT3D:
             else:
                 raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
             
-        # primal Grid G [TODO - upgrade to smart snappy grid]
+        # primal Grid G base axis x, y, z
+        self.refinement_method = refinement_method
         self.snap_points = snap_points
+        self.snap_tol = snap_tol
+        self.snap_solids = snap_solids # if None, use all stl_solids
         self.x, self.y, self.z = None, None, None 
 
         if self.use_mesh_refinement:
             if verbose: print('Applying mesh refinement...')
             if self.snap_points is None and stl_solids is not None:
-                self.compute_snap_points()
-            self.refine_xyz_axis()
+                self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
+            self.refine_xyz_axis(method=refinement_method)  # obtain self.x, self.y, self.z
         else:
             self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
             self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
             self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
             
-        # grid
+        # grid G and tilde grid ~G, lengths and inverse areas
+        self.compute_grid()
+
+        # tolerance for stl import tol*min(dx,dy,dz)
+        if verbose: print('Importing STL solids...')
+        self.tol = tol 
+        if stl_solids is not None:
+            self.mark_cells_in_stl()
+            if stl_colors is None:
+                self.assign_colors()
+
+    def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -153,15 +167,7 @@ class GridFIT3D:
         aux = self.tL.field_x * self.tL.field_y
         self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
         del aux
-        
-        #tolerance for stl import tol*min(dx,dy,dz)
-        if verbose: print('Importing STL solids...')
-        self.tol = tol 
-        if stl_solids is not None:
-            self.mark_cells_in_stl()
-            if stl_colors is None:
-                self.assign_colors()
-
+    
     def mpi_initialize(self):
         comm = MPI.COMM_WORLD  # Get MPI communicator
         self.comm = comm
@@ -223,7 +229,7 @@ class GridFIT3D:
                             )
         return _grid
 
-    def mark_cells_in_stl(self): #TODO: pass tol as arg
+    def mark_cells_in_stl(self):
 
         if self.verbose: print('Importing stl solids...')
 
@@ -267,7 +273,6 @@ class GridFIT3D:
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
 
     def read_stl(self, key):
-
         # import stl
         surf = pv.read(self.stl_solids[key])
 
@@ -284,16 +289,15 @@ class GridFIT3D:
 
         return surf
     
-    def compute_snap_points(self, stl_keys=None, snap_tol=1e-5):
-
+    def compute_snap_points(self, snap_solids=None, snap_tol=1e-5):
         # Support for user-defined stl_keys as list
-        if stl_keys is None:
-            stl_keys = self.stl_solids.keys()
+        if snap_solids is None:
+            snap_solids = self.stl_solids.keys()
 
         # Union of all the surfaces
         # [TODO]: should use | for union instead or +?
         model = None
-        for key in stl_keys:
+        for key in snap_solids:
             solid = self.read_stl(key)
             if model is None:
                 model = solid
@@ -321,33 +325,86 @@ class GridFIT3D:
         self.y_snaps = np.unique(np.concatenate(([self.zmin], y_snaps, [self.zmax])))
         self.z_snaps = np.unique(np.concatenate(([self.ymin], z_snaps, [self.ymax])))
 
-    def refine_axis(self, xmin, xmax, Nx, x_snaps, verbose=False):
+    def refine_axis(self, xmin, xmax, Nx, x_snaps, 
+                    method='insert', tol=1e-12):
 
         # Loss function to minimize cell size spread
-        def loss_function(new_points, snaps):
-            x = np.sort(np.unique(np.append(snaps, new_points)))
-            return np.std(np.diff(sorted(x)))
+        def loss_function(x, x0, is_snap):
+            # avoid moving snap points
+            penalty_snap = np.sum((x[is_snap] - x0[is_snap])**2) * 1000
+            # avoid gaps < uniform gap
+            dx = np.diff(x)
+            threshold = 1/(len(x)-1) # or a hardcoded `min_spacing`
+            penalty_small_gaps = np.sum((threshold - dx[dx < threshold])**2) 
+            # avoid large spread in gap length
+            dx = np.diff(x)
+            penalty_variance = np.std(dx) * 10
+            #return penalty_snap + penalty_small_gaps + penalty_variance
+            return np.hstack([penalty_snap, penalty_small_gaps, penalty_variance])
 
         # Uniformly distributed points as initial guess
-        x0 = np.linspace(xmin, xmax, Nx - len(x_snaps)) 
-        objective_function = partial(loss_function, x_snaps)
+        x_snaps = (x_snaps-xmin)/(xmax-xmin) # normalize to [0,1]
+
+        if method == 'insert':
+            x0 = np.unique(np.append(x_snaps,  np.linspace(0, 1, Nx - len(x_snaps))))
+
+        elif method == 'neighbor':
+            x = np.linspace(0, 1, Nx)
+            dx = np.diff(x)[0]
+            mask = np.zeros_like(x, dtype=bool)
+            i=0
+            for s in x_snaps:
+                m = np.isclose(x, s, rtol=0.0, atol=dx/2)
+                if np.sum(m)>0:
+                    x[np.argmax(m)] = s
+            x0 = x.copy()
+        
+        elif method == 'subdivision':
+            # x = snaps
+            while len(x) < Nx:
+                #idx of segments sorted min -> max
+                idx_max_diffs = np.argsort(np.diff(x))[-1] # take bigger
+
+                print(f"Bigger segment starts at {x[idx_max_diffs]}")
+                # compute new point in the middle of the segment
+                val = x[idx_max_diffs] + (x[idx_max_diffs + 1] - x[idx_max_diffs]) / 2
+
+                # insert the new point
+                x = np.insert(x, idx_max_diffs+1, val)
+                x = np.unique(x)
+                print(f"Inserted point {val} at index {idx_max_diffs}")
+            x0 = x.copy()
+        else:
+            raise ValueError(f"Method {method} not supported. Use 'insert', 'neighbor' or 'subdivision'.")
 
         # minimize segment length spread for the test points 
-        result = minimize(objective_function,
-                            x0=x0,
-                            bounds=[(xmin, xmax)] * (len(x0)),
-                            method='L-BFGS-B', 
-                            tol=(xmax-xmin)/len(x0)*1e-6,
-                            options={'maxiter': 1e6,
-                                    'disp': verbose,
-                                    }
-                            )
-        # Include snaps and sort
-        x = np.sort(np.unique(np.append(x_snaps, result.x)))
-        return x
+        is_snap = np.isin(x0, x_snaps)
+        result = least_squares(loss_function,
+                                x0=x0.copy(),
+                                bounds=(0,1),#(zmin, zmax),
+                                jac='3-point',
+                                method='dogbox',
+                                loss='arctan',
+                                gtol=tol,
+                                ftol=tol,
+                                xtol=tol,
+                                verbose=self.verbose,
+                                args=(x0.copy(), is_snap.copy()),
+                                )
+        # transform back to [xmin, xmax]
+        return result.x*(xmax-xmin)+xmin 
 
-    def refine_xyz_axis(self, snap_points=None):
-        pass
+    def refine_xyz_axis(self, method='insert', tol=1e-12):
+        '''Refine the grid in the x, y, z axis
+        using the snap points extracted from the stl solids.
+        The snap points are used to refine the grid '''
+
+        self.x = self.refine_axis(self.xmin, self.xmax, self.Nx,
+                                  method=method, tol=tol)
+        self.y = self.refine_axis(self.ymin, self.ymax, self.Ny,
+                                  method=method, tol=tol)
+        self.z = self.refine_axis(self.zmin, self.zmax, self.Nz,
+                                  method=method, tol=tol)
 
 
     def assign_colors(self):
