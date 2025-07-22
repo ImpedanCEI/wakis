@@ -119,6 +119,7 @@ class WakeSolver():
         self.ti = ti
         self.skip_cells = skip_cells
         self.compute_plane = compute_plane
+        self.DE_model = None
 
         if add_space is not None: #legacy support for add_space
             self.skip_cells = add_space
@@ -604,9 +605,12 @@ class WakeSolver():
 
         self.Zy = 1j * WPyf / lambdaf
 
+        self.fx = ffft[mask] 
+        self.fy = ffft[mask] 
+
         if self.save:
-            np.savetxt(self.folder+'Zx.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
-            np.savetxt(self.folder+'Zy.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'Zx.txt', np.c_[self.fx, self.Zx], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
+            np.savetxt(self.folder+'Zy.txt', np.c_[self.fy, self.Zy], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
 
     def calc_lambdas(self, **kwargs):
         '''Obtains normalized charge distribution in terms of s 
