@@ -466,6 +466,10 @@ class GridFIT3D:
         self.Nx = len(self.x) - 1
         self.Ny = len(self.y) - 1       
         self.Nz = len(self.z) - 1
+        self.dx = np.min(np.diff(self.x))  #TODO: should this be an array?
+        self.dy = np.min(np.diff(self.y))  
+        self.dz = np.min(np.diff(self.z))
+
         print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
 
     def assign_colors(self):
