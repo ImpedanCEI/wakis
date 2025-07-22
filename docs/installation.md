@@ -139,6 +139,52 @@ mamba install cudatoolkit=11.8.0
 
 You can find the official CUDA Toolkit in the [NVIDIA development website](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Fedora&target_version=41&target_type=rpm_local)
 
+### HTCondor with GPU submission
+
+Your `config_condor.sub` file needs to request a GPU
+```
+if !defined FNAME
+    FNAME               = outputs
+endif
+
+ID                      = $(Cluster).$(Process)
+
+output                  = ./logs/$(FNAME).$(ID).out
+error                   = ./logs/$(FNAME).$(ID).err
+log                     = ./logs/$(FNAME).$(Cluster).log
+
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+
+request_GPUs            = 1
+request_CPUs            = 1
++MaxRunTime             = 100
++AccountingGroup        = your_acct_group
+
+executable              = simulation_run.sh
+```
+
+Your `simulation_run.sh` file could optionally include:
+
+```
+#!/bin/bash
+# source the miniforge
+source /afs/cern.ch/work/u/user/miniforge3/etc/profile.d/conda.sh
+conda activate /afs/cern.ch/work/u/user/SimulationProjects/wakis_simulation/wakis-env
+
+# Fix for UCX errors
+export UCX_TLS=rc,tcp,cuda_copy,cuda_ipc
+
+# Fix for HDF5 file locking issues, when overwriting to same directory
+export HDF5_USE_FILE_LOCKING=FALSE
+
+python3.11 -m wakis_simulation.main
+```
+
+An example python project for simulating on HTCondor, is shown here [BLonD Simulation Template](https://gitlab.cern.ch/blond/blond-simulation-template). 
+The submission files are based on the approach used in this example project [^3], modified for GPU. The project can be modified for the wakis environment, it currently is set up 
+for simulations with BLonD, the longitudinal beam dynamics code.
+
 ## Python Notebooks troubleshooting
 
 ### Matplotlib interactive plots
@@ -245,3 +291,4 @@ We rely on [PyVista](https://github.com/pyvista/pyvista) to import CAD/STL geome
 
 [^1]: Sullivan and Kaszynski, (2019). PyVista: 3D plotting and mesh analysis through a streamlined interface for the Visualization Toolkit (VTK). Journal of Open Source Software, 4(37), 1450, https://doi.org/10.21105/joss.01450
 [^2]: Anaconda Software Distribution. (2020). Anaconda Documentation. Anaconda Inc. Retrieved from https://docs.anaconda.com/
+[^3]: S. Lauber, (2025). Blond Simulation Template. Retrieved from https://gitlab.cern.ch/blond/blond-simulation-template
