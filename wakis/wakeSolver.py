@@ -409,7 +409,7 @@ class WakeSolver():
                             it = int(ts/dt)                 #find index for t
                             if it < nt:
                                 if self.counter_moving:
-                                    WP[n] = WP[n]+(Ezt[-k-1, it])*dz   #compute integral
+                                    WP[n] = WP[n]+(Ezt[-k-1, it])*(-1*dz)   #compute integral
                                 else:
                                     WP[n] = WP[n] + (Ezt[k, it]) * dz  # compute integral
                         pbar.update(1)
