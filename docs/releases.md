@@ -1,5 +1,5 @@
 # 📣 Releases
-Release notes of every `Wakis` packaged version in [PyPI](https://pypi.org/project/wakis/), also available in [Zenodo](https://zenodo.org/records/15527405) and [Github Releases](https://github.com/ImpedanCEI/wakis/releases)
+Release notes of every `Wakis` packaged version in [PyPI](https://pypi.org/project/wakis/), also available in [Zenodo](https://zenodo.org/records/15527405) and [Github Releases](https://github.com/ImpedanCEI/wakis/releases).
 
 ```{contents} 
 :depth: 2
@@ -7,7 +7,7 @@ Release notes of every `Wakis` packaged version in [PyPI](https://pypi.org/proje
 
 ## Wakis v0.6.0 
 
-#### 🚀 New Features
+### 🚀 New Features
 
 * 🖼️ **Plotting**
   * Unified plotting tools for both MPI and non-MPI simulations.

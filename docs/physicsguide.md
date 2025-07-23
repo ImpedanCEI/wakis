@@ -42,7 +42,7 @@ To simulate collective beam dynamics and stability using impedance models, you c
 ```{seealso} 
 * **💡 Beam Induced Heating**
 
-The **dissipated power** due to beam-induced heating can be estimated using [`bihc`](https://github.com/ImpedanCEI/BIHC), a tool within the Wakis ecosystem. It takes as input the impedance profile of a device and the beam spectrum, returning power loss predictions that are critical for **vacuum design**, **cooling**, and **material compliance**.
+The **dissipated power** due to beam-induced heating can be estimated using [BIHC](https://github.com/ImpedanCEI/BIHC), a tool within the Wakis ecosystem. It takes as input the impedance profile of a device and the beam spectrum, returning power loss predictions that are critical for **vacuum design**, **cooling**, and **material compliance**.
 ```
 
 
@@ -193,7 +193,7 @@ Wakis distinguishes between **primal** and **dual** grid geometries as part of i
 
 | Quantity                  | Description                                    |
 |--------------------------|------------------------------------------------|
-| $\mathbf{M}_\varepsilon$ | Diagonal matrix of permittivities              |
+| $\mathbf{M}_\varepsilon^{-1}$ | Diagonal matrix of inverse permittivities              |
 | $\mathbf{M}_\mu^{-1}$    | Diagonal matrix of inverse permeabilities      |
 | $\mathbf{M}_\sigma$      | Diagonal matrix of electrical conductivities   |
 | $\mathbf{D}_s$, $\widetilde{\mathbf{D}}_s$, $\mathbf{D}_A$, and $\widetilde{\mathbf{D}}_A$ | Edge lengths and face areas (primal/dual) |
