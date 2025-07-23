@@ -1017,18 +1017,18 @@ class WakeSolver():
         The txt files are generated when 
         the attribute`save = True` is used
         '''
-        if folder.endswith('/'):
-            folder = folder.split('/')[0]
+        if not folder.endswith('/'):
+            folder = folder + '/'
 
-        _, self.lambdas = self.read_txt(folder+'/lambda.txt').values()
-        _, self.WPx = self.read_txt(folder+'/WPx.txt').values()
-        _, self.WPy = self.read_txt(folder+'/WPy.txt').values()
-        self.s, self.WP = self.read_txt(folder+'/WP.txt').values()
+        _, self.lambdas = self.read_txt(folder+'lambda.txt').values()
+        _, self.WPx = self.read_txt(folder+'WPx.txt').values()
+        _, self.WPy = self.read_txt(folder+'WPy.txt').values()
+        self.s, self.WP = self.read_txt(folder+'WP.txt').values()
 
-        _, self.lambdaf = self.read_txt(folder+'/spectrum.txt').values()
-        _, self.Zx = self.read_txt(folder+'/Zx.txt').values()
-        _, self.Zy = self.read_txt(folder+'/Zy.txt').values()
-        self.f, self.Z = self.read_txt(folder+'/Z.txt').values()
+        _, self.lambdaf = self.read_txt(folder+'spectrum.txt').values()
+        _, self.Zx = self.read_txt(folder+'Zx.txt').values()
+        _, self.Zy = self.read_txt(folder+'Zy.txt').values()
+        self.f, self.Z = self.read_txt(folder+'Z.txt').values()
 
         self.f = np.abs(self.f)
         
