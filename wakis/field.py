@@ -353,7 +353,7 @@ class Field:
         for d in [0,1,2]:
             field = self.to_matrix(d)
             
-            if self.on_gpu:
+            if self.on_gpu and hasattr(field, 'get'):
                 field = field.get()
 
             if transpose:
