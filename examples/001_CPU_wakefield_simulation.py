@@ -73,14 +73,15 @@ yt = 0.             # y test position [m]
 wakelength = 10. # [m]
 add_space = 10   # no. cells to skip from boundaries - removes BC artifacts
 
+results_folder = '001_results_float64/'
 wake = WakeSolver(q=q, 
                   sigmaz=sigmaz, 
                   beta=beta,
                   xsource=xs, ysource=ys, 
                   xtest=xt, ytest=yt,
                   add_space=add_space, 
-                  results_folder='001_results/',
-                  Ez_file='001_results/001_Ez.h5')
+                  results_folder=results_folder,
+                  Ez_file=results_folder+'001_Ez.h5')
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -105,7 +106,8 @@ solver = SolverFIT3D(grid, wake,
                      bc_low=bc_low, 
                      bc_high=bc_high, 
                      use_stl=True, 
-                     bg='pec' # Background material
+                     bg='pec', # Background material
+                     dtype=np.float64, # support for single-precision np.float32
                      )
 
 # BONUS: Inspect material tensors - Uncomment to show!
@@ -141,7 +143,7 @@ ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig1.tight_layout()
-fig1.savefig('001_results/001_longitudinal.png')
+fig1.savefig(results_folder+'001_longitudinal.png')
 #plt.show()
 
 # Plot transverse x wake potential and impedance
@@ -158,7 +160,7 @@ ax[1].set_ylabel('Transverse impedance X [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig2.tight_layout()
-fig2.savefig('001_results/001_transverse_x.png')
+fig2.savefig(results_folder+'001_transverse_x.png')
 #plt.show()
 
 # Plot transverse y wake potential and impedance
@@ -175,7 +177,7 @@ ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig3.tight_layout()
-fig3.savefig('001_results/001_transverse_y.png')
+fig3.savefig(results_folder+'001_transverse_y.png')
 #plt.show()
 
 # Plot Electric field component in 2D using imshow

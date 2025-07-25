@@ -31,7 +31,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
-                 use_gpu=False, use_mpi=False,
+                 use_gpu=False, use_mpi=False, dtype=np.float64,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
@@ -128,9 +128,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.wake = wake
 
         # Fields
-        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
-        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
-        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.dtype = dtype
+        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
+        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
+        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
 
         # MPI init
         if self.use_mpi:
@@ -147,19 +148,19 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.Pz = diags([-1, 1], [0, self.Nx*self.Ny], shape=(N, N), dtype=np.int8)
 
         # original grid
-        self.Ds = diags(self.L.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDa = diags(self.iA.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.Ds = diags(self.L.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.iDa = diags(self.iA.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         # tilde grid
-        self.tDs = diags(self.tL.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.itDa = diags(self.itA.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.tDs = diags(self.tL.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.itDa = diags(self.itA.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         # Curl matrix
         self.C = vstack([
                             hstack([sparse_mat((N,N)), -self.Pz, self.Py]),
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
-                        ])
+                        ], dtype=np.int8)
                 
         # Boundaries
         if verbose: print('Applying boundary conditions...')
@@ -178,9 +179,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, 0.0
 
-        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.eps_bg) 
-        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.mu_bg) 
-        self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*self.sigma_bg
+        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.eps_bg) 
+        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.mu_bg) 
+        self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
 
         if self.use_stl:
             self.apply_stl()
@@ -215,9 +216,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Pre-computing
         if verbose: print('Pre-computing...') 
-        self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
@@ -250,15 +251,15 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.verbose: print(f'Re-computing tensor "{tensor}"...') 
 
         if tensor == 'ieps': 
-            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor =='imu':
-            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor == 'sigma':
-            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor == 'all':
-            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
 
         if self.verbose: print('Re-Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
