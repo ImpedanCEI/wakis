@@ -114,6 +114,11 @@ class RoutinesMixin():
         else:
             update = self.one_step
 
+        # get ABC values
+        if self.activate_abc:
+            E_abc_2, H_abc_2 = self.get_abc()
+            E_abc_1, H_abc_1 = self.get_abc()
+
         # Time loop 
         for n in tqdm(range(Nt)):
 
@@ -140,6 +145,12 @@ class RoutinesMixin():
 
             if plot3d and n%plot_every == 0:
                 self.plot3D(n=n, **plotkw)
+
+            # ABC BCs
+            if self.activate_abc:
+                self.update_abc(E_abc_2, H_abc_2)       # n-2
+                E_abc_2, H_abc_2 = E_abc_1, H_abc_1     # n-1
+                E_abc_1, H_abc_1 = self.get_abc()       # n
 
         # End
         if save:
