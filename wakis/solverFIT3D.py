@@ -91,6 +91,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Flags
         self.step_0 = True
+        self.nstep = int(0)
         self.plotter_active = False
         self.use_conductors = use_conductors
         self.use_stl = use_stl
@@ -286,10 +287,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
-     
-        #update ABC
-        if self.activate_abc:
-            self.update_abc()
 
     def mpi_initialize(self):
         self.comm = self.grid.comm
@@ -323,8 +320,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
-
-        # update ABC - not supported for MPI
 
     def mpi_communicate(self, field):
         if self.use_gpu:
@@ -764,8 +759,57 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                     self.sigma[:, :, -k, d] = sz[-k]
                     #self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.n_pml:])*eps_0)
 
+    def get_abc(self):
+        '''
+        Save the n-2 timestep to apply ABC 
+        '''
+        E_abc, H_abc = {}, {}
 
-    def update_abc(self):
+        if self.bc_low[0].lower() == 'abc':
+            E_abc[0] = {}
+            H_abc[0] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[0][d+'lo'] = self.E[1, :, :, d]
+                H_abc[0][d+'lo'] = self.H[1, :, :, d]  
+
+        if self.bc_low[1].lower() == 'abc':
+            E_abc[1] = {}
+            H_abc[1] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[1][d+'lo'] = self.E[:, 1, :, d]
+                H_abc[1][d+'lo'] = self.H[:, 1, :, d]  
+                   
+        if self.bc_low[2].lower() == 'abc':
+            E_abc[2] = {}
+            H_abc[2] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[2][d+'lo'] = self.E[:, :, 1, d]
+                H_abc[2][d+'lo'] = self.H[:, :, 1, d]  
+
+        if self.bc_high[0].lower() == 'abc':
+            E_abc[0] = {}
+            H_abc[0] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[0][d+'hi'] = self.E[-1, :, :, d]
+                H_abc[0][d+'hi'] = self.H[-1, :, :, d]  
+
+        if self.bc_high[1].lower() == 'abc':
+            E_abc[1] = {}
+            H_abc[1] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[1][d+'hi'] = self.E[:, -1, :, d]
+                H_abc[1][d+'hi'] = self.H[:, -1, :, d]  
+                   
+        if self.bc_high[2].lower() == 'abc':
+            E_abc[2] = {}
+            H_abc[2] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[2][d+'hi'] = self.E[:, :, -1, d]
+                H_abc[2][d+'hi'] = self.H[:, :, -1, d]  
+
+        return E_abc, H_abc
+
+    def update_abc(self, E_abc, H_abc):
         '''
         Apply ABC algo to the selected BC, 
         to be applied after each timestep
@@ -773,33 +817,33 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if self.bc_low[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[0, :, :, d] = self.E[1, :, :, d]
-                self.H[0, :, :, d] = self.H[1, :, :, d]  
+                self.E[0, :, :, d] = E_abc[0][d+'lo']
+                self.H[0, :, :, d] = H_abc[0][d+'lo']  
 
         if self.bc_low[1].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, 0, :, d] = self.E[:, 1, :, d]
-                self.H[:, 0, :, d] = self.H[:, 1, :, d]
+                self.E[:, 0, :, d] = E_abc[1][d+'lo']
+                self.H[:, 0, :, d] = H_abc[1][d+'lo'] 
                    
         if self.bc_low[2].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, :, 0, d] = self.E[:, :, 1, d]
-                self.H[:, :, 0, d] = self.H[:, :, 1, d]  
+                self.E[:, :, 0, d] = E_abc[2][d+'lo']
+                self.H[:, :, 0, d] = H_abc[2][d+'lo']   
 
         if self.bc_high[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[-1, :, :, d] = self.E[-1, :, :, d]
-                self.H[-1, :, :, d] = self.H[-1, :, :, d] 
+                self.E[-1, :, :, d] = E_abc[0][d+'hi']
+                self.H[-1, :, :, d] = H_abc[0][d+'hi']
 
         if self.bc_high[1].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, -1, :, d] = self.E[:, -1, :, d]
-                self.H[:, -1, :, d] = self.H[:, -1, :, d] 
+                self.E[:, -1, :, d] = E_abc[1][d+'hi']
+                self.H[:, -1, :, d] = H_abc[1][d+'hi']
 
         if self.bc_high[2].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, :, -1, d] = self.E[:, :, -1, d]
-                self.H[:, :, -1, d] = self.H[:, :, -1, d] 
+                self.E[:, :, -1, d] = E_abc[2][d+'hi']
+                self.H[:, :, -1, d] = H_abc[2][d+'hi'] 
 
     def set_ghosts_to_0(self):
         '''
