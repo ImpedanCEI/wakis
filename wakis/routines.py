@@ -12,7 +12,7 @@ from wakis.sources import Beam
 
 class RoutinesMixin():
 
-    def emsolve(self, Nt, source=None, 
+    def emsolve(self, Nt, source=None, callback=None,
                 save=False, fields=['E'], components=['Abs'], save_every=1, subdomain=None, 
                 plot=False, plot_every=1, use_etd=False, 
                 plot3d=False, **kwargs):
@@ -151,6 +151,10 @@ class RoutinesMixin():
                 self.update_abc(E_abc_2, H_abc_2)       # n-2
                 E_abc_2, H_abc_2 = E_abc_1, H_abc_1     # n-1
                 E_abc_1, H_abc_1 = self.get_abc()       # n
+
+            # Callboack func
+            if callback is not None:
+                callback(self, n*self.dt)
 
         # End
         if save:
