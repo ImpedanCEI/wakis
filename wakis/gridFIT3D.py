@@ -496,7 +496,7 @@ class GridFIT3D:
                 self.stl_colors[key] = 'other'
 
     def plot_solids(self, bounding_box=False, anti_aliasing=None,
-                    opacity=1.0, specular=0.5,**kwargs):
+                    opacity=1.0, specular=0.5, offscreen=False, **kwargs):
         """
         Generates a 3D visualization of the imported STL geometries using PyVista.
 
@@ -560,10 +560,13 @@ class GridFIT3D:
         if bounding_box:
             pl.add_bounding_box()
             
-        pl.show()
+        if offscreen:
+            pl.export_html('grid_plot_solids.html')
+        else:
+            pl.show()
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
-                anti_aliasing='ssaa'):
+                anti_aliasing='ssaa', offscreen=False):
         
         '''3D plot using pyvista to visualize 
         the structured grid and
@@ -643,4 +646,8 @@ class GridFIT3D:
         pl.add_axes()
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
-        pl.show()
+
+        if offscreen:
+            pl.export_html('grid_inspect.html')
+        else:
+            pl.show()
