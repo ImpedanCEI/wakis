@@ -291,13 +291,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
      
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() 
-                                  - self.iDeps*self.J.toarray()
+                                  - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
         
         #include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(self.Dsigma*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
     def one_step_mkl(self):
         if self.step_0:
@@ -311,13 +311,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
      
         self.E.fromarray(self.E.toarray() +
                          self.dt*(dot_product_mkl(self.itDaiDepsDstC,self.H.toarray()) 
-                                  - self.iDeps*self.J.toarray()
+                                  - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
         
         #include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(self.Dsigma*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
     def mpi_initialize(self):
         self.comm = self.grid.comm
@@ -343,14 +343,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.mpi_communicate(self.J)
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() 
-                                  - self.iDeps*self.J.toarray()
+                                  - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
 
         self.mpi_communicate(self.E)
         # include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(self.Dsigma*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
     def mpi_communicate(self, field):
         if self.use_gpu:
