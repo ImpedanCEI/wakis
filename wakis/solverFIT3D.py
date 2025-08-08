@@ -231,6 +231,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
+        if imported_mkl: # change from COO to CSR
+            self.tDsiDmuiDaC = sparse_mat(self.tDsiDmuiDaC)
+            self.itDaiDepsDstC = sparse_mat(self.itDaiDepsDstC)
+
         # Move to GPU
         if use_gpu:
             if verbose: print('Moving to GPU...') 
@@ -307,13 +311,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
      
         self.E.fromarray(self.E.toarray() +
                          self.dt*(dot_product_mkl(self.itDaiDepsDstC,self.H.toarray()) 
-                                  - dot_product_mkl(self.iDeps,self.J.toarray())
+                                  - self.iDeps*self.J.toarray()
                                   )
                          )
         
         #include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(dot_product_mkl(self.Dsigma,self.E.toarray()))
+            self.J.fromarray(self.Dsigma*self.E.toarray())
 
     def mpi_initialize(self):
         self.comm = self.grid.comm

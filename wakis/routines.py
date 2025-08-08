@@ -111,6 +111,9 @@ class RoutinesMixin():
         # get update equations
         if use_etd:
             update = self.one_step_etd
+        elif self.imported_mkl:
+            update = self.one_step_mkl
+            print('Using MKL backend for time-stepping...')
         else:
             update = self.one_step
 
@@ -295,6 +298,9 @@ class RoutinesMixin():
         # get update equations routine
         if self.use_mpi:
             field_update = self.mpi_one_step
+        elif self.imported_mkl: #TODO implement for MPI
+            field_update = self.one_step_mkl
+            print('Using MKL backend for time-stepping...')
         else:
             field_update = self.one_step
 
