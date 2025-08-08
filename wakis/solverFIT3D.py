@@ -24,6 +24,12 @@ try:
 except ImportError:
     imported_cupyx = False
 
+try:
+    from sparse_dot_mkl import dot_product_mkl
+    imported_mkl = True
+except ImportError:
+    imported_mkl = False
+
 
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
@@ -100,6 +106,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.activate_abc = False        # Will turn true if abc BCs are chosen
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
+        self.imported_mkl = imported_mkl # Use MKL backend when available
 
         if use_stl:
             self.use_conductors = False
@@ -287,6 +294,26 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.Dsigma*self.E.toarray())
+
+    def one_step_mkl(self):
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
+            self.attrcleanup()
+
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*dot_product_mkl(self.tDsiDmuiDaC,self.E.toarray())
+                         )
+     
+        self.E.fromarray(self.E.toarray() +
+                         self.dt*(dot_product_mkl(self.itDaiDepsDstC,self.H.toarray()) 
+                                  - dot_product_mkl(self.iDeps,self.J.toarray())
+                                  )
+                         )
+        
+        #include current computation                 
+        if self.use_conductivity:
+            self.J.fromarray(dot_product_mkl(self.Dsigma,self.E.toarray()))
 
     def mpi_initialize(self):
         self.comm = self.grid.comm
