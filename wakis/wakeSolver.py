@@ -940,7 +940,7 @@ class WakeSolver():
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, usecols=usecols)
         except:
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, 
-                              usecols=usecols, dtype=np.complex_)
+                              usecols=usecols, dtype=np.complex128)
             
         try: # keys == header names
             with open(txt) as f:
