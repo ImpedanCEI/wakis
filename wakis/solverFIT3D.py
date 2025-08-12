@@ -25,7 +25,7 @@ except ImportError:
     imported_cupyx = False
 
 try:
-    from sparse_dot_mkl import dot_product_mkl
+    from sparse_dot_mkl import csr_matrix as mkl_sparse_mat, dot_product_mkl
     imported_mkl = True
 except ImportError:
     imported_mkl = False
@@ -107,7 +107,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
         self.imported_mkl = imported_mkl # Use MKL backend when available
-
+        self.one_step = self.one_step_cpu
         if use_stl:
             self.use_conductors = False
 
@@ -145,6 +145,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.use_mpi:
             if self.grid.use_mpi: 
                 self.mpi_initialize()
+                self.one_step = self.mpi_one_step
             else:
                 print('*** Grid not subdivided for MPI, set `use_mpi`=True also in `GridFIT3D` to enable MPI')
             
@@ -210,7 +211,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
         else:
             self.dt = dt
-        
+        self.dt = dtype(self.dt)
+
         if self.use_conductivity: # relaxation time criterion tau
 
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
@@ -232,8 +234,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
         if imported_mkl: # change from COO to CSR
-            self.tDsiDmuiDaC = sparse_mat(self.tDsiDmuiDaC)
-            self.itDaiDepsDstC = sparse_mat(self.itDaiDepsDstC)
+            print('Using MKL backend for time-stepping...')
+            self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
+            self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
+            self.one_step = self.one_step_mkl
 
         # Move to GPU
         if use_gpu:
@@ -241,8 +245,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             if imported_cupyx:
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
-                self.iDeps = gpu_sparse_mat(self.iDeps)
-                self.Dsigma = gpu_sparse_mat(self.Dsigma)
+                self.ieps.to_gpu()
+                self.sigma.to_gpu()
+                self.one_step = self.one_step_gpu
             else:
                 raise ImportError('*** cupyx could not be imported, please check CUDA installation')
 
@@ -278,8 +283,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         self.step_0 = False
 
-    def one_step(self):
-
+    def one_step_cpu(self):
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
@@ -290,7 +294,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                          )
      
         self.E.fromarray(self.E.toarray() +
-                         self.dt*(self.itDaiDepsDstC * self.H.toarray() 
+                         self.dt*(self.itDaiDepsDstC*self.H.toarray() 
                                   - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
@@ -318,6 +322,26 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         #include current computation                 
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
+
+    def one_step_gpu(self):
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
+            self.attrcleanup()
+
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*self.tDsiDmuiDaC*self.E.toarray()
+                         )
+     
+        self.E.fromarray(self.E.toarray() +
+                         self.dt*(self.itDaiDepsDstC*self.H.toarray() 
+                                  - self.iDeps*self.J.toarray()
+                                  )
+                         )
+        
+        #include current computation                 
+        if self.use_conductivity:
+            self.J.fromarray(self.Dsigma*self.E.toarray())
 
     def mpi_initialize(self):
         self.comm = self.grid.comm
