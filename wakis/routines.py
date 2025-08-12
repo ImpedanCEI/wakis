@@ -108,15 +108,6 @@ class RoutinesMixin():
             
             plotkw.update(kwargs)
 
-        # get update equations
-        if use_etd:
-            update = self.one_step_etd
-        elif self.imported_mkl:
-            update = self.one_step_mkl
-            print('Using MKL backend for time-stepping...')
-        else:
-            update = self.one_step
-
         # get ABC values
         if self.activate_abc:
             E_abc_2, H_abc_2 = self.get_abc()
@@ -140,7 +131,7 @@ class RoutinesMixin():
                     hfs[field]['#'+str(n).zfill(5)] = d
 
             # Advance
-            update()
+            self.one_step()
 
             # Plot
             if plot and n%plot_every == 0:
@@ -155,7 +146,7 @@ class RoutinesMixin():
                 E_abc_2, H_abc_2 = E_abc_1, H_abc_1     # n-1
                 E_abc_1, H_abc_1 = self.get_abc()       # n
 
-            # Callboack func
+            # Callback func(solver, t)
             if callback is not None:
                 callback(self, n*self.dt)
 
@@ -166,6 +157,7 @@ class RoutinesMixin():
 
     def wakesolve(self, wakelength, 
                   wake=None, 
+                  callback=None,
                   compute_plane='both', 
                   plot=False, plot_from=None, plot_every=1, plot_until=None,
                   save_J=False, 
@@ -295,15 +287,6 @@ class RoutinesMixin():
             else:
                 hf['#'+str(n).zfill(5)] = getattr(self, field)[x, y, z, comp] 
         
-        # get update equations routine
-        if self.use_mpi:
-            field_update = self.mpi_one_step
-        elif self.imported_mkl: #TODO implement for MPI
-            field_update = self.one_step_mkl
-            print('Using MKL backend for time-stepping...')
-        else:
-            field_update = self.one_step
-
         if plot_until is None: plot_until = Nt
         if plot_from is None: plot_from = int(self.ti/self.dt)
 
@@ -319,7 +302,7 @@ class RoutinesMixin():
                 save_to_h5(self, hfJ, 'J', xx, yy, zz, 'z', n) 
             
             # Advance
-            field_update()
+            self.one_step()
             
             # Plot
             if plot:
@@ -327,7 +310,12 @@ class RoutinesMixin():
                     self.plot2D(field='E', component='z', n=n, **plotkw)
                 else:
                     pass
-                
+
+            # Callback func(solver, t)
+            if callback is not None:
+                callback(self, n*self.dt)
+
+        # End of time loop       
         if self.use_mpi:
             if self.rank==0:
                 hf.close()
