@@ -82,7 +82,7 @@ class Field:
         return self.array
 
     def fromarray(self, array):
-        self.array = array
+        self.array[:] = array
 
     def to_matrix(self, key):
         if key == 0 or key == 'x':
@@ -104,6 +104,7 @@ class Field:
     
     def to_gpu(self):
         if imported_cupy:
+            self.xp = xp_gpu
             self.array = self.xp.asarray(self.array) # to cupy arr
             self.on_gpu = True
         else:
@@ -348,7 +349,7 @@ class Field:
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=figsize, dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
 
-        im = self.xp.zeros_like(axs)
+        im = {}
 
         for d in [0,1,2]:
             field = self.to_matrix(d)
