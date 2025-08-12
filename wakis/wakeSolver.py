@@ -207,6 +207,63 @@ class WakeSolver():
         totalt = t1-t0
         self.log('Calculation terminated in %ds' %totalt)
 
+    def update_long_WP(self, t):
+        '''WIP
+        calculation of wake potential on the fly
+        TODO: simplify logic, add transverse WP
+        '''
+        
+        it = int(t/self.dt)
+        if it == 0:
+            # --- setup once before time loop ---
+            # self.s already computed as in your calc_long_WP
+            self.s = np.arange(-self.ti*self.v, self.wake.wakelength, self.dt*self.v) # 1D array of s-values (m)
+            self.WP = np.zeros_like(self.s, dtype=np.float64)  # accumulator 
+
+        # --- inside your time loop, after Ez is updated for current timestep `it` ---
+        # get Ez at the probe (shape nz,)
+        # if you store Ez as Ezt[k, it] style, do:
+        Ez_curr = self.E[self.Nx//2, self.Ny//2, :, 'z']   # or extract from self.E at (xmid, ymid, :) if not using Ezt
+
+        # compute s values for each z where current Ez contributes
+        s_vals = self.v * t - self.v * self.ti + np.min(self.z) - self.z
+        # convert to fractional index in s-array
+        idxf = (s_vals - self.s[0]) / (self.v*self.dt)   # float indices
+
+        # mask in-range contributions
+        mask = (idxf >= 0.0) & (idxf <= (len(self.s) - 1))
+        if not np.any(mask):
+            # no contributions fall into s range this timestep
+            pass
+        else:
+            idxf_m = idxf[mask]
+            Ez_m = Ez_curr[mask]
+
+            # integer floor indices
+            i0 = np.floor(idxf_m).astype(int)
+            frac = idxf_m - i0
+
+            # handle points that land exactly on last bin: we add all to last bin
+            last_bin_mask = (i0 >= len(self.s) - 1)
+            if np.any(last_bin_mask):
+                # assign entirely to last bin (no i0+1 available)
+                self.WP[-1] += np.sum(Ez_m[last_bin_mask]) * self.dz
+                # drop those from other accumulation
+                keep = ~last_bin_mask
+                i0 = i0[keep]
+                frac = frac[keep]
+                Ez_m = Ez_m[keep]
+
+            # accumulate with linear interpolation weights
+            if i0.size:
+                # faster: use bincount
+                left = np.bincount(i0, weights=Ez_m * (1.0 - frac) * self.dz, minlength=len(self.s))
+                right = np.bincount(i0 + 1, weights=Ez_m * frac * self.dz, minlength=len(self.s))
+                self.WP += left + right
+
+        if it == self.Nt-1:
+            WP = WP/(self.q*1e12)  
+
     def calc_long_WP(self, Ezt=None,**kwargs):
         '''
         Obtains the wake potential from the pre-computed longitudinal
