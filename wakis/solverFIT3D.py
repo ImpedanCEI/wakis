@@ -739,7 +739,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # Fill
         if self.bc_low[0].lower() == 'pml':
             #sx[0:self.n_pml] = eps_0/(2*self.dt)*((self.x[self.n_pml] - self.x[:self.n_pml])/(self.n_pml*self.dx))**pml_exp
-            sx[0:self.n_pml] = np.linspace( self.pml_hi, self.pml_lo, self.n_pml)
+            sx[0:self.n_pml] = self.pml_func( self.pml_hi, self.pml_lo, self.n_pml)
             for d in ['x', 'y', 'z']:
                 for i in range(self.n_pml):
                     self.ieps[i, :, :, d] = 1./eps_0 
