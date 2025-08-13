@@ -1,8 +1,14 @@
+import subprocess
+sockets, cores = map(int, subprocess.check_output(
+    "lscpu | awk -F: '/Socket\\(s\\)/{s=$2} /Core\\(s\\) per socket/{c=$2} END{print s,c}'",
+    shell=True).split())
+print(f"Sockets={sockets}, Cores/Socket={cores}")
+
 import os
 
 # Set before importing numpy/scipy/mkl modules
-os.environ["OMP_NUM_THREADS"] = "10"               # Number of OpenMP threads
-os.environ["KMP_AFFINITY"] = "compact,granularity=fine"
+os.environ["OMP_NUM_THREADS"] = str(cores)               # Number of OpenMP threads
+os.environ["KMP_AFFINITY"] = "balanced,granularity=fine"
 
 
 from mpi4py import MPI
@@ -23,7 +29,7 @@ nt = 1//p #int(os.environ['SLURM_CPUS_PER_TASK']) # num threads per task
 user_api = threadpool_info()[0]['user_api']
 #threadctl = threadpool_limits(limits=nt, user_api='blas')
 #threadctl = threadpool_limits(limits=nt, user_api='openmp')
-N = 30000000//p # Matrix size 
+N = 80000000//p # Matrix size 
 
 # Build curl
 Px = diags([-1, 1], [0, 1], shape=(N, N), dtype=np.int8)
@@ -38,8 +44,10 @@ A = vstack([
 B = np.random.rand(3*N) 
 
 try:
+    print('Using MKL backend')
     A = csr_matrix(A)
 except:
+    print('Using Scipy backend')
     A = A.tocsr()  
 
 print(B.shape)
