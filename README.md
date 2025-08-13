@@ -45,6 +45,12 @@ Check 📁 `examples/` and `notebooks/` for different physical applications:
 * Custom perturbation interacting with PEC geometry 
 * Wakefield simulation of accelerator cavity on CPU, GPU and with MPI
 
+Check 🌐📁 [`SWAN_tutorial/`](https://github.com/ImpedanCEI/SWAN_tutorial) for hands-on notebook examples ready to run on CERN's SWAN service's GPUs (A100, Tesla T4):
+
+[<img class="open_in_swan" data-path="your_submodule_name" alt="Open this Gallery in SWAN" src="https://swanserver.web.cern.ch/swanserver/images/badge_swan_white_150.png">][gallery_url]
+
+[gallery_url]:https://cern.ch/swanserver/cgi-bin/go?projurl=https://github.com/ImpedanCEI/SWAN_tutorial.git
+
 Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchmarks) for beam-coupling impedance calculations & comparisons to the commercial tool *CST® Wakefield solver*:
 * PEC cubic cavity below cutoff (mm) and above cutoff (cm)
 * Conductive cubic cavity below cutoff
