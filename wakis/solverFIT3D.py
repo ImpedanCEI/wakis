@@ -38,8 +38,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
                  use_gpu=False, use_mpi=False, dtype=np.float64,
-                 n_pml=10, pml_lo = 1.0e-1, pml_hi = 10.0e-1,
-                 pml_func = np.geomspace, pml_eps_r = 10.0,
+                 n_pml=10, pml_lo = 1.0e-3, pml_hi = 10.0e-1,
+                 pml_func = np.geomspace, pml_eps_r = 1,
                  bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
