@@ -68,6 +68,16 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             If true, activates all the solids and materials passed to the `grid` object
         use_gpu: bool, default False, 
             Using cupyx, enables GPU accelerated computation of every timestep
+        n_pml: int, default 10,
+            Number of PML cells at the boundaries of the simulation box
+        pml_lo: float, default 1.0e-3
+            Minimum conductivity value for PML cells
+        pml_hi: float, default 10.0e-1
+            Maximum conductivity value for PML cells
+        pml_func: function, default np.geomspace
+            Function to use for the PML conductivity profile
+        pml_eps_r: float, default 1
+            Relative permittivity of the PML cells
         bg: list, default [1.0, 1.0]
             Background material for the simulation box [eps_r, mu_r, sigma]. Default is vacuum.
             It supports any material from the material library in `materials.py`, of a 
