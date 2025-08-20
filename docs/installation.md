@@ -212,7 +212,7 @@ To run multi-node CPU parallelized simulations, Wakis needs the following packag
 
 The preferred install method is through `conda-forge`:
 
-```
+```bash
 # All at once [recommended]
 conda install -c conda-forge mpi4py openmpi
 ```
@@ -244,6 +244,7 @@ CC=mpicc pip install --no-cache-dir mpi4py
 # For working on jupyter notebooks:
 pip install ipyparallel
 ```
+### Checking multi-GPU compatibility
 
 * `OpenMPI` is built in Linux with multi-GPU compatibility (provided `cupy` is correctly setup):
 ```bash
@@ -263,6 +264,13 @@ Before launching an MPI simulation, make sure to set the environment variable `O
 # Set environment variable to use CUDA-aware before launching your MPI processes
 export OMPI_MCA_opal_cuda_support=true
 ```
+Or from python, before importing `mpi4py`:
+```python
+import os
+os.environ['OMPI_MCA_opal_cuda_support']='true'
+```
+
+### Running multi-GPU simulation
 
 To run MPI simulations from the terminal:
 ```bash
@@ -273,6 +281,27 @@ mpiexec -n 8 python your_wakis_cpu_script.py
 mpiexec --mca btl_smcuda_cuda_ipc_max 0 -n 4 python your_wakis_gpu_script.py
 # or:
 mpiexec --mca opal_cuda_support 1 -n 4 python your_wakis_gpu_script.py
+```
+
+It is also possible to run multi-GPU from **python notebooks** using `ipyparallel` and the notebook magic `%%px`:
+```python
+import ipyparallel as ipp
+cluster = ipp.Cluster(engines="mpi", n=2).start_and_connect_sync()
+```
+Once the cluster has initialized:
+```python
+%%px
+import os
+os.environ['OMPI_MCA_opal_cuda_support']='true' # multi GPU
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+print(f"Process {rank} of {size} is running")
+
+import cupy
+cupy.cuda.Device(rank).use()
 ```
 
 ## Python Notebooks troubleshooting
