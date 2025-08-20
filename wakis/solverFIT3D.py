@@ -233,7 +233,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
-        if imported_mkl: # change from COO to CSR
+        if imported_mkl and not self.use_gpu: # MKL backend for CPU
             print('Using MKL backend for time-stepping...')
             self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
             self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
@@ -247,7 +247,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
                 self.ieps.to_gpu()
                 self.sigma.to_gpu()
-                self.one_step = self._one_step
             else:
                 raise ImportError('*** cupyx could not be imported, please check CUDA installation')
 
