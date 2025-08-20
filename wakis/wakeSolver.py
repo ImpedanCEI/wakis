@@ -1088,6 +1088,7 @@ class WakeSolver():
         self.f, self.Z = self.read_txt(folder+'Z.txt').values()
 
         self.f = np.abs(self.f)
+        self.wakelength = self.s[-1]
         
     def copy(self):
         obj = type(self).__new__(self.__class__)
