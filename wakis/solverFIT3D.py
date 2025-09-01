@@ -38,9 +38,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
                  use_gpu=False, use_mpi=False, dtype=np.float64,
-                 n_pml=10, pml_lo = 1.0e-3, pml_hi = 10.0e-1,
-                 pml_func = np.geomspace, pml_eps_r = 1,
-                 bg=[1.0, 1.0], verbose=1):
+                 n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
         algorithm based on the Finite Integration Technique (FIT)
@@ -70,14 +68,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             Using cupyx, enables GPU accelerated computation of every timestep
         n_pml: int, default 10,
             Number of PML cells at the boundaries of the simulation box
-        pml_lo: float, default 1.0e-3
-            Minimum conductivity value for PML cells
-        pml_hi: float, default 10.0e-1
-            Maximum conductivity value for PML cells
-        pml_func: function, default np.geomspace
-            Function to use for the PML conductivity profile
-        pml_eps_r: float, default 1
-            Relative permittivity of the PML cells
         bg: list, default [1.0, 1.0]
             Background material for the simulation box [eps_r, mu_r, sigma]. Default is vacuum.
             It supports any material from the material library in `materials.py`, of a 
@@ -211,10 +201,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.activate_pml:
             if verbose: print('Filling PML sigmas...')
             self.n_pml = n_pml
-            self.pml_lo = pml_lo
-            self.pml_hi = pml_hi
+            self.pml_lo = 1.0e-3
+            self.pml_hi = 1.0e-1
             self.pml_func = np.geomspace
-            self.pml_eps_r = pml_eps_r
+            self.pml_eps_r = 1.0
             self.fill_pml_sigmas()
 
         # Timestep calculation 
