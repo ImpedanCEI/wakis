@@ -7,7 +7,6 @@
 import numpy as np
 from typing import Sequence
 from wakis.field import Field
-import numpy as xp
 
 try:
     import cupy as xp_gpu
@@ -17,7 +16,23 @@ except ImportError:
 
 
 class FieldMonitor:
+    """
+    Accumulates frequency-domain electric field components over time.
+
+    Attributes:
+        frequencies (np.ndarray): List of frequencies to monitor (Hz).
+        time_index (int): Current time step index.
+        dt (float): Time step size.
+        Ex_acc, Ey_acc, Ez_acc: Accumulators for each field component.
+        shape (tuple): Shape of the field (Nx, Ny, Nz).
+        xp (module): Backend array library (NumPy or CuPy).
+    """
     def __init__(self, frequencies: Sequence[float]):
+        """
+       Args:
+           frequencies (Sequence[float]): Frequencies at which to monitor the field (in Hz).
+           should be pre-computed.
+       """
         self.frequencies = np.array(frequencies)
         self.time_index = 0
         self.dt = None
@@ -29,6 +44,13 @@ class FieldMonitor:
 
 
     def update(self, E: Field, dt: float):
+        """
+        Updates field accumulators with new field snapshot at the current time.
+
+        Args:
+            E (Field): Electric field object containing components.
+            dt (float): Time step size.
+        """
         if self.dt is None:
             self.dt = dt
             self.shape = (E.Nx, E.Ny, E.Nz)
@@ -56,6 +78,9 @@ class FieldMonitor:
         self.time_index += 1
 
     def get_components(self):
+        """
+        Returns the accumulated frequency-domain field components.
+        """
         return {
             'Ex': self.Ex_acc,
             'Ey': self.Ey_acc,
