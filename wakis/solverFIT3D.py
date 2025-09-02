@@ -201,8 +201,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.activate_pml:
             if verbose: print('Filling PML sigmas...')
             self.n_pml = n_pml
-            self.pml_lo = 1.0e-3
-            self.pml_hi = 10.0
+            self.pml_lo = 5.0e-3
+            self.pml_hi = 1.0e-1
             self.pml_func = np.geomspace
             self.pml_eps_r = 1.0
             self.fill_pml_sigmas()
