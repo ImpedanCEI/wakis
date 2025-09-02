@@ -114,3 +114,5 @@ pl = pv.Plotter()
 pl.add_mesh_clip_plane(solver.grid.grid, scalars='Ez_mag', cmap='inferno', show_scalar_bar=True)
 pl.show()
 
+
+
