@@ -750,7 +750,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 sigma_0_pml = self.sigma[self.n_pml+1, self.Ny//2, self.Nz//2, d]
                 for i in range(self.n_pml):
                     self.ieps[i, :, :, d] = ieps_0_pml
-                    self.sigma[i, :, :, d] = sigma_0_pml*(1 + sx[i])
+                    self.sigma[i, :, :, d] = sigma_0_pml + sx[i]
                     #if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
@@ -763,7 +763,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 sigma_0_pml = self.sigma[self.Nx//2, self.n_pml+1, self.Nz//2, d]
                 for j in range(self.n_pml):
                     self.ieps[:, j, :, d] = ieps_0_pml
-                    self.sigma[:, j, :, d] = sigma_0_pml*(1 + sy[j])
+                    self.sigma[:, j, :, d] = sigma_0_pml + sy[j]
                     #if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
 
         if self.bc_low[2].lower() == 'pml':
@@ -776,7 +776,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 sigma_0_pml = self.sigma[self.Nx//2, self.Ny//2, self.n_pml+1, d]
                 for k in range(self.n_pml):
                     self.ieps[:, :, k, d] = ieps_0_pml
-                    self.sigma[:, :, k, d] = sigma_0_pml*(1 + sz[k])
+                    self.sigma[:, :, k, d] = sigma_0_pml + sz[k]
                     #if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.n_pml])*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
@@ -790,7 +790,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 for i in range(self.n_pml):
                     i +=1
                     self.ieps[-i, :, :, d] = ieps_0_pml
-                    self.sigma[-i, :, :, d] = sigma_0_pml*(1 + sx[-i])
+                    self.sigma[-i, :, :, d] = sigma_0_pml + sx[-i]
                     #if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
 
         if self.bc_high[1].lower() == 'pml':
@@ -804,7 +804,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 for j in range(self.n_pml):
                     j +=1
                     self.ieps[:, -j, :, d] = ieps_0_pml
-                    self.sigma[:, -j, :, d] = sigma_0_pml*(1 + sy[-j])
+                    self.sigma[:, -j, :, d] = sigma_0_pml + sy[-j]
                     #if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
 
         if self.bc_high[2].lower() == 'pml':
@@ -818,7 +818,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 for k in range(self.n_pml):
                     k +=1
                     self.ieps[:, :, -k, d] = ieps_0_pml
-                    self.sigma[:, :, -k, d] = sigma_0_pml*(1 + sz[-k])
+                    self.sigma[:, :, -k, d] = sigma_0_pml + sz[-k]
                     #self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.n_pml:])*eps_0)
 
     def get_abc(self):
