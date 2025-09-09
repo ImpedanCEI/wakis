@@ -105,8 +105,9 @@ if not os.path.exists(results_folder):
 freq_field = monitor.get_components()
 np.savez('./005_results/field_at_frequencies.npz', Ex=freq_field['Ex'], Ey=freq_field['Ey'], Ez=freq_field['Ez'])
 
-Ez = freq_field['Ez'][0] # Z field at the first frequency (only frequency in our case)
-Ez_flat = np.reshape(Ez, solver.N)
+Ez = freq_field['Ez'][frequency[0]]# Z field at the first frequency (only frequency in our case)
+Ez_flat = np.reshape(Ez, solver.N) #
+
 
 solver.grid.grid.cell_data['Ez_mag'] = np.real(Ez_flat)
 # interactive slice

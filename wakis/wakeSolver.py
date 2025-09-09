@@ -61,7 +61,9 @@ class WakeSolver():
             Controls the level of verbose in the terminal output
         logfile: bool, default False
             Creates a `wake.log` file with the summary of the input parameters
-            and calculations performed 
+            and calculations performed
+        counter_moving: bool, default False
+            If the test charge is moving in the same or opposite direction to the source
 
         Attributes
         ----------

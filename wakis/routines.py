@@ -9,7 +9,6 @@ from tqdm import tqdm
 from scipy.constants import c as c_light
 from wakis.sources import Beam
 from wakis.field_monitors import FieldMonitor
-from typing import Optional
 
 class RoutinesMixin():
 
@@ -154,7 +153,7 @@ class RoutinesMixin():
                   save_J=False, 
                   add_space=None, #for legacy
                   use_field_monitor=False,
-                  field_monitor: Optional[FieldMonitor] = None,
+                  field_monitor=None,
                   use_edt=None, #deprecated 
                   **kwargs):
         '''
@@ -182,6 +181,10 @@ class RoutinesMixin():
             Can be passed at `Solver()` instantiation as parameter too.
         save_J: bool, default False
             Flag to enable saving the current J in a diferent HDF5 file 'Jz.h5'
+        use_field_monitor: bool, default False
+            Flag to enable monitoring the field monitor during simulation.
+        field_monitor: FieldMonitor class
+
         plot: bool, default False
             Flag to enable 2D plotting
         plot_every: int

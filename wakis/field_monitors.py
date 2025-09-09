@@ -65,7 +65,7 @@ class FieldMonitor:
 
         t = self.time_index * self.dt
 
-        Ex = E.to_matrix('x')
+        Ex = E.to_matrix('x') #E.array[0:E.N]
         Ey = E.to_matrix('y')
         Ez = E.to_matrix('z')
 
