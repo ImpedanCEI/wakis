@@ -21,3 +21,4 @@ ECT_*
 _build/
 dist/
 wakis.egg-info/
+/elle_examples/

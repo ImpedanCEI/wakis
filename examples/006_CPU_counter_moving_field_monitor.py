@@ -2,10 +2,8 @@
 # This file is part of the wakis Package.     #
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
-import os
 import numpy as np
 import pyvista as pv
-import matplotlib.pyplot as plt
 import trimesh
 
 from wakis import SolverFIT3D
@@ -118,8 +116,8 @@ wake = WakeSolver(q=q,
                   xtest=xt, ytest=yt,
                   add_space=add_space,
                   counter_moving=True,
-                  results_folder='012_results/',
-                  Ez_file='012_results/008_Ez.h5')
+                  results_folder='006_results/',
+                  Ez_file='006_results/006_Ez.h5')
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -153,7 +151,7 @@ solver.wakesolve(wakelength=wakelength,
 solver.ieps.inspect()
 
 freq_field = monitor.get_components()
-np.savez('./012_results/field_at_frequencies.npz', Ex=freq_field['Ex'], Ey=freq_field['Ey'], Ez=freq_field['Ez'])
+np.savez('./006_results/field_at_frequencies.npz', Ex=freq_field['Ex'], Ey=freq_field['Ey'], Ez=freq_field['Ez'])
 
 Ez = freq_field['Ez'][0] # Z field at the first frequency (only frequency in our case)
 Ez_flat = np.reshape(Ez, solver.N)
