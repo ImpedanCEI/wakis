@@ -401,10 +401,11 @@ class WakeSolver():
                         Ezt[:, n] = Ez[Ez.shape[0]//2+i,Ez.shape[1]//2+j, zz]
 
                     # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
-                    for n in range(len(s)):
-                        for k in range(nz):
-                            if self.counter_moving:
-                                ts = (z[-k-1] - s[n]) / (-1*self.v) - zmax / (-1*self.v) - self.t[0] + ti
+                    if self.counter_moving:
+                        for n in range(len(s)):
+                            for k in range(nz):
+                                ts = (z[-k - 1] - s[n]) / (-1 * self.v) - zmax / (-1 * self.v) - self.t[0] + ti
+
                             else:
                                 ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                             it = int(ts/dt)                 #find index for t
