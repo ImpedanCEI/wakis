@@ -401,7 +401,6 @@ class WakeSolver():
                         Ezt[:, n] = Ez[Ez.shape[0]//2+i,Ez.shape[1]//2+j, zz]
 
                     # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
-
                     for n in range(len(s)):
                         for k in range(nz):
                             if self.counter_moving:
@@ -418,6 +417,7 @@ class WakeSolver():
 
                     WP = WP/(self.q*1e12)     # [V/pC]
                     WP_3d[i0+i,j0+j,:] = WP
+
 
         self.s = s
         self.WP = WP_3d[i0,j0,:]
