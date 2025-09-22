@@ -373,7 +373,7 @@ class WakeSolver():
             wakelength = nt*dt*self.v - (zmax-zmin) - ti*self.v
             self.wakelength = wakelength
             
-        s = np.arange(-self.ti*self.v, wakelength, dt*self.v)
+        s = np.arange(-self.ti*self.v, wakelength, dt*self.v) 
 
         self.log(f'* Max simulated time = {np.max(self.t)} s')
         self.log(f'* Wakelength = {wakelength} m')
