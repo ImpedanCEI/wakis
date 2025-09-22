@@ -418,7 +418,6 @@ class WakeSolver():
                     WP = WP/(self.q*1e12)     # [V/pC]
                     WP_3d[i0+i,j0+j,:] = WP
 
-
         self.s = s
         self.WP = WP_3d[i0,j0,:]
         self.WP_3d = WP_3d
