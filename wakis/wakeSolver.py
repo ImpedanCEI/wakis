@@ -408,7 +408,7 @@ class WakeSolver():
                                 it = int(ts / dt)  # find index for t
                                 if it < nt:
                                     WP[n] = WP[n] + (Ezt[-k - 1, it]) * (-1 * dz)  # compute integral
-                                pbar.update(1)
+                            pbar.update(1)
 
 
                     else:
@@ -419,7 +419,7 @@ class WakeSolver():
                                 if it < nt:
                                     WP[n] = WP[n] + (Ezt[k, it]) * dz  # compute integral
 
-                                pbar.update(1)
+                            pbar.update(1)
 
                     WP = WP/(self.q*1e12)     # [V/pC]
                     WP_3d[i0+i,j0+j,:] = WP
