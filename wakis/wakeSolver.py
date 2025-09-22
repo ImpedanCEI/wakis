@@ -405,16 +405,21 @@ class WakeSolver():
                         for n in range(len(s)):
                             for k in range(nz):
                                 ts = (z[-k - 1] - s[n]) / (-1 * self.v) - zmax / (-1 * self.v) - self.t[0] + ti
+                                it = int(ts / dt)  # find index for t
+                                if it < nt:
+                                    WP[n] = WP[n] + (Ezt[-k - 1, it]) * (-1 * dz)  # compute integral
+                                pbar.update(1)
 
-                            else:
+
+                    else:
+                        for n in range(len(s)):
+                            for k in range(nz):
                                 ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
-                            it = int(ts/dt)                 #find index for t
-                            if it < nt:
-                                if self.counter_moving:
-                                    WP[n] = WP[n]+(Ezt[-k-1, it])*(-1*dz)   #compute integral
-                                else:
+                                it = int(ts / dt)  # find index for t
+                                if it < nt:
                                     WP[n] = WP[n] + (Ezt[k, it]) * dz  # compute integral
-                        pbar.update(1)
+
+                                pbar.update(1)
 
                     WP = WP/(self.q*1e12)     # [V/pC]
                     WP_3d[i0+i,j0+j,:] = WP
