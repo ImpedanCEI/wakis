@@ -573,6 +573,7 @@ class GridFIT3D:
 
     def plot_stl_mask(self, stl_solid, cmap='viridis', bounding_box=True, show_grid=True,
                       add_stl='all', stl_opacity=0., stl_colors=None,
+                      xmax=None, ymax=None, zmax=None,
                       anti_aliasing='ssaa', offscreen=False):
         
         """
@@ -610,6 +611,9 @@ class GridFIT3D:
             * list  → per-solid colors, in order
             * dict  → mapping from STL key to color (using `material_colors`)
             * None  → use default colors from `self.stl_colors`
+        xmax, ymax, zmax : float, optional
+            Initial clipping positions along each axis. If None, use the
+            maximum domain extent.
         anti_aliasing : {'ssaa', 'fxaa', None}, default 'ssaa'
             Anti-aliasing mode passed to `pl.enable_anti_aliasing`.
         offscreen : bool, default False
@@ -631,26 +635,30 @@ class GridFIT3D:
         if stl_colors is None:
             stl_colors = self.stl_colors
 
+        if xmax is None: xmax = self.xmax
+        if ymax is None: ymax = self.ymax
+        if zmax is None: zmax = self.zmax
+
         pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
-        pl.add_mesh(self.grid, scalars=stl_solid, cmap=cmap, name="clip",)
+        vals = {'x':xmax, 'y':ymax, 'z':zmax}
 
         # --- Update function ---
         def update_clip(val, axis="x"):
+            vals[axis] = val
             # define bounds dynamically
             if axis == "x":
-                bounds = (self.xmin, val, self.ymin, self.ymax, self.zmin, self.zmax)
                 slice_obj = self.grid.slice(normal="x", origin=(val, 0, 0))
             elif axis == "y":
-                bounds = (self.xmin, self.xmax, self.ymin, val, self.zmin, self.zmax)
                 slice_obj = self.grid.slice(normal="y", origin=(0, val, 0))
             else:  # z
-                bounds = (self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, val)
                 slice_obj = self.grid.slice(normal="z", origin=(0, 0, val))
 
             # add clipped volume (scalars)
             pl.add_mesh(
-                self.grid.clip_box(bounds=bounds, invert=False),
+                self.grid.clip_box(bounds=(self.xmin, vals['x'], 
+                                           self.ymin, vals['y'], 
+                                           self.zmin, vals['z']), invert=False),
                 scalars=stl_solid,
                 cmap=cmap,
                 name="clip",
@@ -694,7 +702,7 @@ class GridFIT3D:
         pl.add_slider_widget(
             lambda val: update_clip(val, "x"),
             [self.xmin, self.xmax],
-            value=self.xmax, title="X Clip",
+            value=xmax, title="X Clip",
             pointa=(0.8, 0.8), pointb=(0.95, 0.8),  # top-right
             style='modern',
         )
@@ -702,7 +710,7 @@ class GridFIT3D:
         pl.add_slider_widget(
             lambda val: update_clip(val, "y"),
             [self.ymin, self.ymax],
-            value=self.ymax, title="Y Clip",
+            value=ymax, title="Y Clip",
             pointa=(0.8, 0.6), pointb=(0.95, 0.6),  # middle-right
             style='modern',
         )
@@ -710,7 +718,7 @@ class GridFIT3D:
         pl.add_slider_widget(
             lambda val: update_clip(val, "z"),
             [self.zmin, self.zmax],
-            value=self.zmax, title="Z Clip",
+            value=zmax, title="Z Clip",
             pointa=(0.8, 0.4), pointb=(0.95, 0.4),  # lower-right
             style='modern',
         )
