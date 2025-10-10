@@ -143,6 +143,8 @@ class GridFIT3D:
             if stl_colors is None:
                 self.assign_colors()
 
+        print('Done')
+
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
