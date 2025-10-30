@@ -16,11 +16,11 @@ class TestGeometryUtils:
             '003_Walls-Cavity-walls': [1.0, 0.615685999393463, 0.235293999314308],
             '004_Vacuum-Half_cell_sx': [0.5, 0.800000011920929, 1.0]}
     
-    MATERIALS = {'000_Vacuum-Half_cell_dx': 'Vacuum',
-                '001_Be-windows-Be-window-left': 'Berillium',
-                '002_Be-windows-Be-window-right': 'Berillium',
-                '003_Walls-Cavity-walls': 'Copper--annealed-',
-                '004_Vacuum-Half_cell_sx': 'Vacuum'}
+    MATERIALS = {'000_Vacuum-Half_cell_dx': 'vacuum',
+                '001_Be-windows-Be-window-left': 'berillium',
+                '002_Be-windows-Be-window-right': 'berillium',
+                '003_Walls-Cavity-walls': 'copper--annealed-',
+                '004_Vacuum-Half_cell_sx': 'vacuum'}
 
     SOLIDS = {'000_Vacuum-Half_cell_dx': '000_Vacuum-Half_cell_dx_Vacuum.stl',
             '001_Be-windows-Be-window-left': '001_Be-windows-Be-window-left_Berillium.stl',
