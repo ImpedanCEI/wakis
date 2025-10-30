@@ -28,6 +28,8 @@ class TestGeometryUtils:
             '003_Walls-Cavity-walls': '003_Walls-Cavity-walls_Copper--annealed-.stl',
             '004_Vacuum-Half_cell_sx': '004_Vacuum-Half_cell_sx_Vacuum.stl'}
 
+    UNITS = 1e-3
+
     def test_colors(self):
         colors = geometry.extract_colors_from_stp(self.STP_FILE)
         assert colors == self.COLORS
@@ -39,3 +41,8 @@ class TestGeometryUtils:
     def test_solids(self):
         solids = geometry.extract_solids_from_stp(self.STP_FILE)
         assert solids == self.SOLIDS
+
+    def test_units(self):
+        units = geometry.get_stp_unit_scale(stp_file)
+        assert units == self.UNITS
+      
