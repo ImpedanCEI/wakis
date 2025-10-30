@@ -57,7 +57,7 @@ def extract_materials_from_stp(stp_file):
     for i in range(len(list(solids.keys()))):
         solid = solids[list(solids.keys())[i]]
         try:
-            mat = materials[list(solids.keys())[i]]
+            mat = materials[list(solids.keys())[i]].lower()
         except:
             print(f'Solid #{list(solids.keys())[i]} has no assigned material')
             mat = 'None'
@@ -75,7 +75,7 @@ def extract_solids_from_stp(stp_file):
     for i in range(len(list(solids.keys()))):
         solid = solids[list(solids.keys())[i]]
         try:
-            mat = materials[list(solids.keys())[i]].lower()
+            mat = materials[list(solids.keys())[i]]
         except:
             print(f'Solid #{list(solids.keys())[i]} has no assigned material')
             mat = 'None'
