@@ -28,7 +28,7 @@ class TestGeometryUtils:
             '003_Walls-Cavity-walls': '003_Walls-Cavity-walls_Copper--annealed-.stl',
             '004_Vacuum-Half_cell_sx': '004_Vacuum-Half_cell_sx_Vacuum.stl'}
 
-    UNITS = 1e-3
+    UNITS = 0.001
 
     def test_colors(self):
         colors = geometry.extract_colors_from_stp(self.STP_FILE)
