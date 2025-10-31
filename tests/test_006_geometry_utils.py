@@ -43,6 +43,6 @@ class TestGeometryUtils:
         assert solids == self.SOLIDS
 
     def test_units(self):
-        units = geometry.get_stp_unit_scale(stp_file)
+        units = geometry.get_stp_unit_scale(self.STP_FILE)
         assert units == self.UNITS
       
