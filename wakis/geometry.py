@@ -142,6 +142,58 @@ def extract_names_from_stp(stp_file):
 
     return solid_dict, material_dict
 
+def get_stp_unit_scale(stp_file):
+    """
+    Reads the unit definition from a STEP (.stp or .step) file and determines the
+    scale factor required to convert the geometry to meters.
+
+    This function:
+    - Opens and scans the header section of the STEP file.
+    - Detects the SI base unit definition (e.g., millimeter, centimeter, meter).
+    - Returns a scale factor to convert the geometry to meters.
+    - Handles missing or unreadable unit information gracefully.
+
+    Args:
+        stp_file (str): Path to the STEP (.stp or .step) file.
+
+    Returns:
+        float: Scale factor to convert STEP geometry to meters.
+               Defaults to 1.0 if no valid unit information is found.
+    """
+    
+    unit_map = {
+            ".MILLI.": 1e-3,
+            ".CENTI.": 1e-2,
+            ".DECI.": 1e-1,
+            ".KILO.": 1e3,
+            "$": 1.0,  # '$' indicates no prefix, i.e. plain meters
+    }
+
+    try:
+        with open(stp_file, "r", encoding="utf-8", errors="ignore") as f:
+            header = f.read(10000)  # read only the beginning of the file
+
+        match = re.search(
+            r"SI_UNIT\s*\(\s*(\.\w+\.)?\s*,\s*\.METRE\.\s*\)",
+            header,
+            re.IGNORECASE,
+        )
+
+        if match:
+            prefix = match.group(1).upper() if match.group(1) else "$"
+            scale = unit_map.get(prefix, 1.0)
+            print(f"Detected STEP unit: {prefix} → scale to meters: {scale}")
+            return scale
+        else:
+            print("No unit found, files remain in original unit.")
+            return 1.0
+
+    except Exception as exc:
+        print(f"Error reading unit from STEP file: {exc}")
+        print("Files remain in original unit.")
+        
+        return 1.0
+
 def generate_stl_solids_from_stp(stp_file, results_path=''):
     """
     Extracts solid objects from a STEP (.stp) file and exports them as STL files.
@@ -150,10 +202,12 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
     - Imports the STEP file using `cadquery`.
     - Extracts solid names and their materials using `extract_names_from_stp()`.
     - Sanitizes solid and material names by replacing problematic characters.
-    - Saves each solid as an STL file in the current directory.
+    - Scales the solid to meter using `get_stp_unit_scale()`.
+    - Saves each solid as an STL file in the current folder (default) or the given path.
 
     Args:
         stp_file (str): Path to the STEP (.stp) file.
+        results_path (str) (optional): default: '', path to save the STL (.stl) files
 
     Raises:
         Exception: If `cadquery` is not installed, it prompts the user to install it.
@@ -176,6 +230,13 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
                         ''')
     
     stp = cq.importers.importStep(stp_file)
+    
+    scale_factor = get_stp_unit_scale(stp_file)
+    if scale_factor != 1.0:
+        print(f"Scaling geometry to meters (factor={scale_factor}).")
+        scaled_solids = [solid.scale(scale_factor) for solid in stp.objects[0]]
+        stp.objects = [scaled_solids]
+
     solid_dict = extract_solids_from_stp(stp_file)
 
     if not results_path.endswith('/'):
@@ -188,3 +249,4 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
         obj.exportStl(results_path+name) 
 
     return solid_dict
+    
