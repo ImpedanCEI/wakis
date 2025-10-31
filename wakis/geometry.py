@@ -69,7 +69,9 @@ def extract_materials_from_stp(stp_file):
 
     return stl_materials
 
-def extract_solids_from_stp(stp_file):
+def extract_solids_from_stp(stp_file, path=''):
+    if path and not path.endswith('/'):
+        path += '/'
     solids, materials = extract_names_from_stp(stp_file)
     stl_solids = {}
     for i in range(len(list(solids.keys()))):
@@ -84,7 +86,7 @@ def extract_solids_from_stp(stp_file):
         solid_re = re.sub(r'[^a-zA-Z0-9_-]', '-', solid)
         mat_re = re.sub(r'[^a-zA-Z0-9_-]', '-', mat)
         name = f'{str(i).zfill(3)}_{solid_re}_{mat_re}'
-        stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = name + '.stl'
+        stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = path + name + '.stl'
 
     return stl_solids
 
