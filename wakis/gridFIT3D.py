@@ -675,7 +675,10 @@ class GridFIT3D:
                     for i, key in enumerate(self.stl_solids):
                         surf = self.read_stl(key)
                         if type(stl_colors) is dict:
-                            pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[self.stl_colors[key]]), name=key)
+                            if type(stl_colors[key]) is str:
+                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
+                            else:
+                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
                         elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
                         else:
@@ -683,16 +686,19 @@ class GridFIT3D:
                 else: #add 1 selected stl solid
                     key = add_stl
                     surf = self.read_stl(key)
-                    if stl_colors is None:
-                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[self.stl_colors[key]]), name=key)
+                    if type(stl_colors[key]) is str:
+                        pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
                     else:
-                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=dict(color=stl_colors), name=key)
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
 
             elif type(add_stl) is list: #add selected list of stl solids
                 for i, key in enumerate(add_stl):
                     surf = self.read_stl(key)
-                    if type(stl_colors) is dict:
-                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[self.stl_colors[key]]), name=key)
+                    if type(stl_colors[key]) is dict:
+                        if type(stl_colors) is str:
+                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
+                        else:
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
                     elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
                     else:
@@ -782,17 +788,20 @@ class GridFIT3D:
                     key = add_stl
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
-                    if stl_colors is None:
+                    if type(stl_colors[key]) is str:
                         pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
-                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
 
                 elif type(add_stl) is list: #add selected list of stl solids
                     for i, key in enumerate(add_stl):
                         surf = self.read_stl(key)
                         surf = surf.clip_box(widget.bounds, invert=False)
                         if type(stl_colors) is dict:
-                            pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            if type(stl_colors[key]) is str:
+                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            else:
+                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         else:
@@ -803,7 +812,10 @@ class GridFIT3D:
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
                     if type(stl_colors) is dict:
-                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        if type(stl_colors[key]) is str:
+                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        else:
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
