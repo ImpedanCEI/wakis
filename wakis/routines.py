@@ -12,7 +12,7 @@ from wakis.field_monitors import FieldMonitor
 
 class RoutinesMixin():
 
-    def emsolve(self, Nt, source=None, 
+    def emsolve(self, Nt, source=None, callback=None,
                 save=False, fields=['E'], components=['Abs'], save_every=1, subdomain=None, 
                 plot=False, plot_every=1, use_etd=False, 
                 plot3d=False, **kwargs):
@@ -108,11 +108,10 @@ class RoutinesMixin():
             
             plotkw.update(kwargs)
 
-        # get update equations
-        if use_etd:
-            update = self.one_step_etd
-        else:
-            update = self.one_step
+        # get ABC values
+        if self.activate_abc:
+            E_abc_2, H_abc_2 = self.get_abc()
+            E_abc_1, H_abc_1 = self.get_abc()
 
         # Time loop 
         for n in tqdm(range(Nt)):
@@ -132,7 +131,7 @@ class RoutinesMixin():
                     hfs[field]['#'+str(n).zfill(5)] = d
 
             # Advance
-            update()
+            self.one_step()
 
             # Plot
             if plot and n%plot_every == 0:
@@ -141,6 +140,16 @@ class RoutinesMixin():
             if plot3d and n%plot_every == 0:
                 self.plot3D(n=n, **plotkw)
 
+            # ABC BCs
+            if self.activate_abc:
+                self.update_abc(E_abc_2, H_abc_2)       # n-2
+                E_abc_2, H_abc_2 = E_abc_1, H_abc_1     # n-1
+                E_abc_1, H_abc_1 = self.get_abc()       # n
+
+            # Callback func(solver, t)
+            if callback is not None:
+                callback(self, n*self.dt)
+
         # End
         if save:
             for hf in hfs:
@@ -148,6 +157,7 @@ class RoutinesMixin():
 
     def wakesolve(self, wakelength, 
                   wake=None, 
+                  callback=None,
                   compute_plane='both', 
                   plot=False, plot_from=None, plot_every=1, plot_until=None,
                   save_J=False, 
@@ -283,12 +293,6 @@ class RoutinesMixin():
             else:
                 hf['#'+str(n).zfill(5)] = getattr(self, field)[x, y, z, comp] 
         
-        # get update equations routine
-        if self.use_mpi:
-            field_update = self.mpi_one_step
-        else:
-            field_update = self.one_step
-
         if plot_until is None: plot_until = Nt
         if plot_from is None: plot_from = int(self.ti/self.dt)
 
@@ -304,8 +308,7 @@ class RoutinesMixin():
                 save_to_h5(self, hfJ, 'J', xx, yy, zz, 'z', n) 
             
             # Advance
-            field_update()
-
+            self.one_step()
 
             if use_field_monitor and field_monitor is not None:
                 field_monitor.update(self.E, self.dt)
@@ -316,7 +319,12 @@ class RoutinesMixin():
                     self.plot2D(field='E', component='z', n=n, **plotkw)
                 else:
                     pass
-                
+
+            # Callback func(solver, t)
+            if callback is not None:
+                callback(self, n*self.dt)
+
+        # End of time loop       
         if self.use_mpi:
             if self.rank==0:
                 hf.close()

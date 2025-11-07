@@ -3,7 +3,10 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 
+# (!) If using MKL intel backend only
 import os
+os.environ["MKL_NUM_THREADS"] = "1" # change the number of threads to be used in the simualtion
+
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
@@ -73,14 +76,15 @@ yt = 0.             # y test position [m]
 wakelength = 10. # [m]
 add_space = 10   # no. cells to skip from boundaries - removes BC artifacts
 
+results_folder = '001_results_float64/'
 wake = WakeSolver(q=q, 
                   sigmaz=sigmaz, 
                   beta=beta,
                   xsource=xs, ysource=ys, 
                   xtest=xt, ytest=yt,
                   add_space=add_space, 
-                  results_folder='001_results/',
-                  Ez_file='001_results/001_Ez.h5')
+                  results_folder=results_folder,
+                  Ez_file=results_folder+'001_Ez.h5')
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
@@ -105,7 +109,8 @@ solver = SolverFIT3D(grid, wake,
                      bc_low=bc_low, 
                      bc_high=bc_high, 
                      use_stl=True, 
-                     bg='pec' # Background material
+                     bg='pec', # Background material
+                     dtype=np.float64, # support for single-precision np.float32
                      )
 
 # BONUS: Inspect material tensors - Uncomment to show!
@@ -141,8 +146,8 @@ ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig1.tight_layout()
-fig1.savefig('001_results/001_longitudinal.png')
-#plt.show()
+fig1.savefig(results_folder+'001_longitudinal.png')
+plt.show()
 
 # Plot transverse x wake potential and impedance
 fig2, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
@@ -158,8 +163,8 @@ ax[1].set_ylabel('Transverse impedance X [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig2.tight_layout()
-fig2.savefig('001_results/001_transverse_x.png')
-#plt.show()
+fig2.savefig(results_folder+'001_transverse_x.png')
+plt.show()
 
 # Plot transverse y wake potential and impedance
 fig3, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
@@ -175,14 +180,14 @@ ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
 ax[1].legend()
 
 fig3.tight_layout()
-fig3.savefig('001_results/001_transverse_y.png')
-#plt.show()
+fig3.savefig(results_folder+'001_transverse_y.png')
+plt.show()
 
 # Plot Electric field component in 2D using imshow
 solver.plot1D(field='E', component='z', 
               line='z', pos=0.5, xscale='linear', yscale='linear',
               off_screen=True, title='001_img/Ez1d')
-#plt.show()
+plt.show()
 
 # ----------- 2d plots results --------------------
 from matplotlib.colors import LinearSegmentedColormap
@@ -194,7 +199,7 @@ solver.plot2D(field='E', component='z',
               cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
               add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
               off_screen=True, title='001_img/Ez2d')
-#plt.show()
+plt.show()
 
 
 # BONUS: Generate an animation from the plots generated during the simulation

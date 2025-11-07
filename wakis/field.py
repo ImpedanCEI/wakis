@@ -82,7 +82,7 @@ class Field:
         return self.array
 
     def fromarray(self, array):
-        self.array = array
+        self.array[:] = array
 
     def to_matrix(self, key):
         if key == 0 or key == 'x':
@@ -104,6 +104,7 @@ class Field:
     
     def to_gpu(self):
         if imported_cupy:
+            self.xp = xp_gpu
             self.array = self.xp.asarray(self.array) # to cupy arr
             self.on_gpu = True
         else:
@@ -312,7 +313,6 @@ class Field:
                             self.to_matrix('z')**2 )
 
         else: # 1d array
-            self.fill_components()
             if self.on_gpu:
                 return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2).get()
             else:
@@ -348,12 +348,12 @@ class Field:
         fig, axs = plt.subplots(1, 3, tight_layout=True, figsize=figsize, dpi=dpi)
         dims = {0:'x', 1:'y', 2:'z'}
 
-        im = self.xp.zeros_like(axs)
+        im = {}
 
         for d in [0,1,2]:
             field = self.to_matrix(d)
             
-            if self.on_gpu:
+            if self.on_gpu and hasattr(field, 'get'):
                 field = field.get()
 
             if transpose:
@@ -374,106 +374,294 @@ class Field:
         if show:
             plt.show()
 
-    def inspect3D(self, field='all', xmax=None, ymax=None, zmax=None, cmap='bwr', dpi=100, show=True, handles=False):
+    def inspect3D(self, field='all', backend='pyista', grid=None,
+                  xmax=None, ymax=None, zmax=None, 
+                  bounding_box=True, show_grid=True,
+                  cmap='viridis', dpi=100, show=True, handles=False):
         """
-        Voxel representation of a 3D array with matplotlib
-        [TODO] use pyvista instead
+        Visualize 3D field data on the structured grid using either Matplotlib
+        (voxel rendering) or PyVista (interactive clipping and slicing).
+
+        This method provides two complementary visualization backends:
+        - **Matplotlib**: static voxel plots of the field components (x, y, z) 
+          or all combined, useful for quick inspection, but memory intensive.
+        - **PyVista**: interactive 3D visualization with sliders to dynamically 
+          clip the volume along X, Y, and Z, and optional wireframe slices.
+
+        Parameters
+        ----------
+        field : {'x', 'y', 'z', 'all'}, default 'all'
+            Which field component(s) to visualize. 
+            - 'x', 'y', 'z': single component
+            - 'all': shows all three components
+        backend : {'matplotlib', 'pyvista'}, default 'pyvista'
+            Visualization backend to use:
+            - 'matplotlib': static voxel rendering
+            - 'pyvista': interactive 3D rendering with clipping sliders
+        grid : GridFIT3D or pyvista.StructuredGrid, optional
+            Structured grid object to use for visualization. If None, 
+            a grid is constructed from the solver's internal dimensions.
+        xmax, ymax, zmax : int or float, optional
+            Maximum extents in each direction for visualization. Defaults 
+            to the full grid dimensions if not specified.
+        bounding_box : bool, default True
+            If True, draw a wireframe bounding box of the simulation domain 
+            (only used in PyVista backend).
+        show_grid : bool, default True
+            If True, show wireframe slice planes of the grid during 
+            interactive visualization (PyVista backend).
+        cmap : str, default 'viridis'
+            Colormap to apply to the scalar field.
+        dpi : int, default 100
+            Resolution of Matplotlib figures (only for Matplotlib backend).
+        show : bool, default True
+            Whether to display the figure/plot immediately.
+            - If False in PyVista, exports to `field.html` instead.
+        handles : bool, default False
+            If True, return figure/axes (Matplotlib) or the Plotter object 
+            (PyVista) for further customization instead of showing directly.
+
+        Returns
+        -------
+        fig, axs : tuple, optional
+            Returned when `backend='matplotlib'` and `handles=True`.
+        pl : pyvista.Plotter, optional
+            Returned when `backend='pyvista'` and `handles=True`.
+
+        Notes
+        -----
+        - The PyVista backend provides interactive sliders to clip the 
+          volume along each axis independently and inspect internal 
+          structures of the 3D field.
+        - The Matplotlib backend provides a quick static voxel rendering 
+          but is limited in interactivity and scalability.
+
         """
-        import matplotlib.pyplot as plt
-        import matplotlib as mpl
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        fig = plt.figure(tight_layout=True, dpi=dpi, figsize=[12,6])
+        field = field.lower()
 
-        plot_x, plot_y, plot_z = False, False, False
+        # ---------- matplotlib backend ---------------
+        if backend.lower() == 'matplotlib':
+            import matplotlib.pyplot as plt
+            import matplotlib as mpl
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        if field == 'all':
-            plot_x = True
-            plot_y = True
-            plot_z = True
+            fig = plt.figure(tight_layout=True, dpi=dpi, figsize=[12,6])
 
-        elif field.lower() == 'x': plot_x = True
-        elif field.lower() == 'y': plot_y = True
-        elif field.lower() == 'z': plot_z = True
+            plot_x, plot_y, plot_z = False, False, False
 
-        if xmax is None: xmax = self.Nx
-        if ymax is None: ymax = self.Ny
-        if zmax is None: zmax = self.Nz
-
-        x,y,z = self.xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
-        axs = []
-
-        # field x
-        if plot_x:
-            arr = self.to_matrix('x')[0:int(xmax),0:int(ymax),0:int(zmax)]
             if field == 'all':
-                ax = fig.add_subplot(1, 3, 1, projection='3d')
+                plot_x = True
+                plot_y = True
+                plot_z = True
+
+            elif field.lower() == 'x': plot_x = True
+            elif field.lower() == 'y': plot_y = True
+            elif field.lower() == 'z': plot_z = True
+
+            if xmax is None: xmax = self.Nx
+            if ymax is None: ymax = self.Ny
+            if zmax is None: zmax = self.Nz
+
+            x,y,z = self.xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
+            axs = []
+
+            # field x
+            if plot_x:
+                arr = self.to_matrix('x')[0:int(xmax),0:int(ymax),0:int(zmax)]
+                if field == 'all':
+                    ax = fig.add_subplot(1, 3, 1, projection='3d')
+                else:
+                    ax = fig.add_subplot(1, 1, 1, projection='3d')
+                
+                vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
+                norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+                colors = mpl.colormaps[cmap](norm(arr))
+                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                
+                m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+                m.set_array([])
+                fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
+                ax.set_title(f'Field x')
+                axs.append(ax)
+
+            # field y
+            if plot_y:
+                arr = self.to_matrix('y')[0:int(xmax),0:int(ymax),0:int(zmax)]
+                if field == 'all':
+                    ax = fig.add_subplot(1, 3, 2, projection='3d')
+                else:
+                    ax = fig.add_subplot(1, 1, 1, projection='3d')
+                
+                vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
+                norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+                colors = mpl.colormaps[cmap](norm(arr))
+                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                
+                m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+                m.set_array([])
+                fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
+                ax.set_title(f'Field y')
+                axs.append(ax)
+
+            # field z
+            if plot_z:
+                arr = self.to_matrix('z')[0:int(xmax),0:int(ymax),0:int(zmax)]
+                if field == 'all':
+                    ax = fig.add_subplot(1, 3, 3, projection='3d')
+                else:
+                    ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+                vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
+                norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+                colors = mpl.colormaps[cmap](norm(arr))
+                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                
+                m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+                m.set_array([])
+                fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
+                ax.set_title(f'Field z')
+                axs.append(ax)
+
+            dims = {0:'x', 1:'y', 2:'z'}
+            for i, ax in enumerate(axs):
+                ax.set_xlabel('Nx')
+                ax.set_ylabel('Ny')
+                ax.set_zlabel('Nz')
+                ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+                ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+                ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+                ax.set_xlim(self.Nx, 0)
+                ax.set_ylim(self.Ny, 0)
+                ax.set_zlim(self.Nz, 0)
+
+            if handles:
+                return fig, axs
+            
+            if show:
+                plt.show()
+
+        # ----------- pyvista backend ---------------
+        else: 
+            import pyvista as pv
+
+            if grid is not None and hasattr(grid, 'grid'):
+                xlo, xhi, ylo, yhi, zlo, zhi = grid.xmin, grid.xmax, grid.ymin, grid.ymax, grid.zmin, grid.zmax
+                grid = grid.grid
+                if field == 'x':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                elif field == 'y':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                elif field == 'z':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                else:   # for all or abs
+                    scalars = 'Field '+'Abs'
+                    grid[scalars] = xp.reshape(self.get_abs(), self.N)
+
+                if xmax is None: xmax = xhi
+                if ymax is None: ymax = yhi
+                if zmax is None: zmax = zhi
+
             else:
-                ax = fig.add_subplot(1, 1, 1, projection='3d')
-            
-            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
-            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-            colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-            
-            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-            m.set_array([])
-            #fig.colorbar(m, shrink=0.5, aspect=10)
-            ax.set_title(f'Field x')
-            axs.append(ax)
+                print('[!] `grid` is not passed or is not a GridFIT3D object -> Using #N cells instead ')
+                x = xp.linspace(0, self.Nx, self.Nx+1)
+                y = xp.linspace(0, self.Ny, self.Ny+1)
+                z = xp.linspace(0, self.Nz, self.Nz+1)
+                xlo, xhi, ylo, yhi, zlo, zhi = x.min(), x.max(), y.min(), y.max(), z.min(), z.max()
+                if xmax is None: xmax = self.Nx
+                if ymax is None: ymax = self.Ny
+                if zmax is None: zmax = self.Nz
+                X, Y, Z = xp.meshgrid(x, y, z, indexing='ij')
+                grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
-        # field y
-        if plot_y:
-            arr = self.to_matrix('y')[0:int(xmax),0:int(ymax),0:int(zmax)]
-            if field == 'all':
-                ax = fig.add_subplot(1, 3, 2, projection='3d')
+                if field == 'x':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                elif field == 'y':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                elif field == 'z':
+                    scalars = 'Field '+field
+                    grid[scalars] = xp.reshape(self.to_matrix(field), self.N)
+                else:   # for all or abs
+                    scalars = 'Field '+'Abs'
+                    grid[scalars] = xp.reshape(self.get_abs(), self.N)
+
+
+            pv.global_theme.allow_empty_mesh = True
+            pl = pv.Plotter()
+            vals = {'x':xmax, 'y':ymax, 'z':zmax}
+
+            # --- Update function ---
+            def update_clip(val, axis="x"):
+                vals[axis] = val
+                # define bounds dynamically
+                if axis == "x":
+                    slice_obj = grid.slice(normal="x", origin=(val, 0, 0))
+                elif axis == "y":
+                    slice_obj = grid.slice(normal="y", origin=(0, val, 0))
+                else:  # z
+                    slice_obj = grid.slice(normal="z", origin=(0, 0, val))
+
+                # add clipped volume (scalars)
+                pl.add_mesh(
+                    grid.clip_box(bounds=(xlo, vals['x'], ylo, vals['y'], zlo, vals['z']), invert=False),
+                    scalars=scalars,
+                    cmap=cmap,
+                    name="clip",
+                )
+
+                # add slice wireframe (grid structure)
+                if show_grid:
+                    pl.add_mesh(slice_obj, style="wireframe", color="grey", name="slice")
+
+            # --- Sliders (placed side-by-side vertically) ---
+            pl.add_slider_widget(
+                lambda value: update_clip(value, "x"),
+                [xlo, xhi],
+                value=xmax, title="X Clip",
+                pointa=(0.8, 0.8), pointb=(0.95, 0.8),  # top-right
+                style='modern',
+            )
+
+            pl.add_slider_widget(
+                lambda value: update_clip(value, "y"),
+                [ylo, yhi],
+                value=ymax, title="Y Clip",
+                pointa=(0.8, 0.6), pointb=(0.95, 0.6),  # middle-right
+                style='modern',
+            )
+
+            pl.add_slider_widget(
+                lambda value: update_clip(value, "z"),
+                [zlo, zhi],
+                value=zmax, title="Z Clip",
+                pointa=(0.8, 0.4), pointb=(0.95, 0.4),  # lower-right
+                style='modern',
+            )
+
+            # Camera orientation
+            pl.camera_position = 'zx'
+            pl.camera.azimuth += 30
+            pl.camera.elevation += 30
+            pl.set_background('mistyrose', top='white')
+            try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except: pass
+            pl.add_axes()
+            pl.enable_3_lights()
+            pl.enable_anti_aliasing()
+
+            if bounding_box:
+                pl.add_mesh(pv.Box(bounds=(xlo, xhi, ylo, yhi, zlo, zhi)),
+                style="wireframe", color="black", line_width=2, name="domain_box")
+
+            if handles:
+                return pl
+
+            if not show:
+                pl.export_html(f'field.html')
             else:
-                ax = fig.add_subplot(1, 1, 1, projection='3d')
-            
-            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
-            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-            colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-            
-            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-            m.set_array([])
-            #fig.colorbar(m, shrink=0.5, aspect=10)
-            ax.set_title(f'Field y')
-            axs.append(ax)
-
-        # field z
-        if plot_z:
-            arr = self.to_matrix('z')[0:int(xmax),0:int(ymax),0:int(zmax)]
-            if field == 'all':
-                ax = fig.add_subplot(1, 3, 3, projection='3d')
-            else:
-                ax = fig.add_subplot(1, 1, 1, projection='3d')
-
-            vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
-            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-            colors = mpl.colormaps[cmap](norm(arr))
-            vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-            
-            m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-            m.set_array([])
-            #fig.colorbar(m, shrink=0.5, aspect=10)
-            ax.set_title(f'Field z')
-            axs.append(ax)
-
-        dims = {0:'x', 1:'y', 2:'z'}
-        for i, ax in enumerate(axs):
-            ax.set_xlabel('nx')
-            ax.set_ylabel('ny')
-            ax.set_zlabel('nz')
-            ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            ax.set_xlim(0,self.Nx)
-            ax.set_ylim(0,self.Ny)
-            ax.set_zlim(0,self.Nz)
-
-        if handles:
-            return fig, axs
-        
-        if show:
-            plt.show()
+                pl.show()

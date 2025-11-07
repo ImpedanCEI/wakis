@@ -17,7 +17,7 @@ class WakeSolver():
     calculation from 3D time domain E fields
     '''
 
-    def __init__(self, q=1e-9, sigmaz=1e-3, beta=1.0,
+    def __init__(self, wakelength=None, q=1e-9, sigmaz=1e-3, beta=1.0,
                  xsource=0., ysource=0., xtest=0., ytest=0., 
                  chargedist=None, ti=None, 
                  compute_plane='both', skip_cells=0, add_space=None, 
@@ -26,6 +26,8 @@ class WakeSolver():
         '''
         Parameters
         ----------
+        wakelength : float, optional
+            Wakelength to be simulated. If not provided, it will be calculated from the Ez field data.
         q : float
             Beam total charge in [C]
         sigmaz : float 
@@ -121,6 +123,7 @@ class WakeSolver():
         self.ti = ti
         self.skip_cells = skip_cells
         self.compute_plane = compute_plane
+        self.DE_model = None
 
         self.counter_moving = counter_moving
 
@@ -144,7 +147,7 @@ class WakeSolver():
         self.x, self.y, self.z = None, None, None #full simulation domain
 
         #solver init
-        self.wakelength = None
+        self.wakelength = wakelength
         self.s = None
         self.lambdas = None
         self.WP = None
@@ -207,6 +210,63 @@ class WakeSolver():
         t1 = time.time()
         totalt = t1-t0
         self.log('Calculation terminated in %ds' %totalt)
+
+    def update_long_WP(self, t):
+        '''WIP
+        calculation of wake potential on the fly
+        TODO: simplify logic, add transverse WP
+        '''
+        
+        it = int(t/self.dt)
+        if it == 0:
+            # --- setup once before time loop ---
+            # self.s already computed as in your calc_long_WP
+            self.s = np.arange(-self.ti*self.v, self.wake.wakelength, self.dt*self.v) # 1D array of s-values (m)
+            self.WP = np.zeros_like(self.s, dtype=np.float64)  # accumulator 
+
+        # --- inside your time loop, after Ez is updated for current timestep `it` ---
+        # get Ez at the probe (shape nz,)
+        # if you store Ez as Ezt[k, it] style, do:
+        Ez_curr = self.E[self.Nx//2, self.Ny//2, :, 'z']   # or extract from self.E at (xmid, ymid, :) if not using Ezt
+
+        # compute s values for each z where current Ez contributes
+        s_vals = self.v * t - self.v * self.ti + np.min(self.z) - self.z
+        # convert to fractional index in s-array
+        idxf = (s_vals - self.s[0]) / (self.v*self.dt)   # float indices
+
+        # mask in-range contributions
+        mask = (idxf >= 0.0) & (idxf <= (len(self.s) - 1))
+        if not np.any(mask):
+            # no contributions fall into s range this timestep
+            pass
+        else:
+            idxf_m = idxf[mask]
+            Ez_m = Ez_curr[mask]
+
+            # integer floor indices
+            i0 = np.floor(idxf_m).astype(int)
+            frac = idxf_m - i0
+
+            # handle points that land exactly on last bin: we add all to last bin
+            last_bin_mask = (i0 >= len(self.s) - 1)
+            if np.any(last_bin_mask):
+                # assign entirely to last bin (no i0+1 available)
+                self.WP[-1] += np.sum(Ez_m[last_bin_mask]) * self.dz
+                # drop those from other accumulation
+                keep = ~last_bin_mask
+                i0 = i0[keep]
+                frac = frac[keep]
+                Ez_m = Ez_m[keep]
+
+            # accumulate with linear interpolation weights
+            if i0.size:
+                # faster: use bincount
+                left = np.bincount(i0, weights=Ez_m * (1.0 - frac) * self.dz, minlength=len(self.s))
+                right = np.bincount(i0 + 1, weights=Ez_m * frac * self.dz, minlength=len(self.s))
+                self.WP += left + right
+
+        if it == self.Nt-1:
+            WP = WP/(self.q*1e12)  
 
     def calc_long_WP(self, Ezt=None,**kwargs):
         '''
@@ -619,9 +679,12 @@ class WakeSolver():
 
         self.Zy = 1j * WPyf / lambdaf
 
+        self.fx = ffft[mask] 
+        self.fy = ffft[mask] 
+
         if self.save:
-            np.savetxt(self.folder+'Zx.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
-            np.savetxt(self.folder+'Zy.txt', np.c_[self.f, self.Z], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
+            np.savetxt(self.folder+'Zx.txt', np.c_[self.fx, self.Zx], header='   f [Hz]'+' '*20+'Zx [Ohm]'+'\n'+'-'*48)                
+            np.savetxt(self.folder+'Zy.txt', np.c_[self.fy, self.Zy], header='   f [Hz]'+' '*20+'Zy [Ohm]'+'\n'+'-'*48)
 
     def calc_lambdas(self, **kwargs):
         '''Obtains normalized charge distribution in terms of s 
@@ -692,7 +755,150 @@ class WakeSolver():
 
         if self.save:
             np.savetxt(self.folder+'lambda.txt', np.c_[self.s, self.lambdas], header='   s [Hz]'+' '*20+'Charge distribution [C/m]'+'\n'+'-'*48)
+    
+    def get_SmartBounds(self, freq_data=None, impedance_data=None,
+                        minimum_peak_height=1.0, distance=3, inspect_bounds=True,
+                        Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9]
+                        ):
+        import iddefix
 
+        self.log('\nCalculating bounds using the Smart Bound Determination...')
+        # Smart bounds
+        # Find the main resonators and estimate the bounds -courtesy of Malthe Raschke!
+        bounds = iddefix.SmartBoundDetermination(freq_data, np.real(impedance_data), minimum_peak_height=minimum_peak_height,
+                                                Rs_bounds=Rs_bounds, Q_bounds=Q_bounds, fres_bounds=fres_bounds)
+        
+        bounds.find(minimum_peak_height=minimum_peak_height, distance=distance)
+        
+        if inspect_bounds:
+            bounds.inspect()
+            bounds.to_table()
+            return bounds
+        
+        bounds.to_table()
+        return bounds 
+
+
+    def get_DEmodel_fitting(self, freq_data=None, impedance_data=None, 
+                         plane='longitudinal', dim='z', 
+                         parameterBounds=None, N_resonators=None, DE_kernel='DE',
+                         maxiter=1e5, cmaes_sigma=0.01, popsize=150, tol=1e-3,
+                         use_minimization=True, minimization_margin=[0.3, 0.2, 0.01],
+                         minimum_peak_height=1.0, distance=3, inspect_bounds=False,
+                         Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9],
+                         ):
+        import iddefix
+
+        if freq_data is None or impedance_data is None:
+            if plane == 'longitudinal' and dim == 'z':
+                freq_data = self.f
+                impedance_data = self.Z
+            elif plane == 'transverse':
+                if dim == 'x':
+                    freq_data = self.fx
+                    impedance_data = self.Zx
+                elif dim == 'y':
+                    freq_data = self.fy
+                    impedance_data = self.Zy
+                else:
+                    raise ValueError('Invalid dimension. Use dim = "x" or "y".')
+            else:
+                raise ValueError('Invalid plane or dimension. Use plane = "longitudinal" or "transverse" and choose the dimension dim = "z", "x" or "y".') 
+            
+        if parameterBounds is None or N_resonators is None:
+            bounds = self.get_SmartBounds(parameterBounds=parameterBounds, 
+                                        N_resonators=N_resonators, 
+                                        minimum_peak_height=minimum_peak_height, 
+                                        distance=distance, 
+                                        inspect_bounds=inspect_bounds,
+                                        Rs_bounds=Rs_bounds, Q_bounds=Q_bounds, fres_bounds=fres_bounds)
+            N_resonators = bounds.N_resonators
+            parameterBounds = bounds.parameterBounds
+
+        # Build the differential evolution model
+        print('Fitting the impedance using Differential Evolution...')
+        self.log('\nExtrapolating wake potential using Differential Evolution...')
+        
+        objectiveFunction=iddefix.ObjectiveFunctions.sumOfSquaredErrorReal
+        DE_model = iddefix.EvolutionaryAlgorithm(freq_data, 
+                                                np.real(impedance_data), 
+                                                N_resonators=N_resonators, 
+                                                parameterBounds=parameterBounds,
+                                                plane=plane,
+                                                fitFunction='impedance', 
+                                                wake_length=self.wakelength, # in [m]
+                                                objectiveFunction=objectiveFunction,
+                                                ) 
+
+        if DE_kernel == 'DE':
+            DE_model.run_differential_evolution(maxiter=int(maxiter),
+                                                popsize=popsize,
+                                                tol=tol,
+                                                mutation=(0.3, 0.8),
+                                                crossover_rate=0.5)
+            
+        elif DE_kernel == 'CMAES': #TODO: fix UnboundLocalError
+            DE_model.run_cmaes(maxiter=int(maxiter),
+                                popsize=popsize,
+                                sigma=cmaes_sigma,)
+        
+        if use_minimization:
+            self.log('Running minimization algorithm...')
+            DE_model.run_minimization_algorithm(minimization_margin)
+
+        self.DE_model = DE_model
+        self.log(DE_model.warning)
+        if self.verbose:
+            print(DE_model.warning)
+
+        return DE_model
+
+    def get_extrapolated_wake(self, wakelength, sigma=None, use_minimization=True):             
+        '''
+        Get the extrapolated wake potential [V/pC] from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+    
+        if sigma is None:
+            sigma = self.sigmaz/c_light
+
+        # Get the extrapolated wake potential
+        # TODO: add beta
+        t = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
+        wake_potential = self.DE_model.get_wake_potential(t, sigma=sigma, 
+                                    use_minimization=use_minimization)
+        
+        s = t * c_light  # Convert time to distance [m]
+        return s, -wake_potential*1e-12 # in [V/pC] + CST convention
+
+    def get_extrapolated_wake_function(self, wakelength, use_minimization=True):
+        '''
+        Get the extrapolated wake function (a.k.a. Green function) from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+        
+        t = np.arange(self.s[0]/c_light, wakelength/c_light, (self.s[2]-self.s[1])/c_light)
+        wake_function = self.DE_model.get_wake(t, use_minimization=use_minimization)
+        return t, wake_function
+
+    def get_extrapolated_impedance(self, f=None, use_minimization=True,
+                                   wakelength=None):
+        '''
+        Get the extrapolated impedance [Ohm] from the DE model
+        '''
+        if self.DE_model is None:
+            raise AttributeError('Run get_DEmodel() first to obtain the DE model')
+
+        if f is None:
+            f = self.DE_model.frequency_data
+
+        impedance = self.DE_model.get_impedance(frequency_data=f,
+                                                use_minimization=use_minimization, 
+                                                wakelength=wakelength)
+        return f, impedance
+    
     @staticmethod
     def calc_impedance_from_wake(wake, s=None, t=None, fmax=None, 
                                     samples=None, verbose=True):
@@ -806,7 +1012,7 @@ class WakeSolver():
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, usecols=usecols)
         except:
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, 
-                              usecols=usecols, dtype=np.complex_)
+                              usecols=usecols, dtype=np.complex128)
             
         try: # keys == header names
             with open(txt) as f:
@@ -883,20 +1089,21 @@ class WakeSolver():
         The txt files are generated when 
         the attribute`save = True` is used
         '''
-        if folder.endswith('/'):
-            folder = folder.split('/')[0]
+        if not folder.endswith('/'):
+            folder = folder + '/'
 
-        _, self.lambdas = self.read_txt(folder+'/lambda.txt').values()
-        _, self.WPx = self.read_txt(folder+'/WPx.txt').values()
-        _, self.WPy = self.read_txt(folder+'/WPy.txt').values()
-        self.s, self.WP = self.read_txt(folder+'/WP.txt').values()
+        _, self.lambdas = self.read_txt(folder+'lambda.txt').values()
+        _, self.WPx = self.read_txt(folder+'WPx.txt').values()
+        _, self.WPy = self.read_txt(folder+'WPy.txt').values()
+        self.s, self.WP = self.read_txt(folder+'WP.txt').values()
 
-        _, self.lambdaf = self.read_txt(folder+'/spectrum.txt').values()
-        _, self.Zx = self.read_txt(folder+'/Zx.txt').values()
-        _, self.Zy = self.read_txt(folder+'/Zy.txt').values()
-        self.f, self.Z = self.read_txt(folder+'/Z.txt').values()
+        _, self.lambdaf = self.read_txt(folder+'spectrum.txt').values()
+        _, self.Zx = self.read_txt(folder+'Zx.txt').values()
+        _, self.Zy = self.read_txt(folder+'Zy.txt').values()
+        self.f, self.Z = self.read_txt(folder+'Z.txt').values()
 
         self.f = np.abs(self.f)
+        self.wakelength = self.s[-1]
         
     def copy(self):
         obj = type(self).__new__(self.__class__)

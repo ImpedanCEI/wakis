@@ -44,7 +44,7 @@ from wakis import WakeSolver      # Wake and Impedance calculation
 
 ### Simulation domain, geometry and materials setup
 
-`wakis` is a numerical electromagnetic solver that uses the Finite Integration Technique. The grid used is a structured grid composed by rectangular cells. The simulation domain is a rectangular box that will be broken into cells where the electromagnetic fields will be computed.
+`wakis` is a numerical electromagnetic solver that uses the Finite Integration Technique. The grid used is a structured grid composed by rectangular cells. The simulation domain is a rectangular box that will be broken into cells where the electromagnetic fields will be computed. Notice that all the input parameters for Wakis must be in SI Base Units.
 
 #### Number of mesh cells
 
@@ -63,7 +63,7 @@ Note that the number of cells will heavily affect the simulation time (in partic
 ```
  
 ### `STL` geometry importing
-In beam-coupling impedance simulations one is usually interested in the geometric impedance, together with the impedance coming from material properties. In `wakis`, the geometry to simulate (sometimes referred as Embedded boundaries) can be imported from a `.stl` file containing a CAD model.
+In beam-coupling impedance simulations one is usually interested in the geometric impedance, together with the impedance coming from material properties. In `wakis`, the geometry to simulate (sometimes referred as Embedded boundaries) can be imported from a `.stl` file containing a CAD model, and the units should be meters [m].
 
 ```python
 # stl geometry files (add path to them if necessary)
@@ -119,7 +119,7 @@ stl_materials = {'cavity': 'vacuum',       # equivalent to [1.0, 1.0, 0]
 ```
 
 ### Defining the `grid` object
-After this, the user needs to indicate the domain bounds to simulate. They can be calculated from the imported geometry or just hardcoded:
+After this, the user needs to indicate the domain bounds to simulate, in [m]. They can be calculated from the imported geometry or just hardcoded with `float` values:
 
 ``` python
 # Domain bounds
@@ -136,8 +136,8 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax,
                 stl_solids=stl_solids, 
                 stl_materials=stl_materials,
                 stl_translate=stl_translate,
-                stl_scale=stl_scale
-                stl_rotate=stl_rotate
+                stl_scale=stl_scale,
+                stl_rotate=stl_rotate,
                 )
 ```
 

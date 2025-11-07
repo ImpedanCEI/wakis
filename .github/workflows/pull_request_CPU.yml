@@ -1,0 +1,42 @@
+# This workflow runs on pull requests and nightly
+name: pull_request_CPU_python11
+
+on:
+  # Run tests for every pull request targeting main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: wakis
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-version: latest
+          python-version: "3.11"
+
+      - name: Install wakis
+        run: |
+          cd wakis
+          pip install .['notebook']
+
+      - name: Print installed packages
+        run: conda list
+
+      - name: Run pytest
+        run: |
+          cd wakis
+          python -m pytest --color=yes -v -s tests

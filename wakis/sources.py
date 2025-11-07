@@ -213,8 +213,6 @@ class WavePacket:
 
     def update(self, solver, t):
         if self.is_first_update:
-            if self.wavelength is None:
-                self.wavelength = self.wavelength*solver.dz
             if self.xs is None:
                 self.xs = slice(0, solver.Nx)
             if self.ys is None:
@@ -233,7 +231,7 @@ class WavePacket:
         s = solver.z.min()-self.beta*c_light*t
     
         # 2d gaussian
-        X, Y = np.meshgrid(solver.x, solver.y)
+        X, Y = np.meshgrid(solver.x[self.xs], solver.y[self.ys])
         gaussxy = np.exp(-(X**2+Y**2)/(2*self.sigmaxy**2))
         gausst = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
 

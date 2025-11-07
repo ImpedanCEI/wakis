@@ -6,7 +6,7 @@
 import numpy as np
 import pyvista as pv
 from functools import partial
-from scipy.optimize import minimize 
+from scipy.optimize import least_squares
 
 from .field import Field
 
@@ -55,12 +55,13 @@ class GridFIT3D:
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
                 Nx, Ny, Nz, 
+                x=None, y=None, z=None, 
                 use_mpi=False, 
-                use_mesh_refinement=False,
-                snap_points=None,
+                use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
+                snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None, 
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
-                stl_colors=None, verbose=1, tol=1e-3):
+                stl_colors=None, verbose=1, stl_tol=1e-3):
         
         if verbose: print('Generating grid...')
         self.verbose = verbose
@@ -88,6 +89,8 @@ class GridFIT3D:
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
+        if stl_solids is not None:
+            self._prepare_stl_dicts()
 
         # MPI subdivide domain 
         if self.use_mpi: 
@@ -101,21 +104,46 @@ class GridFIT3D:
             else:
                 raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
             
-        # primal Grid G [TODO - upgrade to smart snappy grid]
+        # primal Grid G base axis x, y, z
+        self.x = x
+        self.y = y
+        self.z = z
+        self.refinement_method = refinement_method
         self.snap_points = snap_points
-        self.x, self.y, self.z = None, None, None 
+        self.snap_tol = snap_tol
+        self.snap_solids = snap_solids # if None, use all stl_solids
 
-        if self.use_mesh_refinement:
+        if self.x is not None and self.y is not None and self.z is not None:
+            # allow user to set the grid axis manually
+            self.Nx = len(self.x) - 1
+            self.Ny = len(self.y) - 1
+            self.Nz = len(self.z) - 1
+            self.dx = np.min(np.diff(self.x)) 
+            self.dy = np.min(np.diff(self.y))  
+            self.dz = np.min(np.diff(self.z))
+
+        elif self.use_mesh_refinement:
             if verbose: print('Applying mesh refinement...')
             if self.snap_points is None and stl_solids is not None:
-                self.compute_snap_points()
-            self.refine_xyz_axis()
+                self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
+            self.refine_xyz_axis(method=refinement_method, tol=refinement_tol)  # obtain self.x, self.y, self.z
         else:
             self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
             self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
             self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
             
-        # grid
+        # grid G and tilde grid ~G, lengths and inverse areas
+        self.compute_grid()
+
+        # tolerance for stl import tol*min(dx,dy,dz)
+        if verbose: print('Importing STL solids...')
+        self.tol = stl_tol 
+        if stl_solids is not None:
+            self.mark_cells_in_stl()
+            if stl_colors is None:
+                self.assign_colors()
+
+    def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -153,15 +181,7 @@ class GridFIT3D:
         aux = self.tL.field_x * self.tL.field_y
         self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
         del aux
-        
-        #tolerance for stl import tol*min(dx,dy,dz)
-        if verbose: print('Importing STL solids...')
-        self.tol = tol 
-        if stl_solids is not None:
-            self.mark_cells_in_stl()
-            if stl_colors is None:
-                self.assign_colors()
-
+    
     def mpi_initialize(self):
         comm = MPI.COMM_WORLD  # Get MPI communicator
         self.comm = comm
@@ -223,10 +243,7 @@ class GridFIT3D:
                             )
         return _grid
 
-    def mark_cells_in_stl(self): #TODO: pass tol as arg
-
-        if self.verbose: print('Importing stl solids...')
-
+    def _prepare_stl_dicts(self):
         if type(self.stl_solids) is not dict:
             if type(self.stl_solids) is str:
                 self.stl_solids = {'Solid 1' : self.stl_solids}
@@ -254,6 +271,8 @@ class GridFIT3D:
                 stl_translate[key] = self.stl_translate
             self.stl_translate = stl_translate
 
+    def mark_cells_in_stl(self):
+        # Obtain masks with grid cells inside each stl solid
         tol = np.min([self.dx, self.dy, self.dz])*self.tol
         for key in self.stl_solids.keys():
 
@@ -267,7 +286,6 @@ class GridFIT3D:
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
 
     def read_stl(self, key):
-
         # import stl
         surf = pv.read(self.stl_solids[key])
 
@@ -284,16 +302,16 @@ class GridFIT3D:
 
         return surf
     
-    def compute_snap_points(self, stl_keys=None, snap_tol=1e-5):
-
+    def compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
+        if self.verbose: print('* Calculating snappy points...')
         # Support for user-defined stl_keys as list
-        if stl_keys is None:
-            stl_keys = self.stl_solids.keys()
+        if snap_solids is None:
+            snap_solids = self.stl_solids.keys()
 
         # Union of all the surfaces
         # [TODO]: should use | for union instead or +?
         model = None
-        for key in stl_keys:
+        for key in snap_solids:
             solid = self.read_stl(key)
             if model is None:
                 model = solid
@@ -318,37 +336,141 @@ class GridFIT3D:
 
         # Include simulation domain bounds
         self.x_snaps = np.unique(np.concatenate(([self.xmin], x_snaps, [self.xmax])))
-        self.y_snaps = np.unique(np.concatenate(([self.zmin], y_snaps, [self.zmax])))
-        self.z_snaps = np.unique(np.concatenate(([self.ymin], z_snaps, [self.ymax])))
+        self.y_snaps = np.unique(np.concatenate(([self.ymin], y_snaps, [self.ymax])))
+        self.z_snaps = np.unique(np.concatenate(([self.zmin], z_snaps, [self.zmax])))
 
-    def refine_axis(self, xmin, xmax, Nx, x_snaps, verbose=False):
+    def plot_snap_points(self, snap_solids=None, snap_tol=1e-8):
+        # TODO
+        # Support for user-defined stl_keys as list
+        if snap_solids is None:
+            snap_solids = self.stl_solids.keys()
+
+        # Union of all the surfaces
+        # [TODO]: should use | for union instead or +?
+        model = None
+        for key in snap_solids:
+            solid = self.read_stl(key)
+            if model is None:
+                model = solid
+            else:
+                model = model + solid  
+    
+        edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
+
+        # Extract points lying in the X-Z plane (Y ≈ 0)
+        xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
+        # Extract points lying in the Y-Z plane (X ≈ 0)
+        yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
+        # Extract points lying in the X-Y plane (Z ≈ 0)
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+
+        xz_cloud = pv.PolyData(xz_plane_points)
+        yz_cloud = pv.PolyData(yz_plane_points)
+        xy_cloud = pv.PolyData(xy_plane_points)
+
+        pl = pv.Plotter()
+        pl.add_mesh(model, color='white', opacity=0.5, label='base STL')
+        pl.add_mesh(edges, color='black', line_width=5, opacity=0.8,)
+        pl.add_mesh(xz_cloud, color='green', point_size=20, render_points_as_spheres=True, label='XZ plane points')
+        pl.add_mesh(yz_cloud, color='orange', point_size=20, render_points_as_spheres=True, label='YZ plane points')
+        pl.add_mesh(xy_cloud, color='magenta', point_size=20, render_points_as_spheres=True, label='XY plane points')
+        pl.add_legend()
+        pl.show()
+
+    def refine_axis(self, xmin, xmax, Nx, x_snaps, 
+                    method='insert', tol=1e-12):
 
         # Loss function to minimize cell size spread
-        def loss_function(new_points, snaps):
-            x = np.sort(np.unique(np.append(snaps, new_points)))
-            return np.std(np.diff(sorted(x)))
+        def loss_function(x, x0, is_snap):
+            # avoid moving snap points
+            penalty_snap = np.sum((x[is_snap] - x0[is_snap])**2) * 1000
+            # avoid gaps < uniform gap
+            dx = np.diff(x)
+            threshold = 1/(len(x)-1) # or a hardcoded `min_spacing`
+            penalty_small_gaps = np.sum((threshold - dx[dx < threshold])**2) 
+            # avoid large spread in gap length
+            dx = np.diff(x)
+            penalty_variance = np.std(dx) * 10
+            #return penalty_snap + penalty_small_gaps + penalty_variance
+            return np.hstack([penalty_snap, penalty_small_gaps, penalty_variance])
 
         # Uniformly distributed points as initial guess
-        x0 = np.linspace(xmin, xmax, Nx - len(x_snaps)) 
-        objective_function = partial(loss_function, x_snaps)
+        x_snaps = (x_snaps-xmin)/(xmax-xmin) # normalize to [0,1]
+
+        if method == 'insert':
+            x0 = np.unique(np.append(x_snaps,  np.linspace(0, 1, Nx - len(x_snaps))))
+
+        elif method == 'neighbor':
+            x = np.linspace(0, 1, Nx)
+            dx = np.diff(x)[0]
+            mask = np.zeros_like(x, dtype=bool)
+            i=0
+            for s in x_snaps:
+                m = np.isclose(x, s, rtol=0.0, atol=dx/2)
+                if np.sum(m)>0:
+                    x[np.argmax(m)] = s
+            x0 = x.copy()
+        
+        elif method == 'subdivision':
+            # x = snaps
+            while len(x) < Nx:
+                #idx of segments sorted min -> max
+                idx_max_diffs = np.argsort(np.diff(x))[-1] # take bigger
+
+                print(f"Bigger segment starts at {x[idx_max_diffs]}")
+                # compute new point in the middle of the segment
+                val = x[idx_max_diffs] + (x[idx_max_diffs + 1] - x[idx_max_diffs]) / 2
+
+                # insert the new point
+                x = np.insert(x, idx_max_diffs+1, val)
+                x = np.unique(x)
+                print(f"Inserted point {val} at index {idx_max_diffs}")
+            x0 = x.copy()
+        else:
+            raise ValueError(f"Method {method} not supported. Use 'insert', 'neighbor' or 'subdivision'.")
 
         # minimize segment length spread for the test points 
-        result = minimize(objective_function,
-                            x0=x0,
-                            bounds=[(xmin, xmax)] * (len(x0)),
-                            method='L-BFGS-B', 
-                            tol=(xmax-xmin)/len(x0)*1e-6,
-                            options={'maxiter': 1e6,
-                                    'disp': verbose,
-                                    }
-                            )
-        # Include snaps and sort
-        x = np.sort(np.unique(np.append(x_snaps, result.x)))
-        return x
+        is_snap = np.isin(x0, x_snaps)
+        result = least_squares(loss_function,
+                                x0=x0.copy(),
+                                bounds=(0,1),#(zmin, zmax),
+                                jac='3-point',
+                                method='dogbox',
+                                loss='arctan',
+                                gtol=tol,
+                                ftol=tol,
+                                xtol=tol,
+                                verbose=1,
+                                args=(x0.copy(), is_snap.copy()),
+                                )
+        # transform back to [xmin, xmax]
+        return result.x*(xmax-xmin)+xmin 
 
-    def refine_xyz_axis(self, snap_points=None):
-        pass
+    def refine_xyz_axis(self, method='insert', tol=1e-6):
+        '''Refine the grid in the x, y, z axis
+        using the snap points extracted from the stl solids.
+        The snap points are used to refine the grid '''
 
+        if self.verbose: print(f'* Refining x axis with {len(self.x_snaps)} snaps...')
+        self.x = self.refine_axis(self.xmin, self.xmax, self.Nx+1, self.x_snaps,
+                                  method=method, tol=tol)
+        
+        if self.verbose: print(f'* Refining y axis with {len(self.y_snaps)} snaps...')
+        self.y = self.refine_axis(self.ymin, self.ymax, self.Ny+1, self.y_snaps,
+                                  method=method, tol=tol)
+        
+        if self.verbose: print(f'* Refining z axis with {len(self.z_snaps)} snaps...')
+        self.z = self.refine_axis(self.zmin, self.zmax, self.Nz+1, self.z_snaps,
+                                  method=method, tol=tol)
+
+        self.Nx = len(self.x) - 1
+        self.Ny = len(self.y) - 1       
+        self.Nz = len(self.z) - 1
+        self.dx = np.min(np.diff(self.x))  #TODO: should this be an array?
+        self.dy = np.min(np.diff(self.y))  
+        self.dz = np.min(np.diff(self.z))
+
+        print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
 
     def assign_colors(self):
         '''Classify colors assigned to each solid
@@ -373,8 +495,8 @@ class GridFIT3D:
             else:
                 self.stl_colors[key] = 'other'
 
-    def plot_solids(self, bounding_box=False, anti_aliasing=None,
-                    opacity=1.0, specular=0.5,**kwargs):
+    def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
+                    opacity=1.0, specular=0.5, offscreen=False, **kwargs):
         """
         Generates a 3D visualization of the imported STL geometries using PyVista.
 
@@ -382,7 +504,10 @@ class GridFIT3D:
         -----------
         bounding_box : bool, optional
             If True, adds a bounding box around the plotted geometry (default: False).
-        
+
+        show_grid : bool, optional
+            If True, adds the grid's mesh wireframe to the display (default: False).   
+
         anti_aliasing : str or None, optional
             Enables anti-aliasing if provided. Valid values depend on PyVista settings (default: None).
         
@@ -438,10 +563,194 @@ class GridFIT3D:
         if bounding_box:
             pl.add_bounding_box()
             
-        pl.show()
+        if show_grid:
+            pl.add_mesh(self.grid, style='wireframe', color='grey', opacity=0.3, name='grid')
+
+        if offscreen:
+            pl.export_html('grid_plot_solids.html')
+        else:
+            pl.show()
+
+    def plot_stl_mask(self, stl_solid, cmap='viridis', bounding_box=True, show_grid=True,
+                      add_stl='all', stl_opacity=0., stl_colors=None,
+                      xmax=None, ymax=None, zmax=None,
+                      anti_aliasing='ssaa', offscreen=False):
+        
+        """
+        Interactive 3D visualization of the structured grid mask and imported STL geometries.
+
+        This routine uses PyVista to display the grid scalar field corresponding to a
+        chosen STL mask. It provides interactive slider widgets to clip the domain
+        along the X, Y, and Z directions. At each slider position, the clipped
+        scalar field is shown with a colormap while the grid structure is shown
+        as a 2D slice in wireframe. Optionally, one or more STL geometries can
+        be added to the scene, along with a bounding box of the simulation domain.
+
+        Parameters
+        ----------
+        stl_solid : str
+            Key name of the `stl_solids` dictionary to retrieve the mask for
+            visualization (used as the scalar field).
+        cmap : str, default 'viridis'
+            Colormap used to visualize the clipped scalar values.
+        bounding_box : bool, default True
+            If True, add a static wireframe bounding box of the simulation domain.
+        show_grid : bool, default True
+            If True, adds the computational grid overlay on the clipped slice
+        add_stl : {'all', str, list[str]}, default 'all'
+            STL geometries to add:
+            * 'all' → add all STL solids found in `self.stl_solids`
+            * str   → add a single STL solid by key
+            * list  → add a list of STL solids by key
+            If None, no STL surfaces are added.
+        stl_opacity : float, default 0.0
+            Opacity of the STL surfaces (0 = fully transparent, 1 = fully opaque).
+        stl_colors : str, list[str], dict, or None, default None
+            Color(s) of the STL surfaces:
+            * str   → single color for all STL surfaces
+            * list  → per-solid colors, in order
+            * dict  → mapping from STL key to color (using `material_colors`)
+            * None  → use default colors from `self.stl_colors`
+        xmax, ymax, zmax : float, optional
+            Initial clipping positions along each axis. If None, use the
+            maximum domain extent.
+        anti_aliasing : {'ssaa', 'fxaa', None}, default 'ssaa'
+            Anti-aliasing mode passed to `pl.enable_anti_aliasing`.
+        offscreen : bool, default False
+            If True, render offscreen and export the scene to
+            ``grid_stl_mask_<stl_solid>.html``. If False, open an interactive window.
+
+        Notes
+        -----
+        * Three sliders (X, Y, Z) control clipping of the scalar field by a box
+        along the respective axis. The clipped scalar field is shown with the
+        given colormap. A simultaneous 2D slice of the grid is displayed in
+        wireframe at the clip location.
+        * STL solids can be visualized in transparent mode to show the relation
+        between the structured grid and the geometry.
+        * A static domain bounding box can be added for reference.
+        * Camera, background, and lighting are pre-configured for clarity
+        """
+        from .materials import material_colors
+        if stl_colors is None:
+            stl_colors = self.stl_colors
+
+        if xmax is None: xmax = self.xmax
+        if ymax is None: ymax = self.ymax
+        if zmax is None: zmax = self.zmax
+
+        pv.global_theme.allow_empty_mesh = True
+        pl = pv.Plotter()
+        vals = {'x':xmax, 'y':ymax, 'z':zmax}
+
+        # --- Update function ---
+        def update_clip(val, axis="x"):
+            vals[axis] = val
+            # define bounds dynamically
+            if axis == "x":
+                slice_obj = self.grid.slice(normal="x", origin=(val, 0, 0))
+            elif axis == "y":
+                slice_obj = self.grid.slice(normal="y", origin=(0, val, 0))
+            else:  # z
+                slice_obj = self.grid.slice(normal="z", origin=(0, 0, val))
+
+            # add clipped volume (scalars)
+            pl.add_mesh(
+                self.grid.clip_box(bounds=(self.xmin, vals['x'], 
+                                           self.ymin, vals['y'], 
+                                           self.zmin, vals['z']), invert=False),
+                scalars=stl_solid,
+                cmap=cmap,
+                name="clip",
+            )
+
+            # add slice wireframe (grid structure)
+            if show_grid:
+                pl.add_mesh(slice_obj, style="wireframe", color="grey", name="slice")
+
+        # Plot stl surface(s)
+        if add_stl is not None: 
+            if type(add_stl) is str: #add all stl solids
+                if add_stl.lower() == 'all':
+                    for i, key in enumerate(self.stl_solids):
+                        surf = self.read_stl(key)
+                        if type(stl_colors) is dict:
+                            if type(stl_colors[key]) is str:
+                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
+                            else:
+                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+                        elif type(stl_colors) is list:
+                            pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
+                        else:
+                            pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, name=key)
+                else: #add 1 selected stl solid
+                    key = add_stl
+                    surf = self.read_stl(key)
+                    if type(stl_colors[key]) is str:
+                        pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
+                    else:
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+
+            elif type(add_stl) is list: #add selected list of stl solids
+                for i, key in enumerate(add_stl):
+                    surf = self.read_stl(key)
+                    if type(stl_colors[key]) is dict:
+                        if type(stl_colors) is str:
+                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
+                        else:
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+                    elif type(stl_colors) is list:
+                        pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
+                    else:
+                        pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, name=key)
+
+        # --- Sliders (placed side-by-side vertically) ---
+        pl.add_slider_widget(
+            lambda val: update_clip(val, "x"),
+            [self.xmin, self.xmax],
+            value=xmax, title="X Clip",
+            pointa=(0.8, 0.8), pointb=(0.95, 0.8),  # top-right
+            style='modern',
+        )
+
+        pl.add_slider_widget(
+            lambda val: update_clip(val, "y"),
+            [self.ymin, self.ymax],
+            value=ymax, title="Y Clip",
+            pointa=(0.8, 0.6), pointb=(0.95, 0.6),  # middle-right
+            style='modern',
+        )
+
+        pl.add_slider_widget(
+            lambda val: update_clip(val, "z"),
+            [self.zmin, self.zmax],
+            value=zmax, title="Z Clip",
+            pointa=(0.8, 0.4), pointb=(0.95, 0.4),  # lower-right
+            style='modern',
+        )
+
+        # Camera orientation
+        pl.camera_position = 'zx'
+        pl.camera.azimuth += 30
+        pl.camera.elevation += 30
+        pl.set_background('mistyrose', top='white')
+        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+        except: pass
+        pl.add_axes()
+        pl.enable_3_lights()
+        pl.enable_anti_aliasing(anti_aliasing)
+
+        if bounding_box:
+            pl.add_mesh(pv.Box(bounds=(self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax)),
+            style="wireframe", color="black", line_width=2, name="domain_box")
+
+        if offscreen:
+            pl.export_html(f'grid_stl_mask_{stl_solid}.html')
+        else:
+            pl.show()
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
-                anti_aliasing='ssaa'):
+                anti_aliasing='ssaa', offscreen=False):
         
         '''3D plot using pyvista to visualize 
         the structured grid and
@@ -463,7 +772,6 @@ class GridFIT3D:
         pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
         pl.add_mesh(self.grid, show_edges=True, cmap=['white', 'white'], name='grid')
-        
         def clip(widget):
             # Plot structured grid
             b = widget.bounds
@@ -474,24 +782,26 @@ class GridFIT3D:
             grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
             pl.add_mesh(grid, show_edges=True, cmap=['white', 'white'], name='grid')
-            
             # Plot stl surface(s)
             if add_stl is not None: #add 1 selected stl solid
                 if type(add_stl) is str:
                     key = add_stl
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
-                    if stl_colors is None:
+                    if type(stl_colors[key]) is str:
                         pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
-                        pl.add_mesh(surf, color=stl_colors, opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
 
                 elif type(add_stl) is list: #add selected list of stl solids
                     for i, key in enumerate(add_stl):
                         surf = self.read_stl(key)
                         surf = surf.clip_box(widget.bounds, invert=False)
                         if type(stl_colors) is dict:
-                            pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            if type(stl_colors[key]) is str:
+                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            else:
+                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         else:
@@ -502,7 +812,10 @@ class GridFIT3D:
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
                     if type(stl_colors) is dict:
-                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        if type(stl_colors[key]) is str:
+                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        else:
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                     else:
@@ -521,4 +834,8 @@ class GridFIT3D:
         pl.add_axes()
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
-        pl.show()
+
+        if offscreen:
+            pl.export_html('grid_inspect.html')
+        else:
+            pl.show()

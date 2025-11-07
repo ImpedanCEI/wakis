@@ -1,166 +1,171 @@
-# v0.6.0 Draft
-*Coming soon!*
+# v0.6.1
+
+This release introduces major improvements to performance and usability: **running single-precision simulations** allowing x100 speedup on mid-range GPUs, **MKL backend integration** for multithreaded time-stepping (sparse-matrix times vector operations), **adaptive mesh refinement** (first steps, WIP), **STEP geometry unit extraction and scaling** and more robust parsing, added **IDDEFIX wrapper** for streamlined simulation extrapolation, and updated **interactive 3D visualization tools** of imported solids with widgets.
+It also enhances multi-GPU compatibility, and testing workflows.
+
+---
 
 ## 🚀 New Features
 
-* 🖼️ **Plotting**
-  * Unified plotting tools for both MPI and non-MPI simulations.
-  * `plot1D` now supports field visualization independently of MPI use.
-  * `Plot2D` supports parallel execution.
-  * Error handling added for `plot3D` and `plot3DonSTL` when `use_mpi = True`.
-  * Support for `dpi` and `return_handles` in plot utilities to further customize plots.
-  * Enhanced examples and notebook suite visualization cells.
+* 🧱 **SolverFIT3D**
+  * Performed data-type tracking to enable running single-precision simulations on both CPU and GPU simply by passing `dtype=np.float32` to solver constructor. 
+  * Added **MKL backend** for optimized CPU computations, with automatic fallback if unavailable.
+  * Introduced environment variable to control MKL threads and improved sparse matrix–vector operations.
+  * Added **callback function** argument (`fun(solver, t)`) executed after each timestep for flexible simulation monitoring.
+  * Implemented **absorbing boundary conditions (ABC)** for EM simulations with updated testing routine.
+  * Added **single-precision support** for solver initialization and data type tracking.
 
-* 🧱 **GridFIT3D**
-  * Added `mpi_initialize()` to handle domain decomposition (Z-slicing).
-  * New method `mpi_gather_asGrid()` to retrieve the full global grid from distributed subdomains.
-  * Full support for multi-GPU domain decomposition through `cupy` (CUDA-aware, Linux only).
-  * Improved communication layer for subdomain synchronization via ghost cells.
-  
-* ⚡ **SolverFIT3D**
-  * MPI-compatible time-stepping routine `mpi_one_step()` using a leapfrog scheme.
-  * `mpi_communicate()` to send/receive boundary field values between subdomains.
-  * `mpi_gather()` to retrieve field data as a NumPy array and `mpi_gather_asField()` to reconstruct a `Field` object.
-  * MPI-safe support integrated into `update()` and field getter logic.
-  * Introduced `save_state()` method for checkpointing during MPI runs together with `load_state()`. Added support for MPI save state too.
-  * Feature in progress: multiGPU support (`use_GPU=True` when `use_MPI=True`) for distributed simulations (*Linux only!*).
-  
-* 📥 **Sources**
-  * **Beam**:
-    * Added `plot(t)` to visualize beam current evolution.
-    * Generalized `update()` to work with or without MPI.
-    * Enhanced support for time-aligned injection with beta and MPI shifts.
-    * New example for MPI+GPU simulation (*topic in progress*).
+* ⚙️ **Mesh Refinement**
+  * Introduced **adaptive mesh refinement** based on OpenFOAM's snappy hexmesh with automatic CFL-stable grid recalculation - *Work in progress*
+  * Added example `notebook_006` showcasing refined mesh simulation.
+
+* 🪶 **Geometry & CAD Tools**
+  * Added **unit extraction from STEP files** and automatic **STL scaling to meters**.
+  * `geometry.load_stp()` now supports **file paths** and **lowercased material names** for consistency.
+  * Added tests for geometry unit handling and material case normalization.
+
+* 🎛️ **Visualization**
+  * Added interactive `inspect3D` visualization supporting both **PyVista** and **Matplotlib** backends.
+  * Introduced new `plot_stl_mask()` tool with interactive 3D sliders to visualize solid occupancy in the computational domain.
+  * Added offscreen plotting support for **headless servers** (export to HTML).
 
 * 🌊 **WakeSolver**
-  * Refactored to internally store the full longitudinal domain.
-  * `skip_cells` now acts only at analysis level, preserving resolution.
-    * `add_space` and `use_edt` retained for compatibility, but `add_space` is deprecated for new parameter `skip_cells`, more adequate to its utility (i.e. skip cells in the integration path).
-  * Future-ready structure for distributed wake solving with MPI-aware GPU.
-  * Improved numerical robustness by preventing indexing errors in `WakePotential` integration.
-  * Enhanced extrapolation method with `iddefix`.
-  * New example `004` for wakefield simulation with MPI+GPU configuration.
+  * Added **on-the-fly wake potential computation** and **IDDEFIX** wrapper for wake extrapolation.
+  * Improved extrapolated wake consistency with CST/Wakis conventions.
+  * Implemented `wakelength` attribute loading when using `load_results()`.
 
-* 🛡️ **Security & Documentation**
-  * Added `SECURITY.md` to describe supported versions and vulnerability reporting.
-  * Improved installation guide with Miniforge (supports both Windows/Linux) and MPI setup instructions.
-  * Added new issue templates for **Bug Report** and **Feature Request** with markdown formatting and emojis for readability.
-  * Addition of the **Physics Guide**, with detailed physics models and numerical methods explanations.
-  * User's guide updated to include Wake extrapolation with `iddefix`, Wake function calculation with `neffint`, and power loss calculation with `BIHC`.
-  * Added a **Table of Contents (ToC)** to the documentation for easier navigation.
-  * Expanded installation guide with multiGPU configuration and MPI-aware domain partitioning.
+* 🧩 **Miscellaneous**
+  * Enhanced GPU/CPU integration — unified timestepping (`one_step`) and backend detection.
+  * Enabled multi-GPU test cases and performance optimizations.
 
-## 💗 Other Tag highlights
+---
 
-* 🔁 Nightly tests with GitHub Actions:
-  * Enabled infrastructure for MPI-based test cases (`test_003`, `test_005`).
-  * Improved test coverage for MPI and GPU simulations.
-  * MultiGPU end-to-end tests for distributed domain synchronization.
+## 💗 Other Tag Highlights
 
-* 📁 **Examples**:
-  * `003` → MPI wakefield simulation using `mpi4py`.
-  * `004a` → Fit wake potential data directly with the wake potential resonator formalism.
-  * `004b` → Fit impedance from wake potential data using `compute_deconvolution()`.
-  * `005` → Full MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
-  * New example with MPI + GPU configuration for large-scale simulations.
+* 🔁 **Tests**
+  * Added **GitHub Action** to trigger tests automatically on PR open or sync.
+  * Added MKL vs SciPy backend tests and hardware info retrieval (threads, sockets, affinity).
+  * Added test coverage for geometry scaling, lowercase material import, and ABC boundary handling.
 
-* 📁 **Notebooks**:
-  * `005` → Full MPI simulation inside Jupyter using `ipyparallel` + `mpi4py`.
-  * New Jupyter notebook showcasing multiGPU configuration.
+* 📚 **Documentation**
+  * Updated **multi-GPU** and **MKL installation** guides.
+  * Added **CSG geometry** and PyVista snippets to the User’s Guide.
+  * Refined **Physics Guide**, improved clarity on SI base units.
+  * Added SWAN badge, DOI, and tutorial repo to README.
+  * Simplified **issue** and **feature request templates** for contributors.
+
+* ⚙️ **Build & Compatibility**
+  * Ensured **NumPy 2.0+ compatibility**.
+  * Upgraded **PyVista** dependency to enable `|` (union) operator for CSG modeling.
+
+---
 
 ## 🐛 **Bugfixes**
-* Fixed crash in `plot3D` and `plot3DonSTL` when `use_mpi=True`.
-* Fixed default `use_mpi=True` to now default to `False` for general usage.
-* Fixed a typo in beam injection routine `solver.z.min()`.
-* Fixed potential rounding error in wake potential integration with negligible performance impact (~0.1ns) -> solves [issue #12](https://github.com/ImpedanCEI/wakis/issues/12)
-* Corrected default beam injection time to align with CST Wakefield Solver reference in beta<1 cases.
-* Fixed minor typos in the documentation.
-* Fixed synchronization issues with MPI runs when saving states.
-* Resolved encoding issues when installing in Windows editable mode.
-* Corrected result folder naming in GPU example `002`.
+
+* Fixed crash in GPU memory pinning and added `to_gpu()` routine for reliable field transfer.
+* Fixed axis allocation in grid and tensors `inspect()`.
+* Fixed robustness of `load_results()` to ensure trailing slash consistency and automatic loading of simulated wakelength.
+* Corrected transverse impedance save to logfile.
+* Fixed synchronization in MKL backend initialization when GPU is disabled.
+* Fixed minor doc typos and link issues (e.g. WSL installation link).
+* Fixed nightly test failures caused by lowercase material names.
+
+---
 
 ## 👋👩‍💻 **New Contributors**
-* [**@mctfr**](https://github.com/mctfr) – Contributed improvements to installation instructions in the documentation.
+
+* [**@Antoniahuber**](https://github.com/Antoniahuber) — Implemented geometry unit extraction, STL scaling, material normalization, and related tests.  
+* [**@Elleanor-Lamb**](https://github.com/Elleanor-Lamb) — Updated documentation for HTCondor and GPU installation.  
+
+---
 
 ## 📝 **Full changelog**
-`git log v0.5.1... --date=short --pretty=format:"* %ad %d %s (%aN)" | copy`
 
-|   **78 commits**   | 📚 Docs | 🧪 Tests | 🐛 Fixes | 🎨 Style | ✨ Features | Other |
-|----------------|---------|----------|-----------|------------|--------------| ----- |
-| % of Commits   | 30.3%   | 10.5%    | 9.2%     | 10.5%      | 22.4%        |  17.1     |
+| **83 commits** | 📚 Docs | 🧪 Tests | 🐛 Fixes | 🎨 Style | ✨ Features | Other |
+|-----------------|---------|----------|-----------|------------|--------------|-------|
+| % of Commits    | 26.5%   | 10.8%    | 9.6%      | 8.4%       | 35.0%        | 9.7%  |
 
 
-* 2025-05-27  (HEAD -> main, origin/main, origin/HEAD) docs: add docstrings for `mpi_gather` and `mpi_gather_asField` (elenafuengar)
-* 2025-05-26  tests: fix mpi folder creation issues (elenafuengar)
-* 2025-05-23  tests: only allowed 2 procs per CI workflow... (elenafuengar)
-* 2025-05-23  tests: reduce MPI pipeline to only 007 (elenafuengar)
-* 2025-05-23  fix: update run workflow name (elenafuengar)
-* 2025-05-23  tests: add MPI CI/CD on manual py3.10 (elenafuengar)
-* 2025-05-23  test: add 007 to pytest pipeline (elenafuengar)
-* 2025-05-22  style: remove duplicates, prepare for release (elenafuengar)
-* 2025-05-23  tests: passing 007 for single core and mpiexec! (elenafuengar)
-* 2025-05-19  fix: nightly test report fix (elenafuengar)
-* 2025-05-14  style: move mpl.plt import (elenafuengar)
-* 2025-05-13  docs: update release draft, prepare for deployment (elenafuengar)
-* 2025-05-09  feature: multiGPU working (Ubuntu) -but needs optimization (elenafuengar)
-* 2025-05-09  style: revise GPU example 002, fix folder result name (Elena De La Fuente Garcia)
-* 2025-05-09  build: fix encoding when installing editable in Windows (Elena De La Fuente Garcia)
-* 2025-05-08  docs: add miniforge (Windows/Linux) to python installation guide (elenafuengar)
-* 2025-05-08  docs: fix reference typo (elenafuengar)
-* 2025-05-07  feature: support `save_state` for MPI runs (elenafuengar)
-* 2025-05-06  docs: fix few mistakes spotted after RTD deployment (elenafuengar)
-* 2025-05-06  docs: minor changes to adapt to the physics guide content (elenafuengar)
-* 2025-05-06  docs: revised physics guide, `make html` passed (elenafuengar)
-* 2025-05-05  docs: first version of physics guide (elenafuengar)
-* 2025-05-02  feat: new example for MPI+GPU simulation (in progress) (elenafuengar)
-* 2025-04-29  docs: update installation with MPI-GPU findings (elenafuengar)
-* 2025-04-24  Update README.md (Elena de la Fuente García)
-* 2025-04-24  Create SECURITY.md (Elena de la Fuente García)
-* 2025-04-24  Update and rename feature-request-💡.md to feature-request.md (Elena de la Fuente García)
-* 2025-04-24  Update bug-report.md (Elena de la Fuente García)
-* 2025-04-24  Update and rename bug-report-🐛.md to bug-report.md (Elena de la Fuente García)
-* 2025-04-24  Update and rename 💡feature-request-.md to feature-request-💡.md (Elena de la Fuente García)
-* 2025-04-24  Add issue templates (bug & feature) (Elena de la Fuente García)
-* 2025-04-09  docs: small typo in readme (Elena de la Fuente García)
-* 2025-04-07  docs: update readme with playground contents (elenafuengar)
-* 2025-04-02  build: update release draft version to 0.6.0 (elenafuengar)
-* 2025-04-02  tests: add MPI test files and test script in progress (elenafuengar)
-* 2025-04-02  build: add neffint, iddefix and bihc as dependencies (elenafuengar)
-* 2025-04-02  style: fix results folder and plot kwargs (elenafuengar)
-* 2025-03-29  docs: update release.md (elenafuengar)
-* 2025-03-29  docs: small typo (elenafuengar)
-* 2025-03-27  style: revised notebook 004, in particular the iddefix extrapolation (elenafuengar)
-* 2025-03-27  feature: include wakefield simulation in example 003 (elenafuengar)
-* 2025-03-27  docs: fix sidebar TOC in conf.py, add TOC to installation and user guide, minor fixes (elenafuengar)
-* 2025-03-27  feature: add wakefield simulation to MPI example and extrapolation to fully decayed (elenafuengar)
-* 2025-03-27  feature: MPI wakefield simulation with `solver.wakesolve` is now working (elenafuengar)
-* 2025-03-27  docs: update MPI installation after testing on imp machines (elenafuengar)
-* 2025-03-27  docs: fix in `index.md` for missing logo (elenafuengar)
-* 2025-03-26  docs: prepare v0.5.2 release (elenafuengar)
-* 2025-03-26  feature: support for MPI in `wakesolve` in progress + refact: wakesolve saves now all longitudinal values, `skip_cells` will only be applied inside `WakeSolver`. `add_space` and `use_edt` kept for legacy (elenafuengar)
-* 2025-03-26  test: adjust tes_001 to `WakeSolver` refactor in previous commit (elenafuengar)
-* 2025-03-26  fix: add `if` statement in wake potential calculation to catch rounding errors (profiler indicates only 0.1ns overhead) + refact: `add_space` now deprecated for `skip_cells'. This parameter now adjusts the slicing of z instead of modyfing zmin and zmax, since `solver.wakesolve` will now save all the longitudinal data (elenafuengar)
-* 2025-03-26  fix: typo in `solver.z.min()` (elenafuengar)
-* 2025-03-25  fix: change default to False for MPI (elenafuengar)
-* 2025-03-21  feature: notebook 005 containing working MPI example using `ipyparallel` and `mpi4py`, using MPI methods inside `Grid` and `Solver`. Beautiful <3 (elenafuengar)
-* 2025-03-21  feature: working MPI script for an electromagnetic simulation, using new MPI methods inside Grid and Solver (elenafuengar)
-* 2025-03-21  style: change BCs for MPI subdmains to `mpi` for code readability (elenafuengar)
-* 2025-03-21  feature: MPI implementation in SolverFIT3D, with `mpi_one_step()` to perform MPI leapfrog update, `mpi_communicate()` to send/recv information between mpisubdomains, `mpi_gather()` to retrieve the global field as a np.array for the specific x,y,z and componen, and `mpi_gather_asField()` to retrieve the global field as a `Field` instance (elenafuengar)
-* 2025-03-21  feature: MPI implementation in GridFIT3D inside __init__, with `mpi_initialize()` to generate the z-subdomains and `mpi_gather_asGrid()` to retrieve the global grid (elenafuengar)
-* 2025-03-21  fix: error handling for `plot3D` and `plot3DonSTL` when `use_mpi = True` -not supported (elenafuengar)
-* 2025-03-21  feature: support for MPI and non-MPI inside `plot1D` -input script agnostic! (elenafuengar)
-* 2025-03-21  feature: support for MPI and non MPI plots in Plot2D (elenafuengar)
-* 2025-03-21  refactor: include MPI support inside `uptade()` (elenafuengar)
-* 2025-03-21  style: remove check for component Abs, using __getitem__ supported key (elenafuengar)
-* 2025-03-20  feature: support key[3] = 'abs' or 'Abs' in __getitem__ (elenafuengar)
-* 2025-03-20  feature: update script to use MPI functions inside solver (elenafuengar)
-* 2025-03-20  feature: include MPI functions inside solver to run MPI simulations with `mpi4py` and openmpi (elenafuengar)
-* 2025-03-19  refact: change MPI update to use global ZMIN when solver hassattr, add plot(t) function (elenafuengar)
-* 2025-03-18  Merge pull request #11 from mctfr/patch-1 (Elena de la Fuente García)
-* 2025-03-18  Update installation.md (Manuel Cotelo Ferreiro)
-* 2025-03-18  docs: revise docstrings (elenafuengar)
-* 2025-03-18  docs: major revision of user guide, update index and installation guide to include MPI setup (elenafuengar)
-* 2025-03-16  docs: update README & citation (elenafuengar)
-* 2025-03-14  docs: add PR template (elenafuengar)
-* 2025-03-13  fix: update default injection time to account for beta (elenafuengar)
-* 2025-03-13  feature: add `dpi` and `return_handles` as kwargs (elenafuengar)
+`git log v0.6.0...v0.6.1 --date=short --pretty=format:"* %ad %d %s (%aN)*
+
+
+* 2025-11-04  test: added action to trigger tests on PR open or sync (elenafuengar)
+* 2025-11-04  Allow lists as color inputs --> merge #28 from Antoniahuber/main (Elena de la Fuente García)
+* 2025-11-03  Allow lists as color inputs (Antonia Huber)
+* 2025-10-31  feature: extract units from STEP file and scale the generated STL geometry to be in meters --> Merge pull request #27 from Antoniahuber/main (Elena de la Fuente García)
+* 2025-10-31  Added possibility to give a filepath to stl-files (Antonia Huber)
+* 2025-10-31  Merge pull request #1 from Antoniahuber/Documentation-Change-geometry Scale units function (Antoniahuber)
+* 2025-10-31  units Test (Antoniahuber)
+* 2025-10-31  Update test_006_geometry_utils.py (Antoniahuber)
+* 2025-10-30  Test for units function (Antoniahuber)
+* 2025-10-30  Merge branch 'ImpedanCEI:main' into Documentation-Change-geometry (Antoniahuber)
+* 2025-10-30  bugfix: fixing nightly test failing after lowercase fix --> merge #26 from Antoniahuber/main (Elena de la Fuente García)
+* 2025-10-30  lowercaseInRightFunction.py (Antoniahuber)
+* 2025-10-30  Merge branch 'ImpedanCEI:main' into main (Antoniahuber)
+* 2025-10-30  Test function for lowercase materials (Antoniahuber)
+* 2025-10-28  bugfix: ensure material in lower case + docs: minor fixes #20 (Elena de la Fuente García)
+* 2025-10-28  Update geometry.py (Antoniahuber)
+* 2025-10-21  Recognize unit in .stp file, completed docstring, converts materialnames to lowercase (Antoniahuber)
+* 2025-10-20  Import materials from .stp in lowercase (Antoniahuber)
+* 2025-10-20  Added commas in usersguide (Antoniahuber)
+* 2025-10-17  style: simplify feature request template (elenafuengar)
+* 2025-10-17  style: simplify issue template (elenafuengar)
+* 2025-09-26  style: added call to `inspect3D`, allowing to visualize interactively in 3d the material tensors or electromagnetic fields (elenafuengar)
+* 2025-09-26  feature: enhance inspect3D method to support interactive visualization with PyVista and Matplotlib backends (elenafuengar)
+* 2025-09-26  feature: fix slider rendering to save the slider bounds after every callback (elenafuengar)
+* 2025-09-25  style: add new plot_stl_mask method to the notebook (elenafuengar)
+* 2025-09-25  feature: `plot_stl_mask` to show the cells occupied by a certain solid in the computational domain. The plot is interactive with 3 sliders in x, y, z (elenafuengar)
+* 2025-09-22  WIP: gradient based extraction of solid boundaries for SIBC (elenafuengar)
+* 2025-08-20  feature: load wakelength attr when using load_results -needed for extrapolation (elenafuengar)
+* 2025-08-20  docs: update multi-gpu from notebooks guide (elenafuengar)
+* 2025-08-20  fix: add flag not on GPU for the MKL backend (elenafuengar)
+* 2025-08-20  style: include results in notebook 005, run on multi-gpu (elenafuengar)
+* 2025-08-14  style: revision of notebook 005, added lines for multi-GPU, use iddefix wrappers for extrapolation (elenafuengar)
+* 2025-08-14  docs: add MKL installation and customization instructions (elenafuengar)
+* 2025-08-13  tests: retrieve num sockets and cores from lscpu for omp num threads + mem. pinning via KMP affinity (elenafuengar)
+* 2025-08-13  tests: add MKL vs scipy test (elenafuengar)
+* 2025-08-13  docs: add SWAN badge and tutorial repo to readme (elenafuengar)
+* 2025-08-12  refact: one_step routine to private, GPU/CPU share same routine (elenafuengar)
+* 2025-08-12  feature: adding MKL backend, refact:one_step routine assignment handled inside __init__ (elenafuengar)
+* 2025-08-12  feature: WIP on-the-fly wake potential calculation (elenafuengar)
+* 2025-08-12  build: compatibility with numpy2.0+ (elenafuengar)
+* 2025-08-12  refactor: one_step func assignment is handled inside solverFIT3D (elenafuengar)
+* 2025-08-12  fix: bug in `to_gpu()` routine, bug in `inspect()` when allocating the axes, enforcing memory pinning in `fromarray()` (elenafuengar)
+* 2025-08-08  feature: speedup by avoiding sparse diag operations during timestepping (elenafuengar)
+* 2025-08-08  feature: Add number of threads env variable for MKL backend (elenafuengar)
+* 2025-08-08  feature: MKL backend working and added to routines -will be used if it can be imported (elenafuengar)
+* 2025-08-08  feature: WIP, explore multithreaded sparsemat-vec operation using MKL backend for scipy (elenafuengar)
+* 2025-08-08  feature: add option for grid plotting offscreen for headless-servers. It exports the scene to html file instead (elenafuengar)
+* 2025-08-05  test: implementing the 2-timestep ABC BCs and testing with against a planewave (WIP) (elenafuengar)
+* 2025-08-05  fix: allow to pass custom transverse slices to WavePacket (elenafuengar)
+* 2025-08-05  feature: add `callback` arg that allows to pass a custom function in the form fun(solver, t) right after the timestep update (elenafuengar)
+* 2025-08-04  feature: ABC boundaries implemented in the `emsolve` routine for testing (elenafuengar)
+* 2025-08-04  feature: WIP updated version of the ABC boundaries (elenafuengar)
+* 2025-07-25  feature: data type tracking to enable passing desired precision to solverFIT3D constructor -> support for single-precision simulations! (elenafuengar)
+* 2025-07-25  fix: add extra check for field on gpu when calling inspect (elenafuengar)
+* 2025-07-25  tests: update 006 to new key naming convention (elenafuengar)
+* 2025-07-23  feature: working simlation with mesh refinement -WIP (elenafuengar)
+* 2025-07-23  style: revision of 004 notebook (elenafuengar)
+* 2025-07-23  feature: improved STEP file parsing to avoid buffering the stp file but instead regex line-by-line (elenafuengar)
+* 2025-07-23  fix: make load_results func more robust by adding end slash if the name does not end with it (elenafuengar)
+* 2025-07-22  feature: recalculate mesh spacing after refinement to improve cfl stability + WIP notebook 006 (elenafuengar)
+* 2025-07-22  feature: add notebook 006 to showcase/test mesh refinement (WIP) (elenafuengar)
+* 2025-07-22  feature: mesh refinement bug fixes, got first simulation running! (elenafuengar)
+* 2025-07-22  feature: used newly implemented IDDEFIX wrapper functions to extrapolated the simulated wake (elenafuengar)
+* 2025-07-22  refact: splitted DE model fitting and added new functions to retrieve extrapolated wake potential, function and impedance -applying convention and unit changes to be consistent with Wakis/CST (elenafuengar)
+* 2025-07-22  feature: finalized first version of mesh refinement (elenafuengar)
+* 2025-07-22  docs: emphazise on inputs units - Wakis always uses SI base units (elenafuengar)
+* 2025-07-22  Merge pull request #17 from elleanor-lamb/gpu_docs_update (Elena de la Fuente García)
+* 2025-07-22  updated docs (Elleanor Lamb)
+* 2025-07-22  updated docs for HTCondor (Elleanor Lamb)
+* 2025-07-22  feature: wrapping function for easy wake extrapolation using IDDEFIX (elenafuengar)
+* 2025-07-22  fix: bug in transverse impedance save to logfile (elenafuengar)
+* 2025-07-15  docs: minor fizes in physics guide and releases (elenafuengar)
+* 2025-07-03  fix: broken link for WSL installation (elenafuengar)
+* 2025-06-30  docs: add release notes to docs and modify index (elenafuengar)
+* 2025-06-30  feature: first steps towards smart snappy grid (elenafuengar)
+* 2025-06-19  build: upgrade PyVista version to enable use of | (union) operator for CSG modelling (elenafuengar)
+* 2025-06-20  feat: add error handling for Nz<N_mpi_proc + more verbose output about MPI domain splitting (elenafuengar)
+* 2025-06-11  docs: polish installatio guide for Windows (elenafuengar)
+* 2025-06-05  docs: add CSG geometry to the users guide + pyvista code snippet (elenafuengar)
+* 2025-05-27  docs: update README with v0.6.0 features and DOI (elenafuengar)

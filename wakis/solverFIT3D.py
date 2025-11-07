@@ -24,6 +24,12 @@ try:
 except ImportError:
     imported_cupyx = False
 
+try:
+    from sparse_dot_mkl import csr_matrix as mkl_sparse_mat, dot_product_mkl
+    imported_mkl = True
+except ImportError:
+    imported_mkl = False
+
 
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
@@ -31,7 +37,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
-                 use_gpu=False, use_mpi=False,
+                 use_gpu=False, use_mpi=False, dtype=np.float64,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver 
@@ -91,6 +97,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Flags
         self.step_0 = True
+        self.nstep = int(0)
         self.plotter_active = False
         self.use_conductors = use_conductors
         self.use_stl = use_stl
@@ -99,7 +106,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.activate_abc = False        # Will turn true if abc BCs are chosen
         self.activate_pml = False        # Will turn true if pml BCs are chosen
         self.use_conductivity = False    # Will turn true if conductive material or pml is added
-
+        self.imported_mkl = imported_mkl # Use MKL backend when available
+        self.one_step = self._one_step
         if use_stl:
             self.use_conductors = False
 
@@ -128,14 +136,16 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.wake = wake
 
         # Fields
-        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
-        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
-        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu)
+        self.dtype = dtype
+        self.E = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
+        self.H = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
+        self.J = Field(self.Nx, self.Ny, self.Nz, use_gpu=self.use_gpu, dtype=self.dtype)
 
         # MPI init
         if self.use_mpi:
             if self.grid.use_mpi: 
                 self.mpi_initialize()
+                self.one_step = self.mpi_one_step
             else:
                 print('*** Grid not subdivided for MPI, set `use_mpi`=True also in `GridFIT3D` to enable MPI')
             
@@ -147,19 +157,19 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.Pz = diags([-1, 1], [0, self.Nx*self.Ny], shape=(N, N), dtype=np.int8)
 
         # original grid
-        self.Ds = diags(self.L.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDa = diags(self.iA.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.Ds = diags(self.L.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.iDa = diags(self.iA.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         # tilde grid
-        self.tDs = diags(self.tL.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.itDa = diags(self.itA.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.tDs = diags(self.tL.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.itDa = diags(self.itA.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         # Curl matrix
         self.C = vstack([
                             hstack([sparse_mat((N,N)), -self.Pz, self.Py]),
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
-                        ])
+                        ], dtype=np.int8)
                 
         # Boundaries
         if verbose: print('Applying boundary conditions...')
@@ -178,9 +188,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.eps_bg, self.mu_bg, self.sigma_bg = bg[0]*eps_0, bg[1]*mu_0, 0.0
 
-        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.eps_bg) 
-        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*(1./self.mu_bg) 
-        self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True)*self.sigma_bg
+        self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.eps_bg) 
+        self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.mu_bg) 
+        self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
 
         if self.use_stl:
             self.apply_stl()
@@ -201,7 +211,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
         else:
             self.dt = dt
-        
+        self.dt = dtype(self.dt)
+
         if self.use_conductivity: # relaxation time criterion tau
 
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
@@ -215,21 +226,27 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Pre-computing
         if verbose: print('Pre-computing...') 
-        self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=float)
-        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=float)
+        self.iDeps = diags(self.ieps.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
+        self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         
+        if imported_mkl and not self.use_gpu: # MKL backend for CPU
+            print('Using MKL backend for time-stepping...')
+            self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
+            self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
+            self.one_step = self.one_step_mkl
+
         # Move to GPU
         if use_gpu:
             if verbose: print('Moving to GPU...') 
             if imported_cupyx:
                 self.tDsiDmuiDaC = gpu_sparse_mat(self.tDsiDmuiDaC)
                 self.itDaiDepsDstC = gpu_sparse_mat(self.itDaiDepsDstC)
-                self.iDeps = gpu_sparse_mat(self.iDeps)
-                self.Dsigma = gpu_sparse_mat(self.Dsigma)
+                self.ieps.to_gpu()
+                self.sigma.to_gpu()
             else:
                 raise ImportError('*** cupyx could not be imported, please check CUDA installation')
 
@@ -250,23 +267,22 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.verbose: print(f'Re-computing tensor "{tensor}"...') 
 
         if tensor == 'ieps': 
-            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor =='imu':
-            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor == 'sigma':
-            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
         elif tensor == 'all':
-            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
-            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=float)
+            self.iDeps = diags(self.ieps.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
+            self.iDmu = diags(self.imu.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
+            self.Dsigma = diags(self.sigma.toarray(), shape=(3*self.N, 3*self.N), dtype=self.dtype)
 
         if self.verbose: print('Re-Pre-computing ...') 
         self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C 
         self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
         self.step_0 = False
 
-    def one_step(self):
-
+    def _one_step(self):
         if self.step_0:
             self.set_ghosts_to_0()
             self.step_0 = False
@@ -277,18 +293,34 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                          )
      
         self.E.fromarray(self.E.toarray() +
-                         self.dt*(self.itDaiDepsDstC * self.H.toarray() 
-                                  - self.iDeps*self.J.toarray()
+                         self.dt*(self.itDaiDepsDstC*self.H.toarray() 
+                                  - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
         
         #include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(self.Dsigma*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
+
+    def one_step_mkl(self):
+        if self.step_0:
+            self.set_ghosts_to_0()
+            self.step_0 = False
+            self.attrcleanup()
+
+        self.H.fromarray(self.H.toarray() -
+                         self.dt*dot_product_mkl(self.tDsiDmuiDaC,self.E.toarray())
+                         )
      
-        #update ABC
-        if self.activate_abc:
-            self.update_abc()
+        self.E.fromarray(self.E.toarray() +
+                         self.dt*(dot_product_mkl(self.itDaiDepsDstC,self.H.toarray()) 
+                                  - self.ieps.toarray()*self.J.toarray()
+                                  )
+                         )
+        
+        #include current computation                 
+        if self.use_conductivity:
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
     def mpi_initialize(self):
         self.comm = self.grid.comm
@@ -314,16 +346,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.mpi_communicate(self.J)
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray() 
-                                  - self.iDeps*self.J.toarray()
+                                  - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
 
         self.mpi_communicate(self.E)
         # include current computation                 
         if self.use_conductivity:
-            self.J.fromarray(self.Dsigma*self.E.toarray())
-
-        # update ABC - not supported for MPI
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
     def mpi_communicate(self, field):
         if self.use_gpu:
@@ -763,8 +793,57 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                     self.sigma[:, :, -k, d] = sz[-k]
                     #self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.n_pml:])*eps_0)
 
+    def get_abc(self):
+        '''
+        Save the n-2 timestep to apply ABC 
+        '''
+        E_abc, H_abc = {}, {}
 
-    def update_abc(self):
+        if self.bc_low[0].lower() == 'abc':
+            E_abc[0] = {}
+            H_abc[0] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[0][d+'lo'] = self.E[1, :, :, d]
+                H_abc[0][d+'lo'] = self.H[1, :, :, d]  
+
+        if self.bc_low[1].lower() == 'abc':
+            E_abc[1] = {}
+            H_abc[1] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[1][d+'lo'] = self.E[:, 1, :, d]
+                H_abc[1][d+'lo'] = self.H[:, 1, :, d]  
+                   
+        if self.bc_low[2].lower() == 'abc':
+            E_abc[2] = {}
+            H_abc[2] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[2][d+'lo'] = self.E[:, :, 1, d]
+                H_abc[2][d+'lo'] = self.H[:, :, 1, d]  
+
+        if self.bc_high[0].lower() == 'abc':
+            E_abc[0] = {}
+            H_abc[0] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[0][d+'hi'] = self.E[-1, :, :, d]
+                H_abc[0][d+'hi'] = self.H[-1, :, :, d]  
+
+        if self.bc_high[1].lower() == 'abc':
+            E_abc[1] = {}
+            H_abc[1] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[1][d+'hi'] = self.E[:, -1, :, d]
+                H_abc[1][d+'hi'] = self.H[:, -1, :, d]  
+                   
+        if self.bc_high[2].lower() == 'abc':
+            E_abc[2] = {}
+            H_abc[2] = {}
+            for d in ['x', 'y', 'z']:
+                E_abc[2][d+'hi'] = self.E[:, :, -1, d]
+                H_abc[2][d+'hi'] = self.H[:, :, -1, d]  
+
+        return E_abc, H_abc
+
+    def update_abc(self, E_abc, H_abc):
         '''
         Apply ABC algo to the selected BC, 
         to be applied after each timestep
@@ -772,33 +851,33 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if self.bc_low[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[0, :, :, d] = self.E[1, :, :, d]
-                self.H[0, :, :, d] = self.H[1, :, :, d]  
+                self.E[0, :, :, d] = E_abc[0][d+'lo']
+                self.H[0, :, :, d] = H_abc[0][d+'lo']  
 
         if self.bc_low[1].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, 0, :, d] = self.E[:, 1, :, d]
-                self.H[:, 0, :, d] = self.H[:, 1, :, d]
+                self.E[:, 0, :, d] = E_abc[1][d+'lo']
+                self.H[:, 0, :, d] = H_abc[1][d+'lo'] 
                    
         if self.bc_low[2].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, :, 0, d] = self.E[:, :, 1, d]
-                self.H[:, :, 0, d] = self.H[:, :, 1, d]  
+                self.E[:, :, 0, d] = E_abc[2][d+'lo']
+                self.H[:, :, 0, d] = H_abc[2][d+'lo']   
 
         if self.bc_high[0].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[-1, :, :, d] = self.E[-1, :, :, d]
-                self.H[-1, :, :, d] = self.H[-1, :, :, d] 
+                self.E[-1, :, :, d] = E_abc[0][d+'hi']
+                self.H[-1, :, :, d] = H_abc[0][d+'hi']
 
         if self.bc_high[1].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, -1, :, d] = self.E[:, -1, :, d]
-                self.H[:, -1, :, d] = self.H[:, -1, :, d] 
+                self.E[:, -1, :, d] = E_abc[1][d+'hi']
+                self.H[:, -1, :, d] = H_abc[1][d+'hi']
 
         if self.bc_high[2].lower() == 'abc':
             for d in ['x', 'y', 'z']:
-                self.E[:, :, -1, d] = self.E[:, :, -1, d]
-                self.H[:, :, -1, d] = self.H[:, :, -1, d] 
+                self.E[:, :, -1, d] = E_abc[2][d+'hi']
+                self.H[:, :, -1, d] = H_abc[2][d+'hi'] 
 
     def set_ghosts_to_0(self):
         '''
