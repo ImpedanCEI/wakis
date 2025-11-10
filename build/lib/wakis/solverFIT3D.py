@@ -17,7 +17,6 @@ from .field import Field
 from .materials import material_lib
 from .plotting import PlotMixin
 from .routines import RoutinesMixin
-from .logger import Logger
 
 try:
     from cupyx.scipy.sparse import csc_matrix as gpu_sparse_mat
@@ -34,7 +33,7 @@ except ImportError:
 
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
-    def __init__(self, grid, wake=None, logger=None, cfln=0.5, dt=None,
+    def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
@@ -94,15 +93,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         '''
 
         self.verbose = verbose
-        
-        t0 = time.time()
-        solver_logs = {}
-        solver_logs["use_gpu"] = use_gpu
-        solver_logs["use_mpi"] = use_mpi
-        solver_logs["bc_low"] = bc_low
-        solver_logs["bc_high"] = bc_high
-        solver_logs["n_pml"] = n_pml
-        solver_logs["bg"] = bg
+        if verbose:  t0 = time.time()
 
         # Flags
         self.step_0 = True
@@ -222,8 +213,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.dt = dt
         self.dt = dtype(self.dt)
 
-        solver_logs["dt"] = self.dt
-
         if self.use_conductivity: # relaxation time criterion tau
 
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
@@ -262,11 +251,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 raise ImportError('*** cupyx could not be imported, please check CUDA installation')
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
-
-        solver_logs["solverInitializationTime"] = time.time() - t0
-
-        if logger is not None:
-            logger.assign_solver_logs(solver_logs)
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after 
