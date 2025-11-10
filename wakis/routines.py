@@ -7,8 +7,8 @@ import numpy as np
 import h5py
 from tqdm import tqdm
 from scipy.constants import c as c_light
-
 from wakis.sources import Beam
+from wakis.field_monitors import FieldMonitor
 
 class RoutinesMixin():
 
@@ -162,6 +162,8 @@ class RoutinesMixin():
                   plot=False, plot_from=None, plot_every=1, plot_until=None,
                   save_J=False, 
                   add_space=None, #for legacy
+                  use_field_monitor=False,
+                  field_monitor=None,
                   use_edt=None, #deprecated 
                   **kwargs):
         '''
@@ -189,6 +191,10 @@ class RoutinesMixin():
             Can be passed at `Solver()` instantiation as parameter too.
         save_J: bool, default False
             Flag to enable saving the current J in a diferent HDF5 file 'Jz.h5'
+        use_field_monitor: bool, default False
+            Flag to enable monitoring the field monitor during simulation.
+        field_monitor: FieldMonitor class
+
         plot: bool, default False
             Flag to enable 2D plotting
         plot_every: int
@@ -303,7 +309,10 @@ class RoutinesMixin():
             
             # Advance
             self.one_step()
-            
+
+            if use_field_monitor and field_monitor is not None:
+                field_monitor.update(self.E, self.dt)
+
             # Plot
             if plot:
                 if n%plot_every == 0 and n<plot_until and n>plot_from:
@@ -332,5 +341,3 @@ class RoutinesMixin():
             # Compute wakefield magnitudes is done inside WakeSolver
             self.wake.solve(compute_plane=compute_plane)
             
-        
-        
