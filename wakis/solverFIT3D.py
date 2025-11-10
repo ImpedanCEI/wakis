@@ -34,7 +34,7 @@ except ImportError:
 
 class SolverFIT3D(PlotMixin, RoutinesMixin):
 
-    def __init__(self, grid, wake=None, logger=None, cfln=0.5, dt=None,
+    def __init__(self, grid, wake=None, cfln=0.5, dt=None,
                  bc_low=['Periodic', 'Periodic', 'Periodic'],
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False, 
@@ -94,15 +94,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         '''
 
         self.verbose = verbose
-        
         t0 = time.time()
-        solver_logs = {}
-        solver_logs["use_gpu"] = use_gpu
-        solver_logs["use_mpi"] = use_mpi
-        solver_logs["bc_low"] = bc_low
-        solver_logs["bc_high"] = bc_high
-        solver_logs["n_pml"] = n_pml
-        solver_logs["bg"] = bg
 
         # Flags
         self.step_0 = True
@@ -122,7 +114,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Grid 
         self.grid = grid
-
+        bg_log = bg
         self.Nx = self.grid.Nx
         self.Ny = self.grid.Ny
         self.Nz = self.grid.Nz
@@ -222,8 +214,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.dt = dt
         self.dt = dtype(self.dt)
 
-        solver_logs["dt"] = self.dt
-
         if self.use_conductivity: # relaxation time criterion tau
 
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
@@ -263,10 +253,17 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
-        solver_logs["solverInitializationTime"] = time.time() - t0
-
-        if logger is not None:
-            logger.assign_solver_logs(solver_logs)
+        # assign logs
+        self.logger = Logger()
+        self.logger.grid_logs = self.grid.logger.grid_logs
+        self.logger.solver_logs["use_gpu"] = use_gpu
+        self.logger.solver_logs["use_mpi"] = use_mpi
+        self.logger.solver_logs["bc_low"] = bc_low
+        self.logger.solver_logs["bc_high"] = bc_high
+        self.logger.solver_logs["n_pml"] = n_pml
+        self.logger.solver_logs["bg"] = bg_log
+        self.logger.solver_logs["dt"] = self.dt
+        self.logger.solver_logs["solverInitializationTime"] = time.time() - t0
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after 

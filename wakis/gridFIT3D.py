@@ -7,8 +7,10 @@ import numpy as np
 import pyvista as pv
 from functools import partial
 from scipy.optimize import least_squares
+import time
 
 from .field import Field
+from .logger import Logger
 
 try:
     from mpi4py import MPI
@@ -63,6 +65,7 @@ class GridFIT3D:
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
                 stl_colors=None, verbose=1, stl_tol=1e-3):
         
+        t0 = time.time()
         if verbose: print('Generating grid...')
         self.verbose = verbose
         self.use_mpi = use_mpi
@@ -142,6 +145,24 @@ class GridFIT3D:
             self.mark_cells_in_stl()
             if stl_colors is None:
                 self.assign_colors()
+
+        # Forward Parameters to logger
+        self.logger = Logger()
+        self.logger.grid_logs["Nx"] = self.Nx
+        self.logger.grid_logs["Ny"] = self.Ny
+        self.logger.grid_logs["Nz"] = self.Nz
+        self.logger.grid_logs["dx"] = self.dx
+        self.logger.grid_logs["dy"] = self.dy
+        self.logger.grid_logs["dz"] = self.dz
+        self.logger.grid_logs["stl_solids"] = list(self.stl_solids.values()) if self.stl_solids is not None else []
+        self.logger.grid_logs["stl_materials"] = list(self.stl_materials.values()) if self.stl_materials is not None else []
+        if stl_rotate != [0., 0., 0.]:
+            self.logger.grid_logs["stl_rotate"] = self.stl_rotate
+        if stl_translate != [0., 0., 0.]:
+            self.logger.grid_logs["stl_translate"] = self.stl_translate
+        if stl_scale != 1.0:
+            self.logger.grid_logs["stl_scale"] = self.stl_scale
+        self.logger.grid_logs["gridInitializationTime"] = time.time()-t0            
 
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')

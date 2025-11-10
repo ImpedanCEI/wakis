@@ -99,7 +99,7 @@ class TestPecCubicCavity:
         skip_cells = 12  # no. cells to skip in WP integration
         wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta, 
                     xsource=xs, ysource=ys, xtest=xt, ytest=yt,
-                    save=False, logfile=False, Ez_file='tests/001_Ez.h5',
+                    save=False, Ez_file='tests/001_Ez.h5',
                     skip_cells=skip_cells,
                     )
 
