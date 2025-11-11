@@ -173,17 +173,17 @@ class WakeSolver():
             self.params_to_log()
 
         # Forward parameters to logger
-        self.logger.wakeSolver_logs["ti"]=self.ti
-        self.logger.wakeSolver_logs["q"]=self.q
-        self.logger.wakeSolver_logs["sigmaz"]=self.sigmaz
-        self.logger.wakeSolver_logs["beta"]=self.beta
-        self.logger.wakeSolver_logs["xsource"]=self.xsource
-        self.logger.wakeSolver_logs["ysource"]=self.ysource
-        self.logger.wakeSolver_logs["xtest"]=self.xtest
-        self.logger.wakeSolver_logs["ytest"]=self.ytest
-        self.logger.wakeSolver_logs["chargedist"]=self.chargedist
-        self.logger.wakeSolver_logs["skip_cells"]=self.skip_cells
-        self.logger.wakeSolver_logs["results_folder"]=self.folder
+        self.logger.wakeSolver["ti"]=self.ti
+        self.logger.wakeSolver["q"]=self.q
+        self.logger.wakeSolver["sigmaz"]=self.sigmaz
+        self.logger.wakeSolver["beta"]=self.beta
+        self.logger.wakeSolver["xsource"]=self.xsource
+        self.logger.wakeSolver["ysource"]=self.ysource
+        self.logger.wakeSolver["xtest"]=self.xtest
+        self.logger.wakeSolver["ytest"]=self.ytest
+        self.logger.wakeSolver["chargedist"]=self.chargedist
+        self.logger.wakeSolver["skip_cells"]=self.skip_cells
+        self.logger.wakeSolver["results_folder"]=self.folder
 
     def solve(self, compute_plane=None, **kwargs):
         '''
