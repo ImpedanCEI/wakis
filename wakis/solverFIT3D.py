@@ -255,7 +255,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # assign logs
         self.logger = Logger()
-        self.logger.grid = self.grid.logger.grid_logs
+        self.logger.grid = self.grid.logger.grid
         self.logger.solver["use_gpu"] = use_gpu
         self.logger.solver["use_mpi"] = use_mpi
         self.logger.solver["bc_low"] = bc_low
