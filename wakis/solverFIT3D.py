@@ -114,7 +114,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Grid 
         self.grid = grid
-        bg_log = bg
+        bgLog = bg
         self.Nx = self.grid.Nx
         self.Ny = self.grid.Ny
         self.Nz = self.grid.Nz
@@ -255,15 +255,15 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # assign logs
         self.logger = Logger()
-        self.logger.grid_logs = self.grid.logger.grid_logs
-        self.logger.solver_logs["use_gpu"] = use_gpu
-        self.logger.solver_logs["use_mpi"] = use_mpi
-        self.logger.solver_logs["bc_low"] = bc_low
-        self.logger.solver_logs["bc_high"] = bc_high
-        self.logger.solver_logs["n_pml"] = n_pml
-        self.logger.solver_logs["bg"] = bg_log
-        self.logger.solver_logs["dt"] = self.dt
-        self.logger.solver_logs["solverInitializationTime"] = time.time() - t0
+        self.logger.grid = self.grid.logger.grid_logs
+        self.logger.solver["use_gpu"] = use_gpu
+        self.logger.solver["use_mpi"] = use_mpi
+        self.logger.solver["bc_low"] = bc_low
+        self.logger.solver["bc_high"] = bc_high
+        self.logger.solver["n_pml"] = n_pml
+        self.logger.solver["bg"] = bg_log
+        self.logger.solver["dt"] = self.dt
+        self.logger.solver["solverInitializationTime"] = time.time() - t0
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after 
