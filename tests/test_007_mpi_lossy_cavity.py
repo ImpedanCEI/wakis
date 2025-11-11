@@ -329,9 +329,9 @@ class TestMPILossyCavity:
     
     def test_log_file(self):
         global solver
-        solver.logger.gridLogs["gridInitializationTime"] = 0 #times can vary
-        solver.logger.solverLogs["solverInitializationTime"] = 0
-        solver.logger.wakeSolverLogs["simulationTime"] = 0
+        solver.logger.grid["gridInitializationTime"] = 0 #times can vary
+        solver.logger.solver["solverInitializationTime"] = 0
+        solver.logger.wakeSolver["simulationTime"] = 0
         logfile = os.path.join(solver.logger.wakeSolverLogs["results_folder"], "Simulation_Parameters.log")
         assert os.path.exists(logfile), "Log file not created"
         assert solver.logger.grid == self.gridLogs, "Grid logs do not match expected values"
