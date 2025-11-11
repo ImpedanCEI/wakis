@@ -344,7 +344,7 @@ class RoutinesMixin():
             self.wake.solve(compute_plane=compute_plane)
         
         # Forward parameters to logger
-        self.logger.wakeSolver_logs=self.wake.logger.wakeSolver_logs
-        self.logger.wakeSolver_logs["wakelength"]=wakelength            
-        self.logger.wakeSolver_logs["simulationTime"]=time.time()-t0
+        self.logger.wakeSolver=self.wake.logger.wakeSolver_logs
+        self.logger.wakeSolver["wakelength"]=wakelength            
+        self.logger.wakeSolver["simulationTime"]=time.time()-t0
         self.logger.save_logs()
