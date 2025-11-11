@@ -82,15 +82,15 @@ class TestMPILossyCavity:
                     -6.04105997e+01 ,-3.06532160e+01 ,-1.17749936e+01 ,-3.12574866e+00,
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
-    grid_logs = {'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.008666666348775227, 'dy': 0.008666666348775227,
+    gridLogs = {'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.008666666348775227, 'dy': 0.008666666348775227,
                  'dz': 0.005714285799435207, 'stl_solids': ['tests/stl/007_vacuum_cavity.stl', 'tests/stl/007_lossymetal_shell.stl'],
                  'stl_materials': ['vacuum', [30, 1.0, 30]], 'gridInitializationTime': 0}
     
-    solver_logs = {'use_gpu': False, 'use_mpi': False, 'bc_low': ['pec', 'pec', 'pec'],
+    solverLogs = {'use_gpu': False, 'use_mpi': False, 'bc_low': ['pec', 'pec', 'pec'],
                    'bc_high': ['pec', 'pec', 'pec'], 'n_pml': 10, 'bg': 'pec',
                    'dt': 6.970326728398968e-12, 'solverInitializationTime': 0}
     
-    wakeSolver_logs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
+    wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
                        'xsource': 0.0, 'ysource': 0.0, 'xtest': 0.0, 'ytest': 0.0, 'chargedist': None,
                        'skip_cells': 10, 'results_folder': 'tests/007_results/', 'wakelength': 10.0, 'simulationTime': 0}
 
@@ -329,11 +329,11 @@ class TestMPILossyCavity:
     
     def test_log_file(self):
         global solver
-        solver.logger.grid_logs["gridInitializationTime"] = 0 #times can vary
-        solver.logger.solver_logs["solverInitializationTime"] = 0
-        solver.logger.wakeSolver_logs["simulationTime"] = 0
-        logfile = os.path.join(solver.logger.wakeSolver_logs["results_folder"], "Simulation_Parameters.log")
+        solver.logger.gridLogs["gridInitializationTime"] = 0 #times can vary
+        solver.logger.solverLogs["solverInitializationTime"] = 0
+        solver.logger.wakeSolverLogs["simulationTime"] = 0
+        logfile = os.path.join(solver.logger.wakeSolverLogs["results_folder"], "Simulation_Parameters.log")
         assert os.path.exists(logfile), "Log file not created"
-        assert solver.logger.grid_logs == self.grid_logs, "Grid logs do not match expected values"
-        assert solver.logger.solver_logs == self.solver_logs, "Solver logs do not match expected values"
-        assert solver.logger.wakeSolver_logs == self.wakeSolver_logs, "WakeSolver logs do not match expected values"
+        assert solver.logger.grid == self.gridLogs, "Grid logs do not match expected values"
+        assert solver.logger.solver == self.solverLogs, "Solver logs do not match expected values"
+        assert solver.logger.wakeSolver == self.wakeSolverLogs, "WakeSolver logs do not match expected values"
