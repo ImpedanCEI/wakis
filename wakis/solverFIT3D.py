@@ -261,7 +261,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.logger.solver["bc_low"] = bc_low
         self.logger.solver["bc_high"] = bc_high
         self.logger.solver["n_pml"] = n_pml
-        self.logger.solver["bg"] = bg_log
+        self.logger.solver["bg"] = bgLog
         self.logger.solver["dt"] = self.dt
         self.logger.solver["solverInitializationTime"] = time.time() - t0
 
