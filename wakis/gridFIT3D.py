@@ -148,21 +148,21 @@ class GridFIT3D:
 
         # Forward Parameters to logger
         self.logger = Logger()
-        self.logger.grid_logs["Nx"] = self.Nx
-        self.logger.grid_logs["Ny"] = self.Ny
-        self.logger.grid_logs["Nz"] = self.Nz
-        self.logger.grid_logs["dx"] = self.dx
-        self.logger.grid_logs["dy"] = self.dy
-        self.logger.grid_logs["dz"] = self.dz
-        self.logger.grid_logs["stl_solids"] = list(self.stl_solids.values()) if self.stl_solids is not None else []
-        self.logger.grid_logs["stl_materials"] = list(self.stl_materials.values()) if self.stl_materials is not None else []
+        self.logger.grid["Nx"] = self.Nx
+        self.logger.grid["Ny"] = self.Ny
+        self.logger.grid["Nz"] = self.Nz
+        self.logger.grid["dx"] = self.dx
+        self.logger.grid["dy"] = self.dy
+        self.logger.grid["dz"] = self.dz
+        self.logger.grid["stl_solids"] = list(self.stl_solids.values()) if self.stl_solids is not None else []
+        self.logger.grid["stl_materials"] = list(self.stl_materials.values()) if self.stl_materials is not None else []
         if stl_rotate != [0., 0., 0.]:
-            self.logger.grid_logs["stl_rotate"] = self.stl_rotate
+            self.logger.grid["stl_rotate"] = self.stl_rotate
         if stl_translate != [0., 0., 0.]:
-            self.logger.grid_logs["stl_translate"] = self.stl_translate
+            self.logger.grid["stl_translate"] = self.stl_translate
         if stl_scale != 1.0:
-            self.logger.grid_logs["stl_scale"] = self.stl_scale
-        self.logger.grid_logs["gridInitializationTime"] = time.time()-t0            
+            self.logger.grid["stl_scale"] = self.stl_scale
+        self.logger.grid["gridInitializationTime"] = time.time()-t0            
 
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
