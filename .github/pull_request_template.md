@@ -7,9 +7,9 @@
 
 ## ✅ Checklist
 - [ ] Code follows the project's style and guidelines
-- [ ] Added tests for new functionality (if applicable)
-- [ ] Updated documentation (`README.md`, `release.md`, etc.)
-- [ ] Verified that changes do not break existing functionality
+- [ ] Added tests for new functionality 
+- [ ] Updated documentation (mentioned in `docs/` or included in `examples/` and `notebooks/`)
+- [ ] Verified that changes do not break existing functionality (automatic tests passing)
 
 ## 📌 Related Issues / PRs
 <!-- Link any related issues or PRs using `#issue-number`. -->
