@@ -20,28 +20,28 @@ from scipy.sparse import diags, hstack, vstack
 class Logger():
 
     def __init__(self):
-        self.grid_logs = {}
-        self.solver_logs = {}
-        self.wakeSolver_logs = {}
+        self.grid = {}
+        self.solver = {}
+        self.wakeSolver = {}
 
     def save_logs(self):
         """
         Save all logs (grid, solver, wakeSolver) into log-file inside the results folder.
         """
-        logfile = os.path.join(self.wakeSolver_logs["results_folder"], "Simulation_Parameters.log")
+        logfile = os.path.join(self.wakeSolver["results_folder"], "Simulation_Parameters.log")
 
         # Write sections
-        if not os.path.exists(self.wakeSolver_logs["results_folder"]): 
-            os.mkdir(self.wakeSolver_logs["results_folder"])
+        if not os.path.exists(self.wakeSolver["results_folder"]): 
+            os.mkdir(self.wakeSolver["results_folder"])
         
         with open(logfile, "w", encoding="utf-8") as fh:
             fh.write("Simulation Parameters\n")
             fh.write("""=====================\n\n""")
 
             sections = [
-                ("WakeSolver Logs", self.wakeSolver_logs),
-                ("Solver Logs", self.solver_logs),
-                ("Grid Logs", self.grid_logs),
+                ("WakeSolver Logs", self.wakeSolver),
+                ("Solver Logs", self.solver),
+                ("Grid Logs", self.grid),
             ]
 
             for title, data in sections:
