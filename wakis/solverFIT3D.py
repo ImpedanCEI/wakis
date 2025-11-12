@@ -747,7 +747,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the yz plane
                 ieps_0_pml = self.ieps[self.n_pml+1, self.Ny//2, self.Nz//2, d]
                 sigma_0_pml = self.sigma[self.n_pml+1, self.Ny//2, self.Nz//2, d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for i in range(self.n_pml):
                     self.ieps[i, :, :, d] = ieps_0_pml
                     self.sigma[i, :, :, d] = sigma_0_pml + sigma_mult_pml * sx[i]
@@ -761,7 +761,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the xz plane
                 ieps_0_pml = self.ieps[self.Nx//2, self.n_pml+1, self.Nz//2, d]
                 sigma_0_pml = self.sigma[self.Nx//2, self.n_pml+1, self.Nz//2, d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for j in range(self.n_pml):
                     self.ieps[:, j, :, d] = ieps_0_pml
                     self.sigma[:, j, :, d] = sigma_0_pml + sigma_mult_pml * sy[j]
@@ -775,7 +775,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the xy plane
                 ieps_0_pml = self.ieps[self.Nx//2, self.Ny//2, self.n_pml+1, d]
                 sigma_0_pml = self.sigma[self.Nx//2, self.Ny//2, self.n_pml+1, d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for k in range(self.n_pml):
                     self.ieps[:, :, k, d] = ieps_0_pml
                     self.sigma[:, :, k, d] = sigma_0_pml + sigma_mult_pml * sz[k]
@@ -789,7 +789,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the yz plane
                 ieps_0_pml = self.ieps[-(self.n_pml+1), self.Ny//2, self.Nz//2, d]
                 sigma_0_pml = self.sigma[-(self.n_pml+1), self.Ny//2, self.Nz//2, d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for i in range(self.n_pml):
                     i +=1
                     self.ieps[-i, :, :, d] = ieps_0_pml
@@ -804,7 +804,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the xz plane
                 ieps_0_pml = self.ieps[self.Nx//2, -(self.n_pml+1), self.Nz//2, d]
                 sigma_0_pml = self.sigma[self.Nx//2, -(self.n_pml+1), self.Nz//2, d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for j in range(self.n_pml):
                     j +=1
                     self.ieps[:, -j, :, d] = ieps_0_pml
@@ -819,7 +819,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 # Take the values at the center of the xy plane
                 ieps_0_pml = self.ieps[self.Nx//2, self.Ny//2, -(self.n_pml+1), d]
                 sigma_0_pml = self.sigma[self.Nx//2, self.Ny//2, -(self.n_pml+1), d]
-                sigma_mult_pml = 1 if sigma_0_pml == 0 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for k in range(self.n_pml):
                     k +=1
                     self.ieps[:, :, -k, d] = ieps_0_pml
