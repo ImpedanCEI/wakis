@@ -136,8 +136,8 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax,
                 stl_solids=stl_solids, 
                 stl_materials=stl_materials,
                 stl_translate=stl_translate,
-                stl_scale=stl_scale
-                stl_rotate=stl_rotate
+                stl_scale=stl_scale,
+                stl_rotate=stl_rotate,
                 )
 ```
 

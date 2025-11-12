@@ -22,7 +22,7 @@ class WakeSolver():
                  chargedist=None, ti=None, 
                  compute_plane='both', skip_cells=0, add_space=None, 
                  Ez_file='Ez.h5', save=True, results_folder='results/',
-                 verbose=0, logfile=False):
+                 verbose=0, logfile=False, counter_moving=False):
         '''
         Parameters
         ----------
@@ -63,7 +63,9 @@ class WakeSolver():
             Controls the level of verbose in the terminal output
         logfile: bool, default False
             Creates a `wake.log` file with the summary of the input parameters
-            and calculations performed 
+            and calculations performed
+        counter_moving: bool, default False
+            If the test charge is moving in the same or opposite direction to the source
 
         Attributes
         ----------
@@ -122,6 +124,8 @@ class WakeSolver():
         self.skip_cells = skip_cells
         self.compute_plane = compute_plane
         self.DE_model = None
+
+        self.counter_moving = counter_moving
 
         if add_space is not None: #legacy support for add_space
             self.skip_cells = add_space
@@ -457,17 +461,28 @@ class WakeSolver():
                         Ezt[:, n] = Ez[Ez.shape[0]//2+i,Ez.shape[1]//2+j, zz]
 
                     # integral of (Ez(xtest, ytest, z, t=(s+z)/c))dz
-                    for n in range(len(s)):    
-                        for k in range(nz): 
-                            ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
-                            it = int(ts/dt)                 #find index for t
-                            if it < nt:
-                                WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
-                        
-                        pbar.update(1)
+                    if self.counter_moving:
+                        for n in range(len(s)):
+                            for k in range(nz):
+                                ts = (z[-k - 1] - s[n]) / (-1 * self.v) - zmax / (-1 * self.v) - self.t[0] + ti
+                                it = int(ts / dt)  # find index for t
+                                if it < nt:
+                                    WP[n] = WP[n] + (Ezt[-k - 1, it]) * (-1 * dz)  # compute integral
+                            pbar.update(1)
+
+
+                    else:
+                        for n in range(len(s)):
+                            for k in range(nz):
+                                ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
+                                it = int(ts / dt)  # find index for t
+                                if it < nt:
+                                    WP[n] = WP[n] + (Ezt[k, it]) * dz  # compute integral
+
+                            pbar.update(1)
 
                     WP = WP/(self.q*1e12)     # [V/pC]
-                    WP_3d[i0+i,j0+j,:] = WP 
+                    WP_3d[i0+i,j0+j,:] = WP
 
         self.s = s
         self.WP = WP_3d[i0,j0,:]
@@ -1088,6 +1103,7 @@ class WakeSolver():
         self.f, self.Z = self.read_txt(folder+'Z.txt').values()
 
         self.f = np.abs(self.f)
+        self.wakelength = self.s[-1]
         
     def copy(self):
         obj = type(self).__new__(self.__class__)
@@ -1285,3 +1301,5 @@ class WakeSolver():
         self.yf = y 
         self.zf = z
         self.t = np.array(t)
+
+

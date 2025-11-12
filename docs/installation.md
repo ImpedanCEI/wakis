@@ -185,33 +185,26 @@ An example python project for simulating on HTCondor, is shown here [BLonD Simul
 The submission files are based on the approach used in this example project [^3], modified for GPU. The project can be modified for the wakis environment, it currently is set up 
 for simulations with BLonD, the longitudinal beam dynamics code.
 
-## Python Notebooks troubleshooting
-
-### Matplotlib interactive plots
-Within jupyter notebooks, in order to be able to zoom and interact with matplotlib figures, one needs to use notebook magic commands `%`. 
-* The recommended one for Jupyter notebooks on the web is `%matplotlib widget`
-* The recommended one for Jupyter notebooks on VS Code in `%matplotlib ipympl`
-
-The package `ipympl`can be easily installed using `pip install ipympl`
-
-### PyVista interactive plots
-To be able to render 3D interactive plots in Jupyter notebooks, it is recommended to use the `wakis['notebook']` pip installation. 
-
-Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `MESA-loader` or `libGL error` is installing a new driver within your conda environment with:
+## CPU Multithreading
+To achieve multithreading for Wakis `sparse matrix x vector` operations, the Intel-MKL backend has been implemented as an alternative to single-threaded `scipy.sparse.dot`. To install it in your conda environment simply do:
 
 ```
-conda install conda-forge::libstdcxx-ng
+pip install mkl mkl-service sparse_dot_mkl
 ```
 
-If you're in a headless environment (e.g., remote server, openstack machine), forcing OSMesa (Off-Screen Mesa) rendering might help:
+Wakis will detect that the package is installed and use it as default backend. To control the number of threads and memory pinning, add the following lines to your python script **before** the imports:
 
 ```python
+# [!] Set before importing numpy/scipy/mkl modules
 import os
-os.environ['PYVISTA_USE_OSMESA'] = 'True'
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())       # Number of OpenMP threads
+os.environ["KMP_AFFINITY"] = "balanced,granularity=fine"  # Thread pinning
 ```
 
-## MPI setup
-To run multi-CPU parallelized simulations, Wakis needs the following packages:
+* 🔜 A domain decomposition multithreading is envisioned for future resleases
+
+## CPU/GPU MPI setup
+To run multi-node CPU parallelized simulations, Wakis needs the following packages:
 
 * OpenMPI installed in your operating system:
 * Python package [`mpi4py`](https://mpi4py.readthedocs.io/en/stable/)
@@ -219,7 +212,7 @@ To run multi-CPU parallelized simulations, Wakis needs the following packages:
 
 The preferred install method is through `conda-forge`:
 
-```
+```bash
 # All at once [recommended]
 conda install -c conda-forge mpi4py openmpi
 ```
@@ -251,6 +244,7 @@ CC=mpicc pip install --no-cache-dir mpi4py
 # For working on jupyter notebooks:
 pip install ipyparallel
 ```
+### Checking multi-GPU compatibility
 
 * `OpenMPI` is built in Linux with multi-GPU compatibility (provided `cupy` is correctly setup):
 ```bash
@@ -270,6 +264,13 @@ Before launching an MPI simulation, make sure to set the environment variable `O
 # Set environment variable to use CUDA-aware before launching your MPI processes
 export OMPI_MCA_opal_cuda_support=true
 ```
+Or from python, before importing `mpi4py`:
+```python
+import os
+os.environ['OMPI_MCA_opal_cuda_support']='true'
+```
+
+### Running multi-GPU simulation
 
 To run MPI simulations from the terminal:
 ```bash
@@ -280,6 +281,52 @@ mpiexec -n 8 python your_wakis_cpu_script.py
 mpiexec --mca btl_smcuda_cuda_ipc_max 0 -n 4 python your_wakis_gpu_script.py
 # or:
 mpiexec --mca opal_cuda_support 1 -n 4 python your_wakis_gpu_script.py
+```
+
+It is also possible to run multi-GPU from **python notebooks** using `ipyparallel` and the notebook magic `%%px`:
+```python
+import ipyparallel as ipp
+cluster = ipp.Cluster(engines="mpi", n=2).start_and_connect_sync()
+```
+Once the cluster has initialized:
+```python
+%%px
+import os
+os.environ['OMPI_MCA_opal_cuda_support']='true' # multi GPU
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+print(f"Process {rank} of {size} is running")
+
+import cupy
+cupy.cuda.Device(rank).use()
+```
+
+## Python Notebooks troubleshooting
+
+### Matplotlib interactive plots
+Within jupyter notebooks, in order to be able to zoom and interact with matplotlib figures, one needs to use notebook magic commands `%`. 
+* The recommended one for Jupyter notebooks on the web is `%matplotlib widget`
+* The recommended one for Jupyter notebooks on VS Code in `%matplotlib ipympl`
+
+The package `ipympl`can be easily installed using `pip install ipympl`
+
+### PyVista interactive plots
+To be able to render 3D interactive plots in Jupyter notebooks, it is recommended to use the `wakis['notebook']` pip installation. 
+
+Some driver problems may arise depending on pre-installed versions. One way of solving common errors like `MESA-loader` or `libGL error` is installing a new driver within your conda environment with:
+
+```
+conda install conda-forge::libstdcxx-ng
+```
+
+If you're in a headless environment (e.g., remote server, openstack machine), forcing OSMesa (Off-Screen Mesa) rendering might help:
+
+```python
+import os
+os.environ['PYVISTA_USE_OSMESA'] = 'True'
 ```
 
 ----
