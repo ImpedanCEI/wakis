@@ -111,6 +111,7 @@ class GridFIT3D:
         self.x = x
         self.y = y
         self.z = z
+        self.use_mesh_refinement = use_mesh_refinement
         self.refinement_method = refinement_method
         self.snap_points = snap_points
         self.snap_tol = snap_tol
@@ -174,9 +175,12 @@ class GridFIT3D:
         self.L.field_z = Z[1:, 1:, 1:] - Z[:-1, :-1, :-1]
 
         self.iA = Field(self.Nx, self.Ny, self.Nz)
-        self.iA.field_x = np.divide(1.0, self.L.field_y * self.L.field_z)
-        self.iA.field_y = np.divide(1.0, self.L.field_x * self.L.field_z)
-        self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
+        aux = self.L.field_y * self.L.field_z
+        self.iA.field_x = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
+        aux = self.L.field_x * self.L.field_z
+        self.iA.field_y = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
+        aux = self.L.field_x * self.L.field_y
+        self.iA.field_z = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
 
         # tilde grid ~G
         self.tx = (self.x[1:]+self.x[:-1])/2 
@@ -294,7 +298,7 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        tol = np.min([self.dx, self.dy, self.dz])*self.tol
+        tol = np.min([np.min(self.dx), np.min(self.dy), np.min(self.dz)])*self.tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
@@ -487,11 +491,11 @@ class GridFIT3D:
         self.Nx = len(self.x) - 1
         self.Ny = len(self.y) - 1       
         self.Nz = len(self.z) - 1
-        self.dx = np.min(np.diff(self.x))  #TODO: should this be an array?
-        self.dy = np.min(np.diff(self.y))  
-        self.dz = np.min(np.diff(self.z))
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
 
-        print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
+        print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
 
     def assign_colors(self):
         '''Classify colors assigned to each solid

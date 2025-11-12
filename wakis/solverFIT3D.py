@@ -209,7 +209,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if verbose: print('Calculating maximal stable timestep...') 
         self.cfln = cfln
         if dt is None:
-            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
+            self.dt = cfln / (c_light * np.sqrt(1 / np.min(self.grid.dx) ** 2 + 1 / np.min(self.grid.dy) ** 2 + 1 / np.min(self.grid.dz) ** 2))
         else:
             self.dt = dt
         self.dt = dtype(self.dt)
