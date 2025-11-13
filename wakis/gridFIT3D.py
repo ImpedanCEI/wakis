@@ -862,4 +862,4 @@ class GridFIT3D:
         Assigns the parameters handed via attrs to the logger
         """
         for atr in attrs:
-            self.logger.solver[atr] = getattr(self, atr)
+            self.logger.grid[atr] = getattr(self, atr)
