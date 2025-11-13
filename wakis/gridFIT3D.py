@@ -239,7 +239,7 @@ class GridFIT3D:
                             stl_translate=self.stl_translate,
                             stl_colors=self.stl_colors,
                             verbose=self.verbose,
-                            tol=self.tol,
+                            stl_tol=self.tol,
                             )
         return _grid
 
