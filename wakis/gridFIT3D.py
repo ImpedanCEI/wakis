@@ -137,7 +137,7 @@ class GridFIT3D:
 
         # tolerance for stl import tol*min(dx,dy,dz)
         if verbose: print('Importing STL solids...')
-        self.tol = stl_tol 
+        self.stl_tol = stl_tol
         if stl_solids is not None:
             self.mark_cells_in_stl()
             if stl_colors is None:
