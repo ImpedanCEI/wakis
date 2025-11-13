@@ -137,7 +137,7 @@ class GridFIT3D:
 
         # tolerance for stl import tol*min(dx,dy,dz)
         if verbose: print('Importing STL solids...')
-        self.tol = stl_tol 
+        self.stl_tol = stl_tol
         if stl_solids is not None:
             self.mark_cells_in_stl()
             if stl_colors is None:
@@ -239,7 +239,7 @@ class GridFIT3D:
                             stl_translate=self.stl_translate,
                             stl_colors=self.stl_colors,
                             verbose=self.verbose,
-                            tol=self.tol,
+                            stl_tol=self.stl_tol,
                             )
         return _grid
 
@@ -273,17 +273,17 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        tol = np.min([self.dx, self.dy, self.dz])*self.tol
+        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
             except:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol, check_surface=False)
-            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
+            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
 
     def read_stl(self, key):
         # import stl
@@ -325,7 +325,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         self.snap_points = np.r_[xz_plane_points, yz_plane_points, xy_plane_points]
 
@@ -362,7 +362,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         xz_cloud = pv.PolyData(xz_plane_points)
         yz_cloud = pv.PolyData(yz_plane_points)
