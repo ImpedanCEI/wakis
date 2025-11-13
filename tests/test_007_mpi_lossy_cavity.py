@@ -87,7 +87,7 @@ class TestMPILossyCavity:
                  'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 'gridInitializationTime': 0}
     
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec','bc_low': ['pec', 'pec', 'pec'],
-                   'bc_high': ['pec', 'pec', 'pec'], 'n_pml': 10, 
+                   'bc_high': ['pec', 'pec', 'pec'], 
                    'dt': 6.970326728398968e-12, 'solverInitializationTime': 0}
     
     wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
