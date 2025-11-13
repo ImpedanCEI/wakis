@@ -273,17 +273,17 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        tol = np.min([self.dx, self.dy, self.dz])*self.tol
+        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
             except:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol, check_surface=False)
-            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
+            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
 
     def read_stl(self, key):
         # import stl
