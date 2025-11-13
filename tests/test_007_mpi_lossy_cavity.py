@@ -83,8 +83,8 @@ class TestMPILossyCavity:
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
     gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.008666666348775227, 'dy': 0.008666666348775227,
-                 'dz': 0.005714285799435207, 'stl_solids': ['tests/stl/007_vacuum_cavity.stl', 'tests/stl/007_lossymetal_shell.stl'],
-                 'stl_materials': ['vacuum', [30, 1.0, 30]], 'gridInitializationTime': 0}
+                 'dz': 0.005714285799435207, 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
+                 'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}}, 'gridInitializationTime': 0}
     
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec','bc_low': ['pec', 'pec', 'pec'],
                    'bc_high': ['pec', 'pec', 'pec'], 'n_pml': 10, 
