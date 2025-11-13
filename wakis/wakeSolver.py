@@ -168,22 +168,7 @@ class WakeSolver():
             if not os.path.exists(self.folder): 
                 os.mkdir(self.folder)
         
-        # create log
-        if self.log:
-            self.params_to_log()
-
-        # Forward parameters to logger
-        self.logger.wakeSolver["ti"]=self.ti
-        self.logger.wakeSolver["q"]=self.q
-        self.logger.wakeSolver["sigmaz"]=self.sigmaz
-        self.logger.wakeSolver["beta"]=self.beta
-        self.logger.wakeSolver["xsource"]=self.xsource
-        self.logger.wakeSolver["ysource"]=self.ysource
-        self.logger.wakeSolver["xtest"]=self.xtest
-        self.logger.wakeSolver["ytest"]=self.ytest
-        self.logger.wakeSolver["chargedist"]=self.chargedist
-        self.logger.wakeSolver["skip_cells"]=self.skip_cells
-        self.logger.wakeSolver["results_folder"]=self.folder
+        self.assign_logs()
 
     def solve(self, compute_plane=None, **kwargs):
         '''
@@ -323,7 +308,7 @@ class WakeSolver():
 
         # longitudinal variables
         if self.zf is None: self.zf = self.z
-        dz = self.zf[2]-self.zf[1]
+        dz = np.diff(self.zf) #self.zf[2]-self.zf[1]
         zmax = np.max(self.zf) #should it be domain's edge instead?
         zmin = np.min(self.zf)       
 
@@ -378,7 +363,7 @@ class WakeSolver():
                     ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
                     if it < nt:
-                        WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
+                        WP[n] = WP[n]+(Ezt[k, it])*dz[k]   #compute integral
                     pbar.update(1)
 
         WP = WP/(self.q*1e12)     # [V/pC]
@@ -1126,26 +1111,6 @@ class WakeSolver():
 
         if self.verbose:
             print('\x1b[2;37m'+txt+'\x1b[0m')
-    
-    def params_to_log(self):
-        self.log(time.asctime())
-        self.log('Wake computation')
-        self.log('='*24)
-        self.log(f'* Charge q = {self.q} [C]')
-        self.log(f'* Beam sigmaz = {self.sigmaz} [m]')
-        self.log(f'* xsource, ysource = {self.xsource}, {self.ysource} [m]')
-        self.log(f'* xtest, ytest = {self.xtest}, {self.ytest} [m]')
-        self.log(f'* Beam injection time ti= {self.ti} [s]')
-        
-        if self.chargedist is not None:
-            if type(self.chargedist) is str:
-                self.log(f'* Charge distribution file: {self.chargedist}')
-            else:
-                self.log(f'* Charge distribution data is provided')
-        else: 
-            self.log(f'* Charge distribution analytic')
-        
-        self.log('\n')
 
     def read_cst_3d(self, path=None, folder='3d', filename='Ez.h5', units=1e-3):
         '''
@@ -1306,4 +1271,18 @@ class WakeSolver():
         self.zf = z
         self.t = np.array(t)
 
-
+    def assign_logs(self)
+        """
+        Assigns the parameters of the wake to the logger
+        """
+        self.logger.wakeSolver["ti"]=self.ti
+        self.logger.wakeSolver["q"]=self.q
+        self.logger.wakeSolver["sigmaz"]=self.sigmaz
+        self.logger.wakeSolver["beta"]=self.beta
+        self.logger.wakeSolver["xsource"]=self.xsource
+        self.logger.wakeSolver["ysource"]=self.ysource
+        self.logger.wakeSolver["xtest"]=self.xtest
+        self.logger.wakeSolver["ytest"]=self.ytest
+        self.logger.wakeSolver["chargedist"]=self.chargedist
+        self.logger.wakeSolver["skip_cells"]=self.skip_cells
+        self.logger.wakeSolver["results_folder"]=self.folder
