@@ -362,7 +362,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         xz_cloud = pv.PolyData(xz_plane_points)
         yz_cloud = pv.PolyData(yz_plane_points)
