@@ -857,7 +857,7 @@ class GridFIT3D:
         else:
             pl.show()
 
-    def update_logger(self, attrs)
+    def update_logger(self, attrs):
         """
         Assigns the parameters handed via attrs to the logger
         """

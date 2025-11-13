@@ -112,7 +112,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.one_step = self._one_step
         if use_stl:
             self.use_conductors = False
-        self.update_logger(['use_gpu, use_mpi'])
+        self.update_logger(['use_gpu', 'use_mpi'])
 
         # Grid 
         self.grid = grid
@@ -208,7 +208,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.pml_hi = 1.e-1
             self.pml_func = np.geomspace
             self.fill_pml_sigmas()
-        self.update_logger(['n_pml'])
+            self.update_logger(['n_pml'])
 
         # Timestep calculation 
         if verbose: print('Calculating maximal stable timestep...') 
@@ -1119,12 +1119,12 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.H[:, :, :, d] = 0.0
             self.J[:, :, :, d] = 0.0
 
-    def update_logger(self, attrs)
+    def update_logger(self, attrs):
         """
         Assigns the parameters handed via attrs to the logger
         """
         for atr in attrs:
-            if atr is 'grid':
+            if atr == 'grid':
                 self.logger.grid = self.grid.logger.grid
             else:
                 self.logger.solver[atr] = getattr(self, atr)

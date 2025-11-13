@@ -1271,7 +1271,7 @@ class WakeSolver():
         self.zf = z
         self.t = np.array(t)
 
-    def assign_logs(self)
+    def assign_logs(self):
         """
         Assigns the parameters of the wake to the logger
         """
