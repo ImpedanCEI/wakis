@@ -239,7 +239,7 @@ class GridFIT3D:
                             stl_translate=self.stl_translate,
                             stl_colors=self.stl_colors,
                             verbose=self.verbose,
-                            stl_tol=self.tol,
+                            stl_tol=self.stl_tol,
                             )
         return _grid
 
@@ -273,7 +273,7 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.tol
+        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
