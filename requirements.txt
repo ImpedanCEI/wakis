@@ -74,7 +74,7 @@ nbconvert==7.16.4
 nbformat==5.10.4
 nest-asyncio==1.6.0
 notebook_shim==0.2.4
-numpy==1.24.2
+numpy==1.26.4
 overrides==7.7.0
 packaging==24.1
 pandocfilters==1.5.1
@@ -103,7 +103,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rich==13.7.1
 rpds-py==0.18.1
-scipy==1.13.1
+scipy==1.16.3
 scooby==0.10.0
 Send2Trash==1.8.3
 simpervisor==1.0.0
