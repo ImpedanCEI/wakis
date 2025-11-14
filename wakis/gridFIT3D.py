@@ -95,11 +95,7 @@ class GridFIT3D:
         if stl_solids is not None:
             self._prepare_stl_dicts()
 
-        # primal Grid G base axis x, y, z
-        self.x = x
-        self.y = y
-        self.z = z
-
+        # Grid data
         # generate from file
         if load_from_h5 is not None:
             t0 = time.time()
@@ -114,8 +110,11 @@ class GridFIT3D:
             return
 
         # generate from custom x,y,z arrays
-        elif self.x is not None and self.y is not None and self.z is not None:
+        elif x is not None and y is not None and z is not None:
             # allow user to set the grid axis manually
+            self.x = x
+            self.y = y
+            self.z = z
             self.Nx = len(self.x) - 1
             self.Ny = len(self.y) - 1
             self.Nz = len(self.z) - 1
@@ -146,7 +145,8 @@ class GridFIT3D:
 
         self.dx = np.min(np.diff(self.x))
         self.dy = np.min(np.diff(self.y))
-        self.dz = np.min(np.diff(self.z))
+        #self.dz = np.min(np.diff(self.z))
+        self.dz = (self.zmax - self.zmin)/self.Nz
 
         # refine self.x, self.y, self.z using snap points
         self.use_mesh_refinement = use_mesh_refinement
@@ -201,7 +201,6 @@ class GridFIT3D:
 
 
     def compute_grid(self):
-
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -261,13 +260,13 @@ class GridFIT3D:
 
         # MPI subdomain quantities
         self.Nz = self.NZ // (self.size)
-        self.dz = (self.ZMAX - self.ZMIN) / self.Nz
+        self.dz = (self.ZMAX - self.ZMIN) / self.NZ
         self.zmin = self.rank * self.Nz * self.dz + self.ZMIN
         self.zmax = (self.rank+1) * self.Nz * self.dz + self.ZMIN
 
         if self.verbose:
             print(f"MPI rank {self.rank} of {self.size} initialized with \
-                                zmin={self.zmin}, zmax={self.zmax}, Nz={self.Nz}")
+                        zmin={self.zmin}, zmax={self.zmax}, Nz={self.Nz}")
         # Add ghost cells
         self.n_ghosts = 1
         if self.rank > 0:
@@ -341,9 +340,9 @@ class GridFIT3D:
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
             except Exception:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol, check_surface=False)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 

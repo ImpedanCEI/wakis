@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
@@ -14,6 +15,9 @@ from wakis import WakeSolver
 from wakis.sources import Beam
 
 import pytest
+
+# Run with:
+# mpiexec -n 2 python -m pytest --color=yes -v -s tests/test_007_mpi_lossy_cavity.py
 
 # Turn true when running local
 flag_plot_3D = True
@@ -92,7 +96,6 @@ class TestMPILossyCavity:
             from mpi4py import MPI
 
             comm = MPI.COMM_WORLD  # Get MPI communicator
-            rank = comm.Get_rank()  # Process ID
             size = comm.Get_size()  # Total number of MPI processes
             if size > 1:
                 use_mpi = True
@@ -184,10 +187,12 @@ class TestMPILossyCavity:
                 beam.update(solver, n*solver.dt)
                 solver.mpi_one_step()
 
-            Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2), z=np.s_[::5])
+            Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2))
             if solver.rank == 0:
                 #print(Ez)
-                assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples MPI failed"
+                print(len(Ez))
+                assert len(Ez) == NZ, "Electric field Ez samples length mismatch"
+                assert np.allclose(Ez[np.s_[::5]], self.Ez, rtol=0.1), "Electric field Ez samples MPI failed"
         else:
             Nt = 3000
             for n in tqdm(range(Nt)):
@@ -197,8 +202,8 @@ class TestMPILossyCavity:
 
             Ez = solver.E[int(Nx/2), int(Ny/2), np.s_[::5], 'z']
             #print(Ez)
+            assert len(solver.E[int(Nx/2), int(Ny/2), :, 'z']) == NZ, "Electric field Ez samples length mismatch"
             assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples failed"
-
 
     def test_mpi_gather_asField(self):
         # Plot inspect after mpi gather
@@ -292,10 +297,13 @@ class TestMPILossyCavity:
         if use_mpi:
             if solver.rank == 0:
                 #print(wake.WP[::50])
+                print(len(wake.WP))
+                assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
                 assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
                 assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
         else:
             #print(wake.WP[::50])
+            assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
             assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
 
@@ -305,12 +313,15 @@ class TestMPILossyCavity:
         if use_mpi:
             if solver.rank == 0:
                 #print(wake.Z[::20])
+                print(len(wake.Z))
+                assert len(wake.Z) == 998, "Impedance samples length mismatch"
                 assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples MPI failed"
                 assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples MPI failed"
                 assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples MPI failed"
                 assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum MPI failed"
         else:
             #print(wake.Z[::20])
+            assert len(wake.Z) == 998, "Impedance samples length mismatch"
             assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples failed"
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
