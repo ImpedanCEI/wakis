@@ -20,7 +20,7 @@ import pytest
 # mpiexec -n 2 python -m pytest --color=yes -v -s tests/test_007_mpi_lossy_cavity.py
 
 # Turn true when running local
-flag_plot_3D = True
+flag_plot_3D = False
 
 @pytest.mark.slow
 class TestMPILossyCavity:
