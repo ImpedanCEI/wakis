@@ -119,12 +119,11 @@ class GridFIT3D:
             self.Nx = len(self.x) - 1
             self.Ny = len(self.y) - 1
             self.Nz = len(self.z) - 1
-            self.dx = np.min(np.diff(self.x))
-            self.dy = np.min(np.diff(self.y))
-            self.dz = np.min(np.diff(self.z))
             self.xmin, self.xmax = self.x[0], self.x[-1]
             self.ymin, self.ymax = self.y[0], self.y[-1]
             self.zmin, self.zmax = self.z[0], self.z[-1]
+            if self.use_mpi:
+                raise ValueError("[!] Error: use_mpi=True is not compatible with custom x,y,z arrays.")
 
         # generate from domain extents and number of cells [LEGACY]
         elif all(v is not None for v in [xmin, xmax, ymin, ymax, zmin, zmax]):
@@ -133,9 +132,6 @@ class GridFIT3D:
             self.ymin, self.ymax = ymin, ymax
             self.zmin, self.zmax = zmin, zmax
             self.Nx, self.Ny, self.Nz = Nx, Ny, Nz
-            self.dx = (self.xmax - self.xmin) / self.Nx
-            self.dy = (self.ymax - self.ymin) / self.Ny
-            self.dz = (self.zmax - self.zmin) / self.Nz
             self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
             self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
             self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
@@ -147,6 +143,10 @@ class GridFIT3D:
                 "  - OR domain extents and number of cells: xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz\n"
                 "  - OR load from a HDF5 file using load_from_h5"
             )
+
+        self.dx = np.min(np.diff(self.x))
+        self.dy = np.min(np.diff(self.y))
+        self.dz = np.min(np.diff(self.z))
 
         # refine self.x, self.y, self.z using snap points
         self.use_mesh_refinement = use_mesh_refinement
@@ -171,9 +171,6 @@ class GridFIT3D:
                     z:[{zmin:.3f}, {zmax:.3f}]')
             t0 = time.time()
 
-        # grid G and tilde grid ~G, lengths and inverse areas
-        self.compute_grid()
-
         # MPI subdivide domain
         if self.use_mpi:
             self.ZMIN = None
@@ -186,6 +183,9 @@ class GridFIT3D:
                     print(f"MPI initialized for {self.rank} of {self.size}")
             else:
                 raise ImportError("[!] mpi4py is required when use_mpi=True but was not found")
+
+        # grid G and tilde grid ~G, lengths and inverse areas
+        self.compute_grid()
 
         # tolerance for stl import tol*min(dx,dy,dz)
         if verbose:
@@ -201,6 +201,7 @@ class GridFIT3D:
 
 
     def compute_grid(self):
+
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -280,6 +281,8 @@ class GridFIT3D:
         if self.rank == 0 and self.size == 1:
             self.zmax += self.n_ghosts * self.dz
             self.Nz += self.n_ghosts
+
+        self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
 
     def mpi_gather_asGrid(self):
         _grid = None

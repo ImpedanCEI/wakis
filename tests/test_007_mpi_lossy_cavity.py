@@ -9,14 +9,14 @@ from tqdm import tqdm
 from scipy.constants import c
 
 from wakis import SolverFIT3D
-from wakis import GridFIT3D 
+from wakis import GridFIT3D
 from wakis import WakeSolver
 from wakis.sources import Beam
 
-import pytest 
+import pytest
 
 # Turn true when running local
-flag_plot_3D = False 
+flag_plot_3D = True
 
 @pytest.mark.slow
 class TestMPILossyCavity:
@@ -89,7 +89,7 @@ class TestMPILossyCavity:
         global use_mpi
         try:
             # can be skipped since it is handled inside GridFIT3D
-            from mpi4py import MPI 
+            from mpi4py import MPI
 
             comm = MPI.COMM_WORLD  # Get MPI communicator
             rank = comm.Get_rank()  # Process ID
@@ -98,9 +98,10 @@ class TestMPILossyCavity:
                 use_mpi = True
             else:
                 use_mpi = False
-        except:
+        except Exception as e:
+            print(f"[!] MPI not available: {e}")
             use_mpi = False
-        
+
         print(f"Using mpi: {use_mpi}")
 
     def test_mpi_simulation(self):
@@ -111,11 +112,11 @@ class TestMPILossyCavity:
         solid_1 = 'tests/stl/007_vacuum_cavity.stl'
         solid_2 = 'tests/stl/007_lossymetal_shell.stl'
 
-        stl_solids = {'cavity': solid_1, 
+        stl_solids = {'cavity': solid_1,
                     'shell': solid_2
                     }
 
-        stl_materials = {'cavity': 'vacuum', 
+        stl_materials = {'cavity': 'vacuum',
                         'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
                         }
 
@@ -128,10 +129,10 @@ class TestMPILossyCavity:
         Ny = 60
         NZ = 140
         global use_mpi
-        grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX, 
-                        Nx, Ny, NZ, 
+        grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX,
+                        Nx, Ny, NZ,
                         use_mpi=use_mpi, # Enables MPI subdivision of the domain
-                        stl_solids=stl_solids, 
+                        stl_solids=stl_solids,
                         stl_materials=stl_materials,
                         stl_scale=1.0,
                         stl_rotate=[0,0,0],
@@ -144,7 +145,7 @@ class TestMPILossyCavity:
         # Beam parameters
         sigmaz = 10e-2      #[m] -> 2 GHz
         q = 1e-9            #[C]
-        beta = 1.0          # beam beta 
+        beta = 1.0          # beam beta
         xs = 0.             # x source position [m]
         ys = 0.             # y source position [m]
         ti = 3*sigmaz/c     # injection time [s]
@@ -160,19 +161,19 @@ class TestMPILossyCavity:
         # Solver setup
         global solver
         solver = SolverFIT3D(grid,
-                            bc_low=bc_low, 
-                            bc_high=bc_high, 
-                            use_stl=True, 
+                            bc_low=bc_low,
+                            bc_high=bc_high,
+                            use_stl=True,
                             use_mpi=use_mpi, # Activate MPI
                             bg='pec' # Background material
                             )
-        
+
         # -------------- Output folder ---------------------
         if use_mpi and solver.rank == 0:
-            if not os.path.exists(self.img_folder): 
+            if not os.path.exists(self.img_folder):
                 os.mkdir(self.img_folder)
         elif not use_mpi:
-            if not os.path.exists(self.img_folder): 
+            if not os.path.exists(self.img_folder):
                 os.mkdir(self.img_folder)
 
         # -------------- Custom time loop  -----------------
@@ -193,7 +194,7 @@ class TestMPILossyCavity:
 
                 beam.update(solver, n*solver.dt)
                 solver.one_step()
-            
+
             Ez = solver.E[int(Nx/2), int(Ny/2), np.s_[::5], 'z']
             #print(Ez)
             assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples failed"
@@ -214,44 +215,44 @@ class TestMPILossyCavity:
             plt.close(fig)
 
     def test_mpi_plot2D(self):
-        # Plot E abs in 2D every 20 timesteps 
+        # Plot E abs in 2D every 20 timesteps
         global solver
-        solver.plot2D(field='E', component='Abs', 
-                    plane='YZ', pos=0.5, 
+        solver.plot2D(field='E', component='Abs',
+                    plane='YZ', pos=0.5,
                     cmap='rainbow', vmin=0, vmax=500., interpolation='hanning',
                     off_screen=True, title=self.img_folder+'Ez2d', n=3000)
 
     def test_mpi_plot1D(self):
         # Plot E z in 1D at diferent transverse positions `pos` every 20 timesteps
         global solver
-        solver.plot1D(field='E', component='z', 
-                line='z', pos=[0.45, 0.5, 0.55], 
+        solver.plot1D(field='E', component='z',
+                line='z', pos=[0.45, 0.5, 0.55],
                 xscale='linear', yscale='linear',
                 off_screen=True, title=self.img_folder+'Ez1d', n=3000)
-    
+
     @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_mpi_plot3D(self):
         # Plot Abs Electric field on domain
         # disabled when mpi = True
         global solver
-        solver.plot3D('E', component='Abs', 
+        solver.plot3D('E', component='Abs',
                 cmap='rainbow', clim=[0, 500],
                 add_stl=['cavity', 'shell'], stl_opacity=0.1,
                 clip_interactive=True, clip_normal='-y')
-        
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")    
+
+    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_mpi_plot3DonSTL(self):
         # Plot Abs Electric field on STL solid `cavity`
         # disabled when mpi = True
         global solver
-        solver.plot3DonSTL('E', component='Abs', 
+        solver.plot3DonSTL('E', component='Abs',
                         cmap='rainbow', clim=[0, 500],
                         stl_with_field='cavity', field_opacity=1.0,
                         stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-                        clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], 
+                        clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
                         off_screen=False, zoom=1.2, title=self.img_folder+'Ez3d')
-            
-    
+
+
     def test_mpi_wakefield(self):
         # Reset fields
         global solver
@@ -261,12 +262,12 @@ class TestMPILossyCavity:
         # Beam parameters
         sigmaz = 10e-2      #[m] -> 2 GHz
         q = 1e-9            #[C]
-        beta = 1.0          # beam beta 
+        beta = 1.0          # beam beta
         xs = 0.             # x source position [m]
         ys = 0.             # y source position [m]
         xt = 0.             # x test position [m]
         yt = 0.             # y test position [m]
-        # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
+        # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s]
 
         # ----------- Wake Solver  setup  ----------
         # Wakefield post-processor
@@ -282,9 +283,9 @@ class TestMPILossyCavity:
                         Ez_file=results_folder+'Ez.h5',)
 
         # Run simulation
-        solver.wakesolve(wakelength=wakelength, 
+        solver.wakesolve(wakelength=wakelength,
                          wake=wake)
-    
+
     def test_long_wake_potential(self):
         global wake
         global solver
@@ -314,4 +315,3 @@ class TestMPILossyCavity:
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
-    
