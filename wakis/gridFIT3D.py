@@ -581,7 +581,6 @@ class GridFIT3D:
             except Exception:
                 if self.verbose > 1:
                     print(f'[!] Could not add logo widget: {e}')
-                pass
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
                     opacity=1.0, specular=0.5, offscreen=False, **kwargs):
