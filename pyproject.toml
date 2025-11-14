@@ -10,6 +10,3 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "serial",
 ]
-
-[tool.setuptools.package-data]
-wakis = ["static/img/*.png"]
