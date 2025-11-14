@@ -5,6 +5,7 @@
 
 import numpy as np
 import h5py
+import time
 from tqdm import tqdm
 from scipy.constants import c as c_light
 from wakis.sources import Beam
@@ -297,6 +298,7 @@ class RoutinesMixin():
         if plot_from is None: plot_from = int(self.ti/self.dt)
 
         print('Running electromagnetic time-domain simulation...')
+        t0 = time.time()
         for n in tqdm(range(Nt)):
 
             # Initial condition
@@ -340,4 +342,9 @@ class RoutinesMixin():
 
             # Compute wakefield magnitudes is done inside WakeSolver
             self.wake.solve(compute_plane=compute_plane)
-            
+        
+        # Forward parameters to logger
+        self.logger.wakeSolver=self.wake.logger.wakeSolver
+        self.logger.wakeSolver["wakelength"]=wakelength            
+        self.logger.wakeSolver["simulationTime"]=time.time()-t0
+        self.logger.save_logs()
