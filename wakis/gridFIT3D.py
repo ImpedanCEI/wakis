@@ -331,7 +331,7 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        tol = np.min([self.dx, self.dy, self.dz])*self.stl_tol
+        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
@@ -344,7 +344,7 @@ class GridFIT3D:
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 
-            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
+            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
 
             if self.verbose and np.sum(self.grid[key]) == 0:
                 print(f'[!] Warning: no cells were marked inside stl solid {key}. Consider increasing the tolerance factor (currently {self.stl_tol}).')
@@ -430,7 +430,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         xz_cloud = pv.PolyData(xz_plane_points)
         yz_cloud = pv.PolyData(yz_plane_points)

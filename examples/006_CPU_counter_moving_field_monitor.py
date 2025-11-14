@@ -94,7 +94,7 @@ grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax,
                  stl_rotate=[0, 0, 0],
                  stl_translate=[0, 0, 0],
                  verbose=1,
-                 tol=1e-4)
+                 stl_tol=1e-4)
 
 # ------------ Beam source & Wake ----------------
 # Beam parameters
