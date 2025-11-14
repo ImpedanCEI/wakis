@@ -620,7 +620,7 @@ class GridFIT3D:
         for key in self.stl_solids:
             try:
                 color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
-            except:
+            except KeyError:
                 color = self.stl_colors[key] # specifies color e.g. 'tab:red'
 
             if self.stl_colors[key] == 'vacuum' or self.stl_materials[key] == 'vacuum':
