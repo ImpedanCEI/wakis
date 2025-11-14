@@ -517,15 +517,18 @@ class GridFIT3D:
         using the snap points extracted from the stl solids.
         The snap points are used to refine the grid '''
 
-        if self.verbose > 1: print(f' * Refining x axis with {len(self.x_snaps)} snaps...')
+        if self.verbose > 1:
+            print(f' * Refining x axis with {len(self.x_snaps)} snaps...')
         self.x = self.refine_axis(self.xmin, self.xmax, self.Nx+1, self.x_snaps,
                                   method=method, tol=tol)
 
-        if self.verbose > 1: print(f' * Refining y axis with {len(self.y_snaps)} snaps...')
+        if self.verbose > 1:
+            print(f' * Refining y axis with {len(self.y_snaps)} snaps...')
         self.y = self.refine_axis(self.ymin, self.ymax, self.Ny+1, self.y_snaps,
                                   method=method, tol=tol)
 
-        if self.verbose > 1: print(f' * Refining z axis with {len(self.z_snaps)} snaps...')
+        if self.verbose > 1:
+            print(f' * Refining z axis with {len(self.z_snaps)} snaps...')
         self.z = self.refine_axis(self.zmin, self.zmax, self.Nz+1, self.z_snaps,
                                   method=method, tol=tol)
 
@@ -536,7 +539,8 @@ class GridFIT3D:
         self.dy = np.min(np.diff(self.y))
         self.dz = np.min(np.diff(self.z))
 
-        if self.verbose: print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
+        if self.verbose:
+            print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
 
     def assign_colors(self):
         '''Classify colors assigned to each solid
@@ -570,11 +574,13 @@ class GridFIT3D:
             with resources.as_file(logo_res) as logo_path:
                 pl.add_logo_widget(str(logo_path))
                 return
-        except Exception:
+        except Exception as e:
             # fallback to the legacy relative path for dev installs
             try:
                 pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
             except Exception:
+                if self.verbose > 1:
+                    print(f'[!] Could not add logo widget: {e}')
                 pass
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
@@ -716,9 +722,12 @@ class GridFIT3D:
         if stl_colors is None:
             stl_colors = self.stl_colors
 
-        if xmax is None: xmax = self.xmax
-        if ymax is None: ymax = self.ymax
-        if zmax is None: zmax = self.zmax
+        if xmax is None:
+            xmax = self.xmax
+        if ymax is None:
+            ymax = self.ymax
+        if zmax is None:
+            zmax = self.zmax
 
         pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
