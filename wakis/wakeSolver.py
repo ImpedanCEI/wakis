@@ -308,7 +308,7 @@ class WakeSolver():
 
         # longitudinal variables
         if self.zf is None: self.zf = self.z
-        dz = np.diff(self.zf) #self.zf[2]-self.zf[1]
+        dz = self.zf[2]-self.zf[1]
         zmax = np.max(self.zf) #should it be domain's edge instead?
         zmin = np.min(self.zf)       
 
@@ -363,7 +363,7 @@ class WakeSolver():
                     ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
                     if it < nt:
-                        WP[n] = WP[n]+(Ezt[k, it])*dz[k]   #compute integral
+                        WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
                     pbar.update(1)
 
         WP = WP/(self.q*1e12)     # [V/pC]
