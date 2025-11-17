@@ -1,0 +1,50 @@
+# This is a basic workflow that is manually triggered
+
+name: pull_request_tests_MPI_python10
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  # Run tests for every pull request targeting main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  run_tests:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Make the default shell a login shell, so that conda is initialised properly
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Setup Miniforge
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-version: latest
+        python-version: "3.11"
+    - name: mpi install
+      run: |
+        conda install -c conda-forge openmpi
+        conda install -c conda-forge mpi4py
+    - name: pip install
+      run:  |
+        cd wakis
+        pip install .['notebook']
+
+    - name: Print versions
+      run: conda list
+    - name: Checkout wakis
+      uses: actions/checkout@v4
+      with:
+        path: wakis
+    - name: Run pytest
+      run:  |
+        cd wakis
+        mpiexec -n 2 python -m pytest --color=yes -v -s tests/test_007_mpi_lossy_cavity.py
