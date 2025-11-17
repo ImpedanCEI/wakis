@@ -98,16 +98,8 @@ class GridFIT3D:
         # Grid data
         # generate from file
         if load_from_h5 is not None:
-            t0 = time.time()
             self.load_from_h5(load_from_h5)
-            if verbose > 1:
-                print(f'Loaded grid with {self.Nx*self.Ny*self.Nz} mesh cells')
-                print(f' * Simulation domain bounds: \n\
-                    x:[{xmin:.3f}, {xmax:.3f}],\n\
-                    y:[{ymin:.3f}, {ymax:.3f}],\n\
-                    z:[{zmin:.3f}, {zmax:.3f}]')
-                print(f'Total grid loading time: {time.time() - t0} s')
-            return
+            return #TODO: support MPI decomposition
 
         # generate from custom x,y,z arrays
         elif x is not None and y is not None and z is not None:
@@ -143,6 +135,7 @@ class GridFIT3D:
                 "  - OR load from a HDF5 file using load_from_h5"
             )
 
+        #TODO: allow non uniform dx, dy, dz
         self.dx = np.min(np.diff(self.x))
         self.dy = np.min(np.diff(self.y))
         #self.dz = np.min(np.diff(self.z))
@@ -1022,3 +1015,16 @@ class GridFIT3D:
         with h5py.File(filename, 'r') as hf:
             for key in self.stl_solids.keys():
                 self.grid[key] = hf['grid_'+key][()]
+
+        # add verbosity
+        if self.verbose > 1:
+            print(f'Loaded grid with {self.Nx*self.Ny*self.Nz} mesh cells:')
+            print(f' * Number of cells: Nx={self.Nx}, Ny={self.Ny}, Nz={self.Nz}')
+            print(f' * Simulation domain bounds: \n\
+                x:[{self.xmin:.3f}, {self.xmax:.3f}],\n\
+                y:[{self.ymin:.3f}, {self.ymax:.3f}],\n\
+                z:[{self.zmin:.3f}, {self.zmax:.3f}]')
+            print(f' * STL solids imported:\n\
+                {list(self.stl_solids.keys())}')
+            print(f' * STL solids assigned materials [eps_r, mu_r, sigma]:\n\
+                {list(self.stl_materials.values())}')
