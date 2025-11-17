@@ -17,14 +17,14 @@ import sys
 sys.path.append('../')
 
 from wakis import SolverFIT3D
-from wakis import GridFIT3D 
+from wakis import GridFIT3D
 from wakis import WakeSolver
 
 from tqdm import tqdm
 
 # ---------- MPI setup ------------
 # can be skipped since it is handled inside GridFIT3D
-from mpi4py import MPI 
+from mpi4py import MPI
 
 comm = MPI.COMM_WORLD  # Get MPI communicator
 rank = comm.Get_rank()  # Process ID
@@ -36,11 +36,11 @@ size = comm.Get_size()  # Total number of MPI processes
 solid_1 = 'data/001_vacuum_cavity.stl'
 solid_2 = 'data/001_lossymetal_shell.stl'
 
-stl_solids = {'cavity': solid_1, 
+stl_solids = {'cavity': solid_1,
               'shell': solid_2
               }
 
-stl_materials = {'cavity': 'vacuum', 
+stl_materials = {'cavity': 'vacuum',
                  'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
                  }
 
@@ -53,10 +53,10 @@ Nx = 80
 Ny = 80
 NZ = 140
 
-grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX, 
-                Nx, Ny, NZ, 
+grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX,
+                Nx, Ny, NZ,
                 use_mpi=True, # Enables MPI subdivision of the domain
-                stl_solids=stl_solids, 
+                stl_solids=stl_solids,
                 stl_materials=stl_materials,
                 stl_scale=1.0,
                 stl_rotate=[0,0,0],
@@ -69,12 +69,12 @@ print(f"Process {rank}: Handling Z range {grid.zmin} to {grid.zmax} with {grid.N
 # Beam parameters
 sigmaz = 10e-2      #[m] -> 2 GHz
 q = 1e-9            #[C]
-beta = 1.0          # beam beta 
+beta = 1.0          # beam beta
 xs = 0.             # x source position [m]
 ys = 0.             # y source position [m]
 xt = 0.             # x test position [m]
 yt = 0.             # y test position [m]
-# [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
+# [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s]
 
 from wakis.sources import Beam
 from scipy.constants import c
@@ -90,19 +90,19 @@ bc_high=['pec', 'pec', 'pec']
 
 # Solver setup
 solver = SolverFIT3D(grid,
-                    bc_low=bc_low, 
-                    bc_high=bc_high, 
-                    use_stl=True, 
+                    bc_low=bc_low,
+                    bc_high=bc_high,
+                    use_stl=True,
                     use_mpi=True, # Activate MPI
                     bg='pec' # Background material
                     )
 
 img_folder = '003_img/'
-if not os.path.exists(img_folder): 
+if not os.path.exists(img_folder):
     os.mkdir(img_folder)
-      
+
 # -------------- Custom time loop  -----------------
-run_timeloop = False
+run_timeloop = True
 if run_timeloop:
     Nt = 3000
     # Plot beam current vs time
@@ -128,32 +128,32 @@ if run_timeloop:
 
         # Plot E abs in 2D every 20 timesteps
         if n%20 == 0 and plot_2D:
-            solver.plot2D(field='E', component='Abs', 
-                        plane='YZ', pos=0.5, 
+            solver.plot2D(field='E', component='Abs',
+                        plane='YZ', pos=0.5,
                         cmap='rainbow', vmin=0, vmax=500., interpolation='hanning',
                         off_screen=True, title=img_folder+'Ez2d', n=n)
 
         # Plot E z in 1D at diferent transverse positions `pos` every 20 timesteps
         if n%20 == 0 and plot_1D:
-            solver.plot1D(field='E', component='z', 
-                line='z', pos=[0.45, 0.5, 0.55], 
+            solver.plot1D(field='E', component='z',
+                line='z', pos=[0.45, 0.5, 0.55],
                 xscale='linear', yscale='linear',
                 off_screen=True, title=img_folder+'Ez1d', n=n)
-      
+
 # -------------- using Wakefield routine  -----------------
-run_wakefield = True
+run_wakefield = False
 if run_wakefield:
 
     # ------------ Beam source ----------------
     # Beam parameters
     sigmaz = 10e-2      #[m] -> 2 GHz
     q = 1e-9            #[C]
-    beta = 1.0          # beam beta 
+    beta = 1.0          # beam beta
     xs = 0.             # x source position [m]
     ys = 0.             # y source position [m]
     xt = 0.             # x test position [m]
     yt = 0.             # y test position [m]
-    # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
+    # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s]
 
 
     # ----------- Wake Solver  setup  ----------
@@ -171,7 +171,7 @@ if run_wakefield:
     solver.reset_fields()
 
     # Solver run
-    plotkw2D = {'title': img_folder+'Ez', 
+    plotkw2D = {'title': img_folder+'Ez',
             'add_patch':'cavity', 'patch_alpha':1.0,
             'patch_reverse' : True,  # patch logical_not('cavity')
             'vmin':-1e3, 'vmax':1e3, # colormap limits
@@ -180,7 +180,7 @@ if run_wakefield:
                       slice(0, Ny),                    # y
                       slice(skip_cells, -skip_cells)]}   # z
 
-    solver.wakesolve(wakelength=wakelength, 
+    solver.wakesolve(wakelength=wakelength,
                     wake=wake,
                     plot=False, # turn False for speedup
                     plot_every=30, plot_until=3000, **plotkw2D
@@ -240,8 +240,8 @@ if run_wakefield:
         #plt.show()
 
     # Plot Electric field component in 1D for several transverse positions
-    solver.plot1D(field='E', component='z', 
-                line='z', pos=[0.4, 0.5, 0.6], 
+    solver.plot1D(field='E', component='z',
+                line='z', pos=[0.4, 0.5, 0.6],
                 xscale='linear', yscale='linear',
                 off_screen=True, title=img_folder+'Ez1d')
     #plt.show()
@@ -251,10 +251,10 @@ if run_wakefield:
     cmap = LinearSegmentedColormap.from_list('name', plt.cm.jet(np.linspace(0.1, 0.9))) # CST's colormap
 
     # Plot Electric field component in 2D using imshow
-    solver.plot2D(field='E', component='z', 
-                plane='XY', pos=0.5, 
+    solver.plot2D(field='E', component='z',
+                plane='XY', pos=0.5,
                 cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
-                add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
+                add_patch='cavity', patch_reverse=True, patch_alpha=0.8,
                 off_screen=True, title=img_folder+'Ez2d')
     #plt.show()
 
@@ -265,22 +265,97 @@ if run_wakefield:
 
     # ----------- 3d plots results --------------------
     # Plot Electric field component in 3D using pyvista.plotter
-    solver.plot3D('E', component='Abs', 
+    solver.plot3D('E', component='Abs',
                 cmap='rainbow', clim=[0, 500],
                 add_stl=['cavity', 'shell'], stl_opacity=0.1,
                 clip_interactive=True, clip_normal='-y')
 
     # Plot Abs Electric field on STL solid `cavity`
-    solver.plot3DonSTL('E', component='Abs', 
+    solver.plot3DonSTL('E', component='Abs',
                     cmap='rainbow', clim=[0, 500],
                     stl_with_field='cavity', field_opacity=1.0,
                     stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
                     #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
                     off_screen=False, zoom=1.2, title='003_img/Ez3d')
-            
+
 
 # --------------------- Extra -----------------------
-# # Check global material tensors
+# Callback plotting functions for debugging
+# Need to gather field before, e.g.: Ez = solver.mpi_gather('Ez', x=Nx//2)
+# Need to be plotted in rank 0 only e.g.: if rank == 0: plot1D_field(Ez, 'Ez', n=n, results_folder=img_folder, vmin=-800, vmax=800)
+def plot1D_field(field, name='E', y=Ny//2, n=None, results_folder='img/', vmin=None, vmax=None,):
+    if vmin is None:
+        vmin = -field.max()
+    if ymax is None:
+        vmax = field.max()
+
+    fig, ax = plt.subplots()
+    ax.plot(field[y, :], c='g')
+    ax.set_title(f'{name} at timestep={n}')
+    ax.set_xlabel('z [m]')
+    ax.set_ylabel('Field amplitude')
+    ax.set_ylim((vmin, vmax))
+
+    #plot vertical lines at subdomain borders
+    for r in range(size):
+        if r == 0:
+            ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r), c='blue', alpha=0.5)
+        elif r == (size-1):
+            ax.axvline(NZ//size*(r+1), c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
+        else: #outside subdomains
+            ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
+
+    fig.tight_layout()
+    fig.savefig(results_folder+name+'1d_'+str(n).zfill(4)+'.png')
+
+    plt.clf()
+    plt.close(fig)
+
+def plot2D_field(field, name='E', n=None, results_folder='img/', vmin=None, vmax=None,):
+    extent = (0, NZ, 0, Ny)
+    if vmin is None:
+        vmin = -field.max()
+    if vmax is None:
+        vmax = field.max()
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(field, cmap='rainbow', extent=extent, vmin=vmin, vmax=vmax)
+    fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
+    ax.set_title(f'{name} at timestep={n}')
+    ax.set_xlabel('z [id]')
+    ax.set_ylabel('y [id]')
+
+    #plot vertical lines at subdomain borders
+    for r in range(size):
+        if r == 0:
+            ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r), c='blue', alpha=0.5)
+        elif r == (size-1):
+            ax.axvline(NZ//size*(r+1), c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
+        else: #outside subdomains
+            ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
+            ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
+
+    #plot fill rectangles for each subdomain
+    # for r in range(size):
+    #     if r == 0:
+    #         ax.axvspan(NZ//size*(r), NZ//size*(r+1)+grid.n_ghosts, color='darkorange', alpha=0.1)
+    #     elif r == (size-1):
+    #         ax.axvspan(NZ//size*(r)-grid.n_ghosts, NZ//size*(r+1), color='darkorange', alpha=0.1)
+    #     else: #outside subdomains
+    #         ax.axvspan(NZ//size*(r)-grid.n_ghosts, NZ//size*(r+1)+grid.n_ghosts, color='green', alpha=0.1)
+
+    fig.tight_layout(h_pad=0.3)
+    fig.savefig(results_folder+name+'2d_'+str(n).zfill(4)+'.png')
+
+    plt.clf()
+    plt.close(fig)
+
+# # Check global material tensors inside loop
 if False:
     ieps = solver.mpi_gather_asField(solver.ieps)
     sigma = solver.mpi_gather(solver.sigma, 'z', x=Nx//2)
@@ -290,84 +365,5 @@ if False:
         fig.savefig(img_folder+'ieps_inspect.png')
         plt.close(fig)
 
-        # Plot 
+        # Plot
         plot2D_field(sigma, 'sigmaz_', results_folder=img_folder)
-
-
-# Callback plotting functions for debugging
-# Need to gather field before, e.g.: Ez = solver.mpi_gather('Ez', x=Nx//2)
-# Need to be plotted in rank 0 only e.g.: if rank == 0: plot1D_field(Ez, 'Ez', n=n, results_folder=img_folder, vmin=-800, vmax=800)
-if False:
-    def plot1D_field(field, name='E', y=Ny//2, n=None, results_folder='img/', vmin=None, vmax=None,):
-        if vmin is None:
-            vmin = -field.max()
-        if ymax is None:
-            vmax = field.max()
-
-        fig, ax = plt.subplots()
-        ax.plot(field[y, :], c='g')
-        ax.set_title(f'{name} at timestep={n}')
-        ax.set_xlabel('z [m]')
-        ax.set_ylabel('Field amplitude')
-        ax.set_ylim((vmin, vmax))
-
-        #plot vertical lines at subdomain borders
-        for r in range(size):
-            if r == 0:
-                ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
-                ax.axvline(NZ//size*(r), c='blue', alpha=0.5)
-            elif r == (size-1):
-                ax.axvline(NZ//size*(r+1), c='red', alpha=0.5)
-                ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
-            else: #outside subdomains
-                ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
-                ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
-
-        fig.tight_layout()
-        fig.savefig(results_folder+name+'1d_'+str(n).zfill(4)+'.png')
-
-        plt.clf()
-        plt.close(fig)
-
-    def plot2D_field(field, name='E', n=None, results_folder='img/', vmin=None, vmax=None,):
-        extent = (0, NZ, 0, Ny)
-        if vmin is None:
-            vmin = -field.max()
-        if vmax is None:
-            vmax = field.max()
-
-        fig, ax = plt.subplots()
-        im = ax.imshow(field, cmap='rainbow', extent=extent, vmin=vmin, vmax=vmax)
-        fig.colorbar(im, cax=make_axes_locatable(ax).append_axes('right', size='5%', pad=0.05))
-        ax.set_title(f'{name} at timestep={n}')
-        ax.set_xlabel('z [id]')
-        ax.set_ylabel('y [id]')
-
-        #plot vertical lines at subdomain borders
-        if True:
-            for r in range(size):
-                if r == 0:
-                    ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
-                    ax.axvline(NZ//size*(r), c='blue', alpha=0.5)
-                elif r == (size-1):
-                    ax.axvline(NZ//size*(r+1), c='red', alpha=0.5)
-                    ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
-                else: #outside subdomains
-                    ax.axvline(NZ//size*(r+1)+grid.n_ghosts, c='red', alpha=0.5)
-                    ax.axvline(NZ//size*(r)-grid.n_ghosts, c='blue', alpha=0.5)
-                    
-        #plot fill rectangles for each subdomain
-        if False:
-            for r in range(size):
-                if r == 0:
-                    ax.axvspan(NZ//size*(r), NZ//size*(r+1)+grid.n_ghosts, color='darkorange', alpha=0.1)
-                elif r == (size-1):
-                    ax.axvspan(NZ//size*(r)-grid.n_ghosts, NZ//size*(r+1), color='darkorange', alpha=0.1)
-                else: #outside subdomains
-                    ax.axvspan(NZ//size*(r)-grid.n_ghosts, NZ//size*(r+1)+grid.n_ghosts, color='green', alpha=0.1)
-
-        fig.tight_layout(h_pad=0.3)
-        fig.savefig(results_folder+name+'2d_'+str(n).zfill(4)+'.png')
-
-        plt.clf()
-        plt.close(fig)
