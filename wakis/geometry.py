@@ -3,7 +3,6 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 
-import numpy as np
 import re
 
 def extract_colors_from_stp(stp_file):
@@ -22,7 +21,7 @@ def extract_colors_from_stp(stp_file):
     stl_colors = {}
 
     color_pattern = re.compile(r"#\d+=COLOUR_RGB\('?',([\d.]+),([\d.]+),([\d.]+)\);")
-    
+
     # Extract colors
     with open(stp_file, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
@@ -58,7 +57,7 @@ def extract_materials_from_stp(stp_file):
         solid = solids[list(solids.keys())[i]]
         try:
             mat = materials[list(solids.keys())[i]].lower()
-        except:
+        except KeyError:
             print(f'Solid #{list(solids.keys())[i]} has no assigned material')
             mat = 'None'
 
@@ -78,7 +77,7 @@ def extract_solids_from_stp(stp_file, path=''):
         solid = solids[list(solids.keys())[i]]
         try:
             mat = materials[list(solids.keys())[i]]
-        except:
+        except KeyError:
             print(f'Solid #{list(solids.keys())[i]} has no assigned material')
             mat = 'None'
 
@@ -95,14 +94,14 @@ def extract_names_from_stp(stp_file):
     Extracts solid names and their corresponding materials from a STEP (.stp) file.
 
     This function parses a given STEP file to identify solid objects and their assigned materials.
-    The solid names are extracted from `MANIFOLD_SOLID_BREP` statements, while the materials are 
+    The solid names are extracted from `MANIFOLD_SOLID_BREP` statements, while the materials are
     linked via `PRESENTATION_LAYER_ASSIGNMENT` statements.
 
     Args:
         stp_file (str): Path to the STEP (.stp) file.
 
     Returns:
-        tuple[dict[int, str], dict[int, str]]: 
+        tuple[dict[int, str], dict[int, str]]:
             - A dictionary mapping solid IDs to their names.
             - A dictionary mapping solid IDs to their corresponding material names.
 
@@ -162,7 +161,7 @@ def get_stp_unit_scale(stp_file):
         float: Scale factor to convert STEP geometry to meters.
                Defaults to 1.0 if no valid unit information is found.
     """
-    
+
     unit_map = {
             ".MILLI.": 1e-3,
             ".CENTI.": 1e-2,
@@ -193,7 +192,7 @@ def get_stp_unit_scale(stp_file):
     except Exception as exc:
         print(f"Error reading unit from STEP file: {exc}")
         print("Files remain in original unit.")
-        
+
         return 1.0
 
 def generate_stl_solids_from_stp(stp_file, results_path=''):
@@ -219,20 +218,20 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
         000_Vacuum-Half_cell_dx_Vacuum.stl
         001_Be_window_left_Berillium.stl
     """
-        
+
     try:
         import cadquery as cq
-    except:
+    except ImportError:
         raise Exception('''This function needs the open-source package `cadquery`
-                        To install it in a conda environment do: 
-                        
+                        To install it in a conda environment do:
+
                         `pip install cadquery`
 
                         [!] We recommend having a dedicated conda environment to avoid version issues
                         ''')
-    
+
     stp = cq.importers.importStep(stp_file)
-    
+
     scale_factor = get_stp_unit_scale(stp_file)
     if scale_factor != 1.0:
         print(f"Scaling geometry to meters (factor={scale_factor}).")
@@ -248,7 +247,7 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
     for i, obj in enumerate(stp.objects[0]):
         name = solid_dict[list(solid_dict.keys())[i]]
         print(name)
-        obj.exportStl(results_path+name) 
+        obj.exportStl(results_path+name)
 
     return solid_dict
-    
+
