@@ -10,6 +10,7 @@ from . import sources
 from . import materials
 from . import wakeSolver
 from . import geometry
+from . import logger
 from . import field_monitors
 
 from .field_monitors import FieldMonitor
@@ -17,5 +18,6 @@ from .field import Field
 from .gridFIT3D import GridFIT3D
 from .solverFIT3D import SolverFIT3D
 from .wakeSolver import WakeSolver
+from .logger import Logger
 
 from ._version import __version__

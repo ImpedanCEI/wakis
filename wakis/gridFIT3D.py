@@ -9,8 +9,10 @@ import time
 import h5py
 
 from scipy.optimize import least_squares
+import time
 
 from .field import Field
+from .logger import Logger
 
 try:
     from mpi4py import MPI
@@ -91,6 +93,13 @@ class GridFIT3D:
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
 
         if stl_solids is not None:
             self._prepare_stl_dicts()
@@ -192,6 +201,8 @@ class GridFIT3D:
         if verbose:
             print(f'Total grid initialization time: {time.time() - t0} s')
 
+        self.gridInitializationTime = time.time()-t0
+        self.update_logger(['gridInitializationTime'])
 
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
@@ -1028,3 +1039,9 @@ class GridFIT3D:
                 {list(self.stl_solids.keys())}')
             print(f' * STL solids assigned materials [eps_r, mu_r, sigma]:\n\
                 {list(self.stl_materials.values())}')
+    def update_logger(self, attrs):
+        """
+        Assigns the parameters handed via attrs to the logger
+        """
+        for atr in attrs:
+            self.logger.grid[atr] = getattr(self, atr)

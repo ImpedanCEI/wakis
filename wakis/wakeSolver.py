@@ -12,17 +12,19 @@ import numpy as np
 from tqdm import tqdm
 from scipy.constants import c as c_light
 
+from .logger import Logger
+
 class WakeSolver():
     ''' Class for wake potential and impedance
     calculation from 3D time domain E fields
     '''
 
     def __init__(self, wakelength=None, q=1e-9, sigmaz=1e-3, beta=1.0,
-                 xsource=0., ysource=0., xtest=0., ytest=0.,
-                 chargedist=None, ti=None,
-                 compute_plane='both', skip_cells=0, add_space=None,
+                 xsource=0., ysource=0., xtest=0., ytest=0., 
+                 chargedist=None, ti=None, 
+                 compute_plane='both', skip_cells=0, add_space=None, 
                  Ez_file=None, save=True, results_folder='results/',
-                 verbose=0, logfile=False, counter_moving=False):
+                 verbose=0, counter_moving=False):
         '''
         Parameters
         ----------
@@ -61,9 +63,6 @@ class WakeSolver():
             - Charge distribution: lambda.txt, spectrum.txt
         verbose: bool, default 0
             Controls the level of verbose in the terminal output
-        logfile: bool, default False
-            Creates a `wake.log` file with the summary of the input parameters
-            and calculations performed
         counter_moving: bool, default False
             If the test charge is moving in the same or opposite direction to the source
 
@@ -161,8 +160,8 @@ class WakeSolver():
 
         #user
         self.verbose = verbose
+        self.logger = Logger()
         self.save = save
-        self.logfile = logfile
         self.folder = results_folder
         if not self.folder.endswith('/'):
             self.folder+='/'
@@ -171,10 +170,8 @@ class WakeSolver():
         if self.save:
             if not os.path.exists(self.folder):
                 os.mkdir(self.folder)
-
-        # create log
-        if self.log:
-            self.params_to_log()
+        
+        self.assign_logs()
 
     def solve(self, compute_plane=None, **kwargs):
         '''
@@ -1021,7 +1018,7 @@ class WakeSolver():
         try:
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter, usecols=usecols)
         except Exception:
-            if self.verbose > 1:
+            if self.verbose:
                 print(f'[!] Using dtype=np.complex128 to read {txt}')
             load = np.loadtxt(txt, skiprows=skiprows, delimiter=delimiter,
                               usecols=usecols, dtype=np.complex128)
@@ -1131,37 +1128,8 @@ class WakeSolver():
         return obj
 
     def log(self, txt):
-
         if self.verbose:
             print('\x1b[2;37m'+txt+'\x1b[0m')
-
-        if not self.logfile:
-            return
-
-        title = 'wake'
-        f = open(title + '.log', "a")
-        f.write(txt + '\r\n')
-        f.close()
-
-    def params_to_log(self):
-        self.log(time.asctime())
-        self.log('Wake computation')
-        self.log('='*24)
-        self.log(f'* Charge q = {self.q} [C]')
-        self.log(f'* Beam sigmaz = {self.sigmaz} [m]')
-        self.log(f'* xsource, ysource = {self.xsource}, {self.ysource} [m]')
-        self.log(f'* xtest, ytest = {self.xtest}, {self.ytest} [m]')
-        self.log(f'* Beam injection time ti= {self.ti} [s]')
-
-        if self.chargedist is not None:
-            if type(self.chargedist) is str:
-                self.log(f'* Charge distribution file: {self.chargedist}')
-            else:
-                self.log('* Charge distribution data is provided')
-        else:
-            self.log('* Charge distribution analytic')
-
-        self.log('\n')
 
     def read_cst_3d(self, path=None, folder='3d', filename='Ez.h5', units=1e-3):
         '''
@@ -1324,4 +1292,18 @@ class WakeSolver():
         self.zf = z
         self.t = np.array(t)
 
-
+    def assign_logs(self):
+        """
+        Assigns the parameters of the wake to the logger
+        """
+        self.logger.wakeSolver["ti"]=self.ti
+        self.logger.wakeSolver["q"]=self.q
+        self.logger.wakeSolver["sigmaz"]=self.sigmaz
+        self.logger.wakeSolver["beta"]=self.beta
+        self.logger.wakeSolver["xsource"]=self.xsource
+        self.logger.wakeSolver["ysource"]=self.ysource
+        self.logger.wakeSolver["xtest"]=self.xtest
+        self.logger.wakeSolver["ytest"]=self.ytest
+        self.logger.wakeSolver["chargedist"]=self.chargedist
+        self.logger.wakeSolver["skip_cells"]=self.skip_cells
+        self.logger.wakeSolver["results_folder"]=self.folder
