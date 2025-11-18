@@ -9,7 +9,6 @@ import time
 import h5py
 
 from scipy.optimize import least_squares
-import time
 
 from .field import Field
 from .logger import Logger
@@ -134,6 +133,7 @@ class GridFIT3D:
         #self.dz = np.min(np.diff(self.z))
         self.dz = (self.zmax - self.zmin)/self.Nz
         self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+        self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
         # stl info
         self.stl_solids = stl_solids
@@ -1043,8 +1043,9 @@ class GridFIT3D:
             print(f' * STL solids assigned materials [eps_r, mu_r, sigma]:\n\
                 {list(self.stl_materials.values())}')
 
-        # update logger [TODO: add domain bounds info]
+        # update logger
         self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+        self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
         self.update_logger(['stl_solids', 'stl_materials'])
         if self.stl_rotate != [0., 0., 0.]:
             self.update_logger(['stl_rotate'])

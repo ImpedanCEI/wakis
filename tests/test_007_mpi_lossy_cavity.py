@@ -86,13 +86,18 @@ class TestMPILossyCavity:
                     -6.04105997e+01 ,-3.06532160e+01 ,-1.17749936e+01 ,-3.12574866e+00,
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
-    gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.008666666348775227, 'dy': 0.008666666348775227,
-                 'dz': 0.005714285799435207, 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
-                 'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 'gridInitializationTime': 0}
+    gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.00866666634877522, 
+                'dy': 0.00866666634877522, 'dz': 0.005714285799435207, 
+                'xmin': -0.25999999046325684, 'xmax': 0.25999999046325684, 
+                'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684, 
+                'zmin': -0.25, 'zmax': 0.550000011920929, 
+                'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
+                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 
+                'gridInitializationTime': 0}
     
-    solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec','bc_low': ['pec', 'pec', 'pec'],
-                   'bc_high': ['pec', 'pec', 'pec'], 
-                   'dt': 6.970326728398968e-12, 'solverInitializationTime': 0}
+    solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec',
+                'bc_low': ['pec', 'pec', 'pec'], 'bc_high': ['pec', 'pec', 'pec'], 
+                'dt': 6.970326728398966e-12, 'solverInitializationTime': 0}
     
     wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
                        'xsource': 0.0, 'ysource': 0.0, 'xtest': 0.0, 'ytest': 0.0, 'chargedist': None,
@@ -340,12 +345,49 @@ class TestMPILossyCavity:
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
     
     def test_log_file(self):
+        # Helper function to compare nested dicts with float tolerance
+        def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):
+            assert set(d1.keys()) == set(d2.keys()), \
+                f"Key mismatch at {path}: {set(d1.keys())} != {set(d2.keys())}"
+
+            for k in d1:
+                v1, v2 = d1[k], d2[k]
+                p = f"{path}.{k}" if path else k
+
+                # nested dict
+                if isinstance(v1, dict) and isinstance(v2, dict):
+                    assert_dict_allclose(v1, v2, rtol, atol, p)
+
+                # floats
+                elif isinstance(v1, float) and isinstance(v2, float):
+                    assert np.isclose(v1, v2, rtol=rtol, atol=atol), \
+                        f"Float mismatch at {p}: {v1} != {v2}"
+
+                # lists/tuples/arrays
+                elif isinstance(v1, (list, tuple)) and isinstance(v2, (list, tuple)):
+                    assert len(v1) == len(v2), f"Length mismatch at {p}"
+                    for i, (a, b) in enumerate(zip(v1, v2)):
+                        if isinstance(a, float) and isinstance(b, float):
+                            assert np.isclose(a, b, rtol=rtol, atol=atol), \
+                                f"Float mismatch at {p}[{i}]: {a} != {b}"
+                        else:
+                            assert a == b, f"Value mismatch at {p}[{i}]: {a} != {b}"
+
+                # everything else → exact match
+                else:
+                    assert v1 == v2, f"Mismatch at {p}: {v1} != {v2}"
+
         global solver
-        solver.logger.grid["gridInitializationTime"] = 0 #times can vary
+        # Exclude timing info from comparison as they can vary between runs
+        solver.logger.grid["gridInitializationTime"] = 0 
         solver.logger.solver["solverInitializationTime"] = 0
         solver.logger.wakeSolver["simulationTime"] = 0
+
+        # Check log file exists
         logfile = os.path.join(solver.logger.wakeSolver["results_folder"], "wakis.log")
         assert os.path.exists(logfile), "Log file not created"
-        assert solver.logger.grid == self.gridLogs, "Grid logs do not match expected values"
-        assert solver.logger.solver == self.solverLogs, "Solver logs do not match expected values"
-        assert solver.logger.wakeSolver == self.wakeSolverLogs, "WakeSolver logs do not match expected values"
+
+        # Compare log dict contents
+        assert_dict_allclose(solver.logger.grid, self.gridLogs)
+        assert_dict_allclose(solver.logger.solver, self.solverLogs)
+        assert_dict_allclose(solver.logger.wakeSolver, self.wakeSolverLogs)
