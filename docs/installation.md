@@ -189,10 +189,12 @@ for simulations with BLonD, the longitudinal beam dynamics code.
 To achieve multithreading for Wakis `sparse matrix x vector` operations, the Intel-MKL backend has been implemented as an alternative to single-threaded `scipy.sparse.dot`. To install it in your conda environment simply do:
 
 ```
-pip install mkl mkl-service sparse_dot_mkl
+conda create --name wakis-env python=3.12 numpy scipy mkl mkl-service
+pip install sparse_dot_mkl
+pip install wakis['notebook']
 ```
 
-Wakis will detect that the package is installed and use it as default backend. To control the number of threads and memory pinning, add the following lines to your python script **before** the imports:
+Wakis will detect that the package is installed and use it as default backend. To control the number of threads and memory pinning, one can add the following lines to your python script **before** the imports:
 
 ```python
 # [!] Set before importing numpy/scipy/mkl modules
