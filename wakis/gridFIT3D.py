@@ -83,26 +83,10 @@ class GridFIT3D:
                 stl_colors=None, stl_tol=1e-3,
                 load_from_h5=None, verbose=1,):
 
+        t0 = time.time()
+        self.logger = Logger()
         self.verbose = verbose
         self.use_mpi = use_mpi
-
-        # stl info
-        self.stl_solids = stl_solids
-        self.stl_materials = stl_materials
-        self.stl_rotate = stl_rotate
-        self.stl_translate = stl_translate
-        self.stl_scale = stl_scale
-        self.stl_colors = stl_colors
-        self.update_logger(['stl_solids', 'stl_materials'])
-        if stl_rotate != [0., 0., 0.]:
-            self.update_logger(['stl_rotate'])
-        if stl_translate != [0., 0., 0.]:
-            self.update_logger(['stl_translate'])
-        if stl_scale != 1.0:
-            self.update_logger(['stl_scale'])
-
-        if stl_solids is not None:
-            self._prepare_stl_dicts()
 
         # Grid data
         # generate from file
@@ -149,6 +133,25 @@ class GridFIT3D:
         self.dy = np.min(np.diff(self.y))
         #self.dz = np.min(np.diff(self.z))
         self.dz = (self.zmax - self.zmin)/self.Nz
+        self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+
+        # stl info
+        self.stl_solids = stl_solids
+        self.stl_materials = stl_materials
+        self.stl_rotate = stl_rotate
+        self.stl_translate = stl_translate
+        self.stl_scale = stl_scale
+        self.stl_colors = stl_colors
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
+
+        if stl_solids is not None:
+            self._prepare_stl_dicts()
 
         # refine self.x, self.y, self.z using snap points
         self.use_mesh_refinement = use_mesh_refinement
@@ -156,6 +159,7 @@ class GridFIT3D:
         self.snap_points = snap_points
         self.snap_tol = snap_tol
         self.snap_solids = snap_solids # if None, use all stl_solids
+        self.update_logger(['use_mesh_refinement'])
 
         if self.use_mesh_refinement:
             if verbose:
@@ -171,7 +175,6 @@ class GridFIT3D:
                     x:[{xmin:.3f}, {xmax:.3f}],\n\
                     y:[{ymin:.3f}, {ymax:.3f}],\n\
                     z:[{zmin:.3f}, {zmax:.3f}]')
-            t0 = time.time()
 
         # MPI subdivide domain
         if self.use_mpi:
@@ -1039,6 +1042,17 @@ class GridFIT3D:
                 {list(self.stl_solids.keys())}')
             print(f' * STL solids assigned materials [eps_r, mu_r, sigma]:\n\
                 {list(self.stl_materials.values())}')
+
+        # update logger [TODO: add domain bounds info]
+        self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if self.stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if self.stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if self.stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
+
     def update_logger(self, attrs):
         """
         Assigns the parameters handed via attrs to the logger

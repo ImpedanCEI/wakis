@@ -24,6 +24,10 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        path: wakis
     - name: Setup Miniforge
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -37,13 +41,8 @@ jobs:
       run:  |
         cd wakis
         pip install .['notebook']
-
     - name: Print versions
       run: conda list
-    - name: Checkout wakis
-      uses: actions/checkout@v4
-      with:
-        path: wakis
     - name: Run pytest
       run:  |
         cd wakis
