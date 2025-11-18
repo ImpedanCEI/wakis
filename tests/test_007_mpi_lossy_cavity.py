@@ -382,6 +382,7 @@ class TestMPILossyCavity:
         solver.logger.grid["gridInitializationTime"] = 0 
         solver.logger.solver["solverInitializationTime"] = 0
         solver.logger.wakeSolver["simulationTime"] = 0
+        self.solverLogs['use_mpi'] = use_mpi
 
         # Check log file exists
         logfile = os.path.join(solver.logger.wakeSolver["results_folder"], "wakis.log")
