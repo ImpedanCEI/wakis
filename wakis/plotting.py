@@ -109,8 +109,7 @@ class PlotMixin:
                 pl.camera_position = camera_position
 
             pl.set_background('mistyrose', top='white')
-            try: pl.add_logo_widget('docs/img/wakis-logo-pink.png')
-            except: pass
+            self._add_logo_widget(pl)
             pl.camera.zoom(zoom)
             pl.add_axes()
             pl.enable_3_lights()
@@ -323,8 +322,10 @@ class PlotMixin:
                 key = stl_with_field
                 surf = self.grid.read_stl(key)
                 if clip_plane:
-                    try: surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin).subdivide_adaptive(max_edge_len=3*self.dz)
-                    except: print("Surface non-manifold, clip with plane skipped")
+                    try: 
+                        surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin).subdivide_adaptive(max_edge_len=3*self.dz)
+                    except Exception: 
+                        print("[!] Surface non-manifold, clip with plane skipped")
 
                 fieldonsurf = surf.sample(points, tolerance)
 
@@ -356,8 +357,10 @@ class PlotMixin:
                 for i, key in enumerate(stl_with_field):
                     surf = self.grid.read_stl(key)
                     if clip_plane:
-                        try: surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin)
-                        except: print("Surface non-manifold, clip with plane skipped")
+                        try: 
+                            surf = surf.clip_closed_surface(normal=clip_normal, origin=clip_origin)
+                        except Exception: 
+                            print("Surface non-manifold, clip with plane skipped")
 
                     fieldonsurf = surf.sample(points)
 
@@ -388,8 +391,7 @@ class PlotMixin:
             pl.camera_position = camera_position
 
         pl.set_background('mistyrose', top='white')
-        try: pl.add_logo_widget('docs/img/wakis-logo-pink.png')
-        except: pass
+        self._add_logo_widget(pl)
         pl.camera.zoom(zoom)
         pl.add_axes()
         pl.enable_anti_aliasing()
@@ -733,7 +735,8 @@ class PlotMixin:
 
             if i == 0: # first one on top
                 zorder = 10
-            else: zorder = i
+            else: 
+                zorder = i
 
             if self.use_mpi: # only in rank=0
                 _field = self.mpi_gather(field, x=x, y=y, z=z, component=component)
@@ -818,3 +821,22 @@ class PlotMixin:
             else:
                 plt.show()
 
+    def inspect(self):
+        pass
+
+    def _add_logo_widget(self, pl):
+        """Add packaged logo via importlib.resources (Python 3.9+)."""
+        try:
+            from importlib import resources
+            # resource inside the installed package (use current package)
+            logo_res = resources.files(__package__).joinpath('static', 'img', 'wakis-logo-pink.png')
+            with resources.as_file(logo_res) as logo_path:
+                pl.add_logo_widget(str(logo_path))
+                return
+        except Exception as e:
+            # fallback to the legacy relative path for dev installs
+            try:
+                pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except Exception:
+                if self.verbose > 1:
+                    print(f'[!] Could not add logo widget: {e}')
