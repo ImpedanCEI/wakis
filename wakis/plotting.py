@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 
+import pyvista as pv
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -63,10 +64,8 @@ class PlotMixin:
             Timestep number to be added to the plot title and figsave title.
         '''
         if self.use_mpi:
-            print('*** plot3D is not supported when `use_mpi=True`')
+            print('[!] plot3D is not supported when `use_mpi=True`')
             return
-
-        import pyvista as pv
 
         if len(field) == 2: #support for e.g. field='Ex'
             component = field[1]
@@ -262,11 +261,9 @@ class PlotMixin:
             https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
         '''
         if self.use_mpi:
-            print('*** plot3D is not supported when `use_mpi=True`')
+            print('[!] plot3D is not supported when `use_mpi=True`')
             return
         
-        import pyvista as pv
-
         if len(field) == 2: #support for e.g. field='Ex'
             component = field[1]
             field = field[0]
@@ -821,8 +818,145 @@ class PlotMixin:
             else:
                 plt.show()
 
-    def inspect(self):
-        pass
+    def inspect(self, wake=None, window_size=None, off_screen=False,
+                opacity=1.0, inactive_opacity=0.1, add_silhouette=False,
+                specular=0.5, smooth_shading=False):
+                
+        if self.use_mpi:
+            print('[!] plot3D is not supported when `use_mpi=True`')
+            return
+        if wake is not None:
+            self.solver.wake = wake
+
+        # Initialize plotter
+        pl = pv.Plotter(window_size=window_size)
+        solid_state = {}
+        for key, path in self.stl_solids.items():
+            surf = self.grid.read_stl(key)
+            color = self.stl_colors.get(key, "lightgray")
+            actor = pl.add_mesh(surf, color=color, name=key, 
+                                opacity=inactive_opacity, silhouette=False,
+                                smooth_shading=smooth_shading, specular=specular)
+            sil = None
+            if add_silhouette:
+                sil = pl.add_silhouette(surf, color="black", line_width=3.0)
+                sil.SetVisibility(False)
+
+            solid_state[key] = {
+                "actor": actor,
+                "silhouette": sil,
+                "active_opacity": opacity,
+                "inactive_opacity": inactive_opacity,
+                "checked": False,
+                "highlight": False,
+                "button": None,
+            }
+
+        # UI scale and solid checkboxes positioning
+        w, h = pl.window_size
+        ui = h / 800.0
+        box = max(16, int(20 * ui))
+        font = max(8, int(12 * ui))
+        pad = int(10 * ui)
+        dy = box + pad
+        cx = int(10 * ui)
+        cy = h // 2
+
+        # checkboxes callbacks for solids and master (all On/Off)
+        color_on = 'green'
+        color_off = 'white'
+        def apply(state):
+            if state["highlight"]:
+                state["actor"].GetProperty().SetOpacity(state["active_opacity"])
+                if add_silhouette:
+                    state["silhouette"].SetVisibility(True)
+            else:
+                state["actor"].GetProperty().SetOpacity(state["inactive_opacity"])
+                if add_silhouette:
+                    state["silhouette"].SetVisibility(False)
+
+        def make_cb(name):
+            def _cb(v):
+                s = solid_state[name] 
+                s["checked"] = bool(v)
+                s["highlight"] = s["checked"] 
+                apply(s)
+            return _cb
+
+        master_on = True
+        def master_cb(v):
+            nonlocal master_on
+            master_on = bool(v)
+            for s in solid_state.values():
+                s["checked"] = master_on
+                s["highlight"] = master_on
+                btn = s["button"]
+                if btn:
+                    rep = btn.GetRepresentation()
+                    if hasattr(rep, "SetState"): 
+                        rep.SetState(1 if master_on else 0)
+                apply(s)
+
+        pl.add_checkbox_button_widget(master_cb, value=False, 
+                                    color_on=color_on, color_off=color_off,
+                                    position=(cx, cy), size=box)
+        pl.add_text("All on", position=(cx + box + pad, cy), font_size=font)
+
+        for i, name in enumerate(solid_state):
+            y = cy - (i + 2) * dy
+            _color_on = self.stl_colors.get(name, color_on)
+            if _color_on == 'white' or _color_on == [1.0, 1.0, 1.0]:
+                _color_on = 'gray'
+            btn = pl.add_checkbox_button_widget(make_cb(name), value=False, 
+                                                color_on=_color_on, 
+                                                color_off=color_off, 
+                                                position=(cx, y), size=box)
+            solid_state[name]["button"] = btn
+            pl.add_text(name, position=(cx + box + pad, y), font_size=font)
+
+        # Add beam & integration path checkboxes if wake object is passed
+        if self.wake is not None:
+            z_center = 0.5 * (self.grid.zmin + self.grid.zmax)
+            z_height = self.grid.zmax - self.grid.zmin
+            radius = 0.005 * max(self.grid.xmax-self.grid.xmin, self.grid.ymax-self.grid.ymin)
+
+            beam = pv.Cylinder(center=(self.wake.xsource, self.wake.ysource, z_center), 
+                              direction=(0, 0, 1), height=z_height, radius=radius*1.1)
+            path = pv.Cylinder(center=(self.wake.xtest, self.wake.ytest, z_center), 
+                               direction=(0, 0, 1), height=z_height, radius=radius)
+
+            beam_actor = pl.add_mesh(beam, color="orange", name="beam", opacity=1.0) 
+            beam_actor.SetVisibility(False)
+            path_actor = pl.add_mesh(path, color="blue", name="integration_path", opacity=1.0)
+            path_actor.SetVisibility(False)
+
+            bx = int(w - box - 200 * ui)
+            to = box + pad
+
+            def beam_cb(v): 
+                beam_actor.SetVisibility(bool(v))
+            def path_cb(v): 
+                path_actor.SetVisibility(bool(v))
+
+            pl.add_checkbox_button_widget(path_cb, value=False, 
+                                        color_off=color_off, color_on="blue",
+                                        position=(bx, cy + dy), size=box)
+            pl.add_text("Integration path", position=(bx + to, cy + dy), font_size=font)
+
+            pl.add_checkbox_button_widget(beam_cb, value=False, 
+                                        color_off=color_off, color_on="orange",
+                                        position=(bx, cy), size=box)
+            pl.add_text("Beam", position=(bx + to, cy), font_size=font)
+
+        pl.set_background('mistyrose', top='white')
+        self._add_logo_widget(pl)
+        pl.add_axes()
+
+        # Save
+        if off_screen:
+            return pl
+        else:
+            pl.show()
 
     def _add_logo_widget(self, pl):
         """Add packaged logo via importlib.resources (Python 3.9+)."""
