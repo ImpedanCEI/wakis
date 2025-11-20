@@ -24,10 +24,13 @@ class Logger():
         self.solver = {}
         self.wakeSolver = {}
 
-    def save_logs(self):
+    def save_logs(self, results_folder=None):
         """
         Save all logs (grid, solver, wakeSolver) into log-file inside the results folder.
         """
+        if results_folder is not None:
+            self.wakeSolver["results_folder"] = results_folder
+            
         logfile = os.path.join(self.wakeSolver["results_folder"], "wakis.log")
 
         # Write sections
