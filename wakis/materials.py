@@ -38,7 +38,7 @@ material_lib = {
 }
 
 material_colors = {
-    'pec' : 'silver',
+    'pec' : 'white',
 
     'vacuum' : 'tab:blue',
 
@@ -46,5 +46,13 @@ material_colors = {
 
     'lossy metal' : 'tab:orange',
 
-    'other' : 'white',
+    'copper' : [0.82745099, 0.698039, 0.49019599],
+
+    'berillium' : [0.82745099, 0.698039, 0.49019599],
+
+    'stainless steel' : [1.,1.,1.],
+
+    'martensite' : [0.,1.,1.],
+
+    'other' : 'cyan',
 }
