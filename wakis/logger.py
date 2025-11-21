@@ -28,7 +28,7 @@ class Logger():
         """
         Save all logs (grid, solver, wakeSolver) into log-file inside the results folder.
         """
-        logfile = os.path.join(self.wakeSolver["results_folder"], "Simulation_Parameters.log")
+        logfile = os.path.join(self.wakeSolver["results_folder"], "wakis.log")
 
         # Write sections
         if not os.path.exists(self.wakeSolver["results_folder"]): 

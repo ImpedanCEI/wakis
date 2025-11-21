@@ -66,10 +66,12 @@ class GridFIT3D:
                 stl_colors=None, verbose=1, stl_tol=1e-3):
         
         t0 = time.time()
+        self.logger = Logger()
         if verbose: print('Generating grid...')
         self.verbose = verbose
         self.use_mpi = use_mpi
         self.use_mesh_refinement = use_mesh_refinement
+        self.update_logger(['use_mesh_refinement'])
 
         # domain limits
         self.xmin = xmin
@@ -84,6 +86,7 @@ class GridFIT3D:
         self.dx = (xmax - xmin) / Nx
         self.dy = (ymax - ymin) / Ny
         self.dz = (zmax - zmin) / Nz
+        self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
         
         # stl info
         self.stl_solids = stl_solids
@@ -92,6 +95,14 @@ class GridFIT3D:
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
+
         if stl_solids is not None:
             self._prepare_stl_dicts()
 
@@ -147,23 +158,8 @@ class GridFIT3D:
             if stl_colors is None:
                 self.assign_colors()
 
-        # Forward Parameters to logger
-        self.logger = Logger()
-        self.logger.grid["Nx"] = self.Nx
-        self.logger.grid["Ny"] = self.Ny
-        self.logger.grid["Nz"] = self.Nz
-        self.logger.grid["dx"] = self.dx
-        self.logger.grid["dy"] = self.dy
-        self.logger.grid["dz"] = self.dz
-        self.logger.grid["stl_solids"] = list(self.stl_solids.values()) if self.stl_solids is not None else []
-        self.logger.grid["stl_materials"] = list(self.stl_materials.values()) if self.stl_materials is not None else []
-        if stl_rotate != [0., 0., 0.]:
-            self.logger.grid["stl_rotate"] = self.stl_rotate
-        if stl_translate != [0., 0., 0.]:
-            self.logger.grid["stl_translate"] = self.stl_translate
-        if stl_scale != 1.0:
-            self.logger.grid["stl_scale"] = self.stl_scale
-        self.logger.grid["gridInitializationTime"] = time.time()-t0            
+        self.gridInitializationTime = time.time()-t0
+        self.update_logger(['gridInitializationTime'])
 
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
@@ -864,3 +860,10 @@ class GridFIT3D:
             pl.export_html('grid_inspect.html')
         else:
             pl.show()
+
+    def update_logger(self, attrs):
+        """
+        Assigns the parameters handed via attrs to the logger
+        """
+        for atr in attrs:
+            self.logger.grid[atr] = getattr(self, atr)

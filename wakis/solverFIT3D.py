@@ -95,6 +95,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         self.verbose = verbose
         t0 = time.time()
+        self.logger = Logger()
 
         # Flags
         self.step_0 = True
@@ -111,10 +112,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.one_step = self._one_step
         if use_stl:
             self.use_conductors = False
+        self.update_logger(['use_gpu', 'use_mpi'])
 
         # Grid 
         self.grid = grid
-        bgLog = bg
+        self.background = bg
         self.Nx = self.grid.Nx
         self.Ny = self.grid.Ny
         self.Nz = self.grid.Nz
@@ -132,6 +134,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.iA = self.grid.iA
         self.tL = self.grid.tL
         self.itA = self.grid.itA
+        self.update_logger(['grid','background'])
 
         # Wake computation
         self.wake = wake
@@ -176,6 +179,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if verbose: print('Applying boundary conditions...')
         self.bc_low = bc_low
         self.bc_high = bc_high
+        self.update_logger(['bc_low', 'bc_high'])
         self.apply_bc_to_C() 
 
         # Materials 
@@ -204,6 +208,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.pml_hi = 1.e-1
             self.pml_func = np.geomspace
             self.fill_pml_sigmas()
+            self.update_logger(['n_pml'])
 
         # Timestep calculation 
         if verbose: print('Calculating maximal stable timestep...') 
@@ -213,6 +218,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.dt = dt
         self.dt = dtype(self.dt)
+        self.update_logger(['dt'])
 
         if self.use_conductivity: # relaxation time criterion tau
 
@@ -253,17 +259,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if verbose:  print(f'Total initialization time: {time.time() - t0} s')
 
-        # assign logs
-        self.logger = Logger()
-        self.logger.grid = self.grid.logger.grid
-        self.logger.solver["use_gpu"] = use_gpu
-        self.logger.solver["use_mpi"] = use_mpi
-        self.logger.solver["bc_low"] = bc_low
-        self.logger.solver["bc_high"] = bc_high
-        self.logger.solver["n_pml"] = n_pml
-        self.logger.solver["bg"] = bgLog
-        self.logger.solver["dt"] = self.dt
-        self.logger.solver["solverInitializationTime"] = time.time() - t0
+        self.solverInitializationTime = time.time() - t0
+        self.update_logger(['solverInitializationTime'])
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after 
@@ -1121,3 +1118,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.E[:, :, :, d] = 0.0
             self.H[:, :, :, d] = 0.0
             self.J[:, :, :, d] = 0.0
+
+    def update_logger(self, attrs):
+        """
+        Assigns the parameters handed via attrs to the logger
+        """
+        for atr in attrs:
+            if atr == 'grid':
+                self.logger.grid = self.grid.logger.grid
+            else:
+                self.logger.solver[atr] = getattr(self, atr)
