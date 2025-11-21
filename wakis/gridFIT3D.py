@@ -122,9 +122,6 @@ class GridFIT3D:
         self.x = x
         self.y = y
         self.z = z
-        self.dx=np.diff(self.x)
-        self.dy=np.diff(self.y)
-        self.dz=np.diff(self.z)
         self.use_mesh_refinement = use_mesh_refinement
         self.refinement_method = refinement_method
         self.snap_points = snap_points
@@ -149,6 +146,9 @@ class GridFIT3D:
             self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
             self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
             self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
+            self.dx=np.diff(self.x)
+            self.dy=np.diff(self.y)
+            self.dz=np.diff(self.z)
             
         # grid G and tilde grid ~G, lengths and inverse areas
         self.compute_grid()
