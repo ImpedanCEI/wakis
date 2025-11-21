@@ -122,6 +122,9 @@ class GridFIT3D:
         self.x = x
         self.y = y
         self.z = z
+        self.dx=np.diff(self.x)
+        self.dy=np.diff(self.y)
+        self.dz=np.diff(self.z)
         self.use_mesh_refinement = use_mesh_refinement
         self.refinement_method = refinement_method
         self.snap_points = snap_points
@@ -133,9 +136,9 @@ class GridFIT3D:
             self.Nx = len(self.x) - 1
             self.Ny = len(self.y) - 1
             self.Nz = len(self.z) - 1
-            self.dx = np.min(np.diff(self.x)) 
-            self.dy = np.min(np.diff(self.y))  
-            self.dz = np.min(np.diff(self.z))
+            self.dx = np.diff(self.x)
+            self.dy = np.diff(self.y)  
+            self.dz = np.diff(self.z)
 
         elif self.use_mesh_refinement:
             if verbose: print('Applying mesh refinement...')
