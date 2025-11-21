@@ -137,7 +137,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         # Wake computation
         self.wake = wake
-        self.logger.wakeSolver=self.wake.logger.wakeSolver
+        if self.wake is not None:
+            self.logger.wakeSolver=self.wake.logger.wakeSolver
 
         # Fields
         self.dtype = dtype
@@ -182,7 +183,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.bc_low = bc_low
         self.bc_high = bc_high
         self.update_logger(['bc_low', 'bc_high'])
-        self.apply_bc_to_C() 
+        self.apply_bc_to_C()
 
         # Materials
         if verbose:

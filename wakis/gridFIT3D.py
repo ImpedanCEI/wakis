@@ -352,8 +352,8 @@ class GridFIT3D:
                         stl_colors[key] = self.stl_colors[i]
                     self.stl_colors = stl_colors
                 except IndexError:
-                    raise Exception('If `stl_colors` is a list, it must have the same length as `stl_solids`.')
                     self._assign_colors()
+                    print('[!] If `stl_colors` is a list, it must have the same length as `stl_solids`.')
 
     def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
@@ -609,7 +609,7 @@ class GridFIT3D:
                     print(f'[!] Could not add logo widget: {e}')
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
-                    opacity=1.0, specular=0.5, smooth_shading=False, 
+                    opacity=1.0, specular=0.5, smooth_shading=False,
                     offscreen=False, **kwargs):
         """
         Generates a 3D visualization of the imported STL geometries using PyVista.
@@ -680,7 +680,7 @@ class GridFIT3D:
 
     def plot_stl_mask(self, stl_solid, cmap='viridis', bounding_box=True, show_grid=True,
                       add_stl='all', stl_opacity=0., stl_colors=None,
-                      xmax=None, ymax=None, zmax=None, 
+                      xmax=None, ymax=None, zmax=None,
                       anti_aliasing='ssaa', smooth_shading=False, offscreen=False):
 
         """
@@ -716,7 +716,7 @@ class GridFIT3D:
             Color(s) of the STL surfaces:
             * str   → single color for all STL surfaces
             * list  → per-solid colors, in order
-            * dict  → mapping from STL key to color 
+            * dict  → mapping from STL key to color
             * None  → use default colors from `self.stl_colors`
         xmax, ymax, zmax : float, optional
             Initial clipping positions along each axis. If None, use the
