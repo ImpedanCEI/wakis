@@ -358,15 +358,20 @@ class GridFIT3D:
     def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
         stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
+        progress_bar = False
+        if self.Nx*self.Ny*self.Nz > 5e6 and self.verbose:
+            progress_bar = True
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance,
+                                                          progress_bar=progress_bar)
             except Exception:
-                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance,
+                                                          check_surface=False, progress_bar=progress_bar)
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 
