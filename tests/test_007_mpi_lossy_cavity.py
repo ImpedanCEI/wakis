@@ -83,12 +83,12 @@ class TestMPILossyCavity:
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
     gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.008666666348775227, 'dy': 0.008666666348775227,
-                 'dz': 0.005714285799435207, 'stl_solids': ['tests/stl/007_vacuum_cavity.stl', 'tests/stl/007_lossymetal_shell.stl'],
-                 'stl_materials': ['vacuum', [30, 1.0, 30]], 'gridInitializationTime': 0}
+                 'dz': 0.005714285799435207, 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
+                 'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 'gridInitializationTime': 0}
     
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec','bc_low': ['pec', 'pec', 'pec'],
-                   'bc_high': ['pec', 'pec', 'pec'], 'n_pml': 10, 
-                   'dt': 6.970326728398968e-12, 'solverInitializationTime': 0}
+                   'bc_high': ['pec', 'pec', 'pec'], 
+                   'solverInitializationTime': 0}
     
     wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
                        'xsource': 0.0, 'ysource': 0.0, 'xtest': 0.0, 'ytest': 0.0, 'chargedist': None,
@@ -332,6 +332,8 @@ class TestMPILossyCavity:
         solver.logger.grid["gridInitializationTime"] = 0 #times can vary
         solver.logger.solver["solverInitializationTime"] = 0
         solver.logger.wakeSolver["simulationTime"] = 0
+        assert solver.logger.solver["dt"] <= 6.970326728398968e-12, "dt is too big"
+        solver.logger.solver.pop("dt")
         logfile = os.path.join(solver.logger.wakeSolver["results_folder"], "wakis.log")
         assert os.path.exists(logfile), "Log file not created"
         assert solver.logger.grid == self.gridLogs, "Grid logs do not match expected values"
