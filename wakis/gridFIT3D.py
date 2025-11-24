@@ -583,7 +583,8 @@ class GridFIT3D:
         for key in self.stl_solids:
             mat = self.stl_materials[key]
             if type(mat) is str:
-                self.stl_colors[key] = mat
+                _color = material_colors.get(mat, material_colors['other'])
+                self.stl_colors[key] = _color
             elif len(mat) == 2:
                 if mat[0] is np.inf:  #eps_r
                     self.stl_colors[key] = material_colors['pec']
@@ -615,7 +616,7 @@ class GridFIT3D:
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
                     opacity=1.0, specular=0.5, smooth_shading=False,
-                    offscreen=False, **kwargs):
+                    off_screen=False, **kwargs):
         """
         Generates a 3D visualization of the imported STL geometries using PyVista.
 
@@ -678,7 +679,7 @@ class GridFIT3D:
         if show_grid:
             pl.add_mesh(self.grid, style='wireframe', color='grey', opacity=0.3, name='grid')
 
-        if offscreen:
+        if off_screen:
             pl.export_html('grid_plot_solids.html')
         else:
             pl.show()
@@ -686,7 +687,7 @@ class GridFIT3D:
     def plot_stl_mask(self, stl_solid, cmap='viridis', bounding_box=True, show_grid=True,
                       add_stl='all', stl_opacity=0., stl_colors=None,
                       xmax=None, ymax=None, zmax=None,
-                      anti_aliasing='ssaa', smooth_shading=False, offscreen=False):
+                      anti_aliasing='ssaa', smooth_shading=False, off_screen=False):
 
         """
         Interactive 3D visualization of the structured grid mask and imported STL geometries.
@@ -728,8 +729,8 @@ class GridFIT3D:
             maximum domain extent.
         anti_aliasing : {'ssaa', 'fxaa', None}, default 'ssaa'
             Anti-aliasing mode passed to `pl.enable_anti_aliasing`.
-        offscreen : bool, default False
-            If True, render offscreen and export the scene to
+        off_screen : bool, default False
+            If True, render off-screen and export the scene to
             ``grid_stl_mask_<stl_solid>.html``. If False, open an interactive window.
 
         Notes
@@ -848,13 +849,13 @@ class GridFIT3D:
             pl.add_mesh(pv.Box(bounds=(self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax)),
             style="wireframe", color="black", line_width=2, name="domain_box")
 
-        if offscreen:
+        if off_screen:
             pl.export_html(f'grid_stl_mask_{stl_solid}.html')
         else:
             pl.show()
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
-                anti_aliasing='ssaa', smooth_shading=True, offscreen=False):
+                anti_aliasing='ssaa', smooth_shading=True, off_screen=False):
 
         '''3D plot using pyvista to visualize
         the structured grid and
@@ -927,7 +928,7 @@ class GridFIT3D:
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
 
-        if offscreen:
+        if off_screen:
             pl.export_html('grid_inspect.html')
         else:
             pl.show()

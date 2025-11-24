@@ -826,7 +826,7 @@ class PlotMixin:
             print('[!] plot3D is not supported when `use_mpi=True`')
             return
         if wake is not None:
-            self.solver.wake = wake
+            self.wake = wake
 
         # Initialize plotter
         pl = pv.Plotter(window_size=window_size)
@@ -905,7 +905,7 @@ class PlotMixin:
         for i, name in enumerate(solid_state):
             y = cy - (i + 2) * dy
             _color_on = self.stl_colors.get(name, color_on)
-            if _color_on == 'white' or _color_on == [1.0, 1.0, 1.0]:
+            if str(_color_on) == 'white' or list(_color_on) == [1.0, 1.0, 1.0]:
                 _color_on = 'gray'
             btn = pl.add_checkbox_button_widget(make_cb(name), value=False,
                                                 color_on=_color_on,
@@ -926,9 +926,9 @@ class PlotMixin:
                                direction=(0, 0, 1), height=z_height, radius=radius)
 
             beam_actor = pl.add_mesh(beam, color="orange", name="beam", opacity=1.0)
-            beam_actor.SetVisibility(False)
+            beam_actor.SetVisibility(True)
             path_actor = pl.add_mesh(path, color="blue", name="integration_path", opacity=1.0)
-            path_actor.SetVisibility(False)
+            path_actor.SetVisibility(True)
 
             bx = int(w - box - 200 * ui)
             to = box + pad
@@ -938,12 +938,12 @@ class PlotMixin:
             def path_cb(v):
                 path_actor.SetVisibility(bool(v))
 
-            pl.add_checkbox_button_widget(path_cb, value=False,
+            pl.add_checkbox_button_widget(path_cb, value=True,
                                         color_off=color_off, color_on="blue",
                                         position=(bx, cy + dy), size=box)
             pl.add_text("Integration path", position=(bx + to, cy + dy), font_size=font)
 
-            pl.add_checkbox_button_widget(beam_cb, value=False,
+            pl.add_checkbox_button_widget(beam_cb, value=True,
                                         color_off=color_off, color_on="orange",
                                         position=(bx, cy), size=box)
             pl.add_text("Beam", position=(bx + to, cy), font_size=font)
