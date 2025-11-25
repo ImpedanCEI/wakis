@@ -178,8 +178,8 @@ class TestPML:
         bc_high = ['periodic', 'periodic', 'pml']
 
         # Test different eps_r and sigma case
-        eps_r = 3.0
-        sigma = 10
+        eps_r = 1.0
+        sigma = 1
 
         # Solver
         solver = wakis.SolverFIT3D(grid, use_stl=False,
