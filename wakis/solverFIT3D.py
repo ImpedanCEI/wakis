@@ -273,6 +273,46 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.solverInitializationTime = time.time() - t0
         self.update_logger(['solverInitializationTime'])
 
+    def _apply_stl_materials(self):
+        '''
+        Mask the cells inside the stl and assing the material
+        defined by the user
+
+        * Note: stl material should contain **relative** epsilon and mu
+        ** Note 2: when assigning the stl material, the default values
+                   1./eps_0 and 1./mu_0 are substracted
+        '''
+        grid = self.grid.grid
+        self.stl_solids = self.grid.stl_solids
+        self.stl_materials = self.grid.stl_materials
+        self.stl_colors = self.grid.stl_colors
+
+        for key in self.stl_solids.keys():
+
+            # TODO: adapt for subpixel smoothing
+            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
+
+            eps = self.stl_materials[key][0]*eps_0
+            mu = self.stl_materials[key][1]*mu_0
+
+            # Setting to zero
+            self.ieps += self.ieps * (-1.0*mask)
+            self.imu += self.imu * (-1.0*mask)
+
+            # Adding new values
+            self.ieps += mask * 1./eps
+            self.imu += mask * 1./mu
+
+            # Conductivity
+            if len(self.stl_materials[key]) == 3:
+                sigma = self.stl_materials[key][2]
+                self.sigma += self.sigma * (-1.0*mask)
+                self.sigma += mask * sigma
+                self.use_conductivity = True
+
+            elif self.sigma_bg > 0.0: # assumed sigma = 0
+                self.sigma += self.sigma * (-1.0*mask)
+
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after
         Field ieps, imu or sigma have been modified
@@ -944,45 +984,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         self.H *= self.flag_cleanup
         self.E *= self.flag_cleanup
-
-    def _apply_stl_materials(self):
-        '''
-        Mask the cells inside the stl and assing the material
-        defined by the user
-
-        * Note: stl material should contain **relative** epsilon and mu
-        ** Note 2: when assigning the stl material, the default values
-                   1./eps_0 and 1./mu_0 are substracted
-        '''
-        grid = self.grid.grid
-        self.stl_solids = self.grid.stl_solids
-        self.stl_materials = self.grid.stl_materials
-        self.stl_colors = self.grid.stl_colors
-
-        for key in self.stl_solids.keys():
-
-            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
-
-            eps = self.stl_materials[key][0]*eps_0
-            mu = self.stl_materials[key][1]*mu_0
-
-            # Setting to zero
-            self.ieps += self.ieps * (-1.0*mask)
-            self.imu += self.imu * (-1.0*mask)
-
-            # Adding new values
-            self.ieps += mask * 1./eps
-            self.imu += mask * 1./mu
-
-            # Conductivity
-            if len(self.stl_materials[key]) == 3:
-                sigma = self.stl_materials[key][2]
-                self.sigma += self.sigma * (-1.0*mask)
-                self.sigma += mask * sigma
-                self.use_conductivity = True
-
-            elif self.sigma_bg > 0.0: # assumed sigma = 0
-                self.sigma += self.sigma * (-1.0*mask)
 
     def _attrcleanup(self):
         # Fields
