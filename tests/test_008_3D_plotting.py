@@ -14,8 +14,7 @@ from wakis import WakeSolver
 
 import pytest
 
-# Turn true when running local
-flag_plot_3D = True
+# Turn False when running local
 flag_offscreen = True
 
 @pytest.mark.slow
@@ -75,7 +74,7 @@ class Test3Dplotting:
                     xsource=xs, ysource=ys, ti=ti)
 
         wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
-                         xsource=xs, ysource=ys, ti=ti)  
+                         xsource=xs, ysource=ys, ti=ti)
 
         # ----------- Solver & Simulation ----------
         # boundary conditions
@@ -102,7 +101,6 @@ class Test3Dplotting:
             beam.update(solver, n*solver.dt)
             solver.one_step()
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_grid_inspect(self):
         # Plot grid and imported solids
         global solver
@@ -113,7 +111,6 @@ class Test3Dplotting:
             #pl.screenshot(self.img_folder+'grid_inspect.png')
             pl.export_html(self.img_folder+'grid_inspect.html')
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_grid_plot_solids(self):
         # Plot only imported solids
         global solver
@@ -124,7 +121,6 @@ class Test3Dplotting:
                                 smooth_shading=False,
                                 off_screen=flag_offscreen,)
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_grid_stl_mask(self):
         # Plot STL solid masks in the grid
         global solver
@@ -137,7 +133,6 @@ class Test3Dplotting:
                                   ymax=0.0,
                                   off_screen=flag_offscreen,)
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_solver_inspect(self):
         # Plot imported solids and beam source and integraiton path
         global solver
@@ -148,7 +143,6 @@ class Test3Dplotting:
             #pl.screenshot(self.img_folder+'solver_inspect.png')
             pl.export_html(self.img_folder+'solver_inspect.html')
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_plot3D(self):
         # Plot Abs Electric field on domain
         global solver
@@ -159,7 +153,6 @@ class Test3Dplotting:
                 title=self.img_folder+'Ez3d',
                 off_screen=flag_offscreen)
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_plot3DonSTL(self):
         # Plot Abs Electric field on STL solid `cavity`
         global solver
