@@ -86,19 +86,19 @@ class TestMPILossyCavity:
                     -6.04105997e+01 ,-3.06532160e+01 ,-1.17749936e+01 ,-3.12574866e+00,
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
-    gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.00866666634877522, 
-                'dy': 0.00866666634877522, 'dz': 0.005714285799435207, 
-                'xmin': -0.25999999046325684, 'xmax': 0.25999999046325684, 
-                'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684, 
-                'zmin': -0.25, 'zmax': 0.550000011920929, 
+    gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.00866666634877522,
+                'dy': 0.00866666634877522, 'dz': 0.005714285799435207,
+                'xmin': -0.25999999046325684, 'xmax': 0.25999999046325684,
+                'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684,
+                'zmin': -0.25, 'zmax': 0.550000011920929,
                 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
-                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 
+                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]},
                 'gridInitializationTime': 0}
-    
+
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec',
-                'bc_low': ['pec', 'pec', 'pec'], 'bc_high': ['pec', 'pec', 'pec'], 
+                'bc_low': ['pec', 'pec', 'pec'], 'bc_high': ['pec', 'pec', 'pec'],
                 'dt': 6.970326728398966e-12, 'solverInitializationTime': 0}
-    
+
     wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
                        'xsource': 0.0, 'ysource': 0.0, 'xtest': 0.0, 'ytest': 0.0, 'chargedist': None,
                        'skip_cells': 10, 'results_folder': 'tests/007_results/', 'wakelength': 10.0, 'simulationTime': 0}
@@ -252,29 +252,6 @@ class TestMPILossyCavity:
                 xscale='linear', yscale='linear',
                 off_screen=True, title=self.img_folder+'Ez1d', n=3000)
 
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
-    def test_mpi_plot3D(self):
-        # Plot Abs Electric field on domain
-        # disabled when mpi = True
-        global solver
-        solver.plot3D('E', component='Abs',
-                cmap='rainbow', clim=[0, 500],
-                add_stl=['cavity', 'shell'], stl_opacity=0.1,
-                clip_interactive=True, clip_normal='-y')
-
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
-    def test_mpi_plot3DonSTL(self):
-        # Plot Abs Electric field on STL solid `cavity`
-        # disabled when mpi = True
-        global solver
-        solver.plot3DonSTL('E', component='Abs',
-                        cmap='rainbow', clim=[0, 500],
-                        stl_with_field='cavity', field_opacity=1.0,
-                        stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-                        clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
-                        off_screen=False, zoom=1.2, title=self.img_folder+'Ez3d')
-
-
     def test_mpi_wakefield(self):
         # Reset fields
         global solver
@@ -343,7 +320,7 @@ class TestMPILossyCavity:
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
-    
+
     def test_log_file(self):
         # Helper function to compare nested dicts with float tolerance
         def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):
@@ -379,7 +356,7 @@ class TestMPILossyCavity:
 
         global solver
         # Exclude timing info from comparison as they can vary between runs
-        solver.logger.grid["gridInitializationTime"] = 0 
+        solver.logger.grid["gridInitializationTime"] = 0
         solver.logger.solver["solverInitializationTime"] = 0
         solver.logger.wakeSolver["simulationTime"] = 0
         self.solverLogs['use_mpi'] = use_mpi
