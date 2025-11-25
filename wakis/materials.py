@@ -50,7 +50,7 @@ material_colors = {
 
     'berillium' : [0.82745099, 0.698039, 0.49019599],
 
-    'stainless steel' : [1.,1.,1.],
+    'stainless steel' : 'silver',
 
     'martensite' : [0.,1.,1.],
 
