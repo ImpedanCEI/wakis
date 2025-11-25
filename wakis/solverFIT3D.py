@@ -61,6 +61,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         bc_high: list, default ['Periodic', 'Periodic', 'Periodic']
             Domain box boundary conditions for X+, Y+, Z+
         use_conductors: bool, default False
+            [LEGACY] Will be deprecated in future releases
             If true, enables geometry import based on elements from `conductors.py`
         use_stl: bool, default False
             If true, activates all the solids and materials passed to the `grid` object
@@ -149,8 +150,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # MPI init
         if self.use_mpi:
             if self.grid.use_mpi:
-                self.mpi_initialize()
-                self.one_step = self.mpi_one_step
+                self._mpi_initialize()
+                self.one_step = self._mpi_one_step
             else:
                 print('[!] Grid not subdivided for MPI, set `use_mpi`=True also in `GridFIT3D` to enable MPI')
 
@@ -183,7 +184,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.bc_low = bc_low
         self.bc_high = bc_high
         self.update_logger(['bc_low', 'bc_high'])
-        self.apply_bc_to_C()
+        self._apply_bc_to_C()
 
         # Materials
         if verbose:
@@ -202,7 +203,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
 
         if self.use_stl:
-            self.apply_stl()
+            self._apply_stl_materials()
 
         # Fill PML BCs
         if self.activate_pml:
@@ -212,7 +213,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.pml_lo = 5e-3
             self.pml_hi = 1.e-1
             self.pml_func = np.geomspace
-            self.fill_pml_sigmas()
+            self._fill_pml_sigmas()
             self.update_logger(['n_pml'])
 
         # Timestep calculation
@@ -252,7 +253,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 print('Using MKL backend for time-stepping...')
             self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
             self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
-            self.one_step = self.one_step_mkl
+            self.one_step = self._one_step_mkl
 
         # Move to GPU
         if use_gpu:
@@ -306,9 +307,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def _one_step(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
@@ -324,11 +325,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
-    def one_step_mkl(self):
+    def _one_step_mkl(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*dot_product_mkl(self.tDsiDmuiDaC,self.E.toarray())
@@ -344,7 +345,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
-    def mpi_initialize(self):
+    def _mpi_initialize(self):
         self.comm = self.grid.comm
         self.rank = self.grid.rank
         self.size = self.grid.size
@@ -354,30 +355,30 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ZMAX = self.grid.ZMAX
         self.Z = self.grid.Z
 
-    def mpi_one_step(self):
+    def _mpi_one_step(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
 
-        self.mpi_communicate(self.H)
-        self.mpi_communicate(self.J)
+        self._mpi_communicate(self.H)
+        self._mpi_communicate(self.J)
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray()
                                   - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
 
-        self.mpi_communicate(self.E)
+        self._mpi_communicate(self.E)
         # include current computation
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
-    def mpi_communicate(self, field):
+    def _mpi_communicate(self, field):
         if self.use_gpu:
             field.from_gpu()
 
@@ -604,7 +605,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         return _field
 
-    def apply_bc_to_C(self):
+    def _apply_bc_to_C(self):
         '''
         Modifies rows or columns of C and tDs and itDa matrices
         according to bc_low and bc_high
@@ -745,7 +746,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.activate_pml = True
             self.use_conductivity = True
 
-    def fill_pml_sigmas(self):
+    def _fill_pml_sigmas(self):
         '''
         Routine to calculate pml sigmas and apply them
         to the conductivity tensor sigma
@@ -901,7 +902,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.E[:, :, -1, d] = E_abc[2][d+'hi']
                 self.H[:, :, -1, d] = H_abc[2][d+'hi']
 
-    def set_ghosts_to_0(self):
+    def _set_ghosts_to_0(self):
         '''
         Cleanup for initial conditions if they are
         accidentally applied to the ghost cells
@@ -920,8 +921,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.E[:, -1, :, 'y'] = 0.
         self.E[:, :, -1, 'z'] = 0.
 
-    def apply_conductors(self):
+    def _apply_conductors(self):
         '''
+        [LEGACY] conductors support
         Set the 1/epsilon values inside the PEC conductors to zero
         '''
         self.flag_in_conductors = self.grid.flag_int_cell_yz[:-1,:,:]  \
@@ -930,8 +932,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         self.ieps *= self.flag_in_conductors
 
-    def set_field_in_conductors_to_0(self):
+    def _set_field_in_conductors_to_0(self):
         '''
+        [LEGACY] conductors support
         Cleanup for initial conditions if they are
         accidentally applied to the conductors
         '''
@@ -942,7 +945,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.H *= self.flag_cleanup
         self.E *= self.flag_cleanup
 
-    def apply_stl(self):
+    def _apply_stl_materials(self):
         '''
         Mask the cells inside the stl and assing the material
         defined by the user
@@ -960,55 +963,28 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
             mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
 
-            if type(self.stl_materials[key]) is str:
-                # Retrieve from material library
-                mat_key = self.stl_materials[key].lower()
+            eps = self.stl_materials[key][0]*eps_0
+            mu = self.stl_materials[key][1]*mu_0
 
-                eps = material_lib[mat_key][0]*eps_0
-                mu = material_lib[mat_key][1]*mu_0
+            # Setting to zero
+            self.ieps += self.ieps * (-1.0*mask)
+            self.imu += self.imu * (-1.0*mask)
 
-                # Setting to zero
-                self.ieps += self.ieps * (-1.0*mask)
-                self.imu += self.imu * (-1.0*mask)
+            # Adding new values
+            self.ieps += mask * 1./eps
+            self.imu += mask * 1./mu
 
-                # Adding new values
-                self.ieps += mask * 1./eps
-                self.imu += mask * 1./mu
+            # Conductivity
+            if len(self.stl_materials[key]) == 3:
+                sigma = self.stl_materials[key][2]
+                self.sigma += self.sigma * (-1.0*mask)
+                self.sigma += mask * sigma
+                self.use_conductivity = True
 
-                # Conductivity
-                if len(material_lib[mat_key]) == 3:
-                    sigma = material_lib[mat_key][2]
-                    self.sigma += self.sigma * (-1.0*mask)
-                    self.sigma += mask * sigma
-                    self.use_conductivity = True
+            elif self.sigma_bg > 0.0: # assumed sigma = 0
+                self.sigma += self.sigma * (-1.0*mask)
 
-                elif self.sigma_bg > 0.0: # assumed sigma = 0
-                    self.sigma += self.sigma * (-1.0*mask)
-
-            else:
-                # From input
-                eps = self.stl_materials[key][0]*eps_0
-                mu = self.stl_materials[key][1]*mu_0
-
-                # Setting to zero
-                self.ieps += self.ieps * (-1.0*mask)
-                self.imu += self.imu * (-1.0*mask)
-
-                # Adding new values
-                self.ieps += mask * 1./eps
-                self.imu += mask * 1./mu
-
-                # Conductivity
-                if len(self.stl_materials[key]) == 3:
-                    sigma = self.stl_materials[key][2]
-                    self.sigma += self.sigma * (-1.0*mask)
-                    self.sigma += mask * sigma
-                    self.use_conductivity = True
-
-                elif self.sigma_bg > 0.0: # assumed sigma = 0
-                    self.sigma += self.sigma * (-1.0*mask)
-
-    def attrcleanup(self):
+    def _attrcleanup(self):
         # Fields
         del self.L, self.tL, self.iA, self.itA
         if hasattr(self, 'BC'):
