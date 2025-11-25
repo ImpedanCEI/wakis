@@ -1,8 +1,6 @@
 import os
 import sys
-import numpy as np
 import pyvista as pv
-import matplotlib.pyplot as plt
 
 sys.path.append('../wakis')
 
@@ -12,12 +10,13 @@ from scipy.constants import c
 from wakis import SolverFIT3D
 from wakis import GridFIT3D
 from wakis.sources import Beam
+from wakis import WakeSolver
 
 import pytest
 
 # Turn true when running local
-flag_plot_3D = False
-flag_offscreen = False
+flag_plot_3D = True
+flag_offscreen = True
 
 @pytest.mark.slow
 class Test3Dplotting:
@@ -40,8 +39,8 @@ class Test3Dplotting:
                         'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
                         }
 
-        stl_colors = {'cavity': 'vacuum',
-                    'shell': [1, 1, 1]}
+        stl_colors = {'cavity': 'tab:blue',
+                    'shell': 'silver'}
 
         # Extract domain bounds from geometry
         solids = pv.read(solid_1) + pv.read(solid_2)
@@ -69,11 +68,14 @@ class Test3Dplotting:
         q = 1e-9            #[C]
         beta = 1.0          # beam beta
         xs = 0.             # x source position [m]
-        ys = 0.             # y source position [m]
+        ys = 1e-2           # y source position [m]
         ti = 3*sigmaz/c     # injection time [s]
 
         beam = Beam(q=q, sigmaz=sigmaz, beta=beta,
                     xsource=xs, ysource=ys, ti=ti)
+
+        wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
+                         xsource=xs, ysource=ys, ti=ti)  
 
         # ----------- Solver & Simulation ----------
         # boundary conditions
@@ -82,7 +84,7 @@ class Test3Dplotting:
 
         # Solver setup
         global solver
-        solver = SolverFIT3D(grid,
+        solver = SolverFIT3D(grid, wake,
                             bc_low=bc_low,
                             bc_high=bc_high,
                             use_stl=True,
@@ -95,7 +97,7 @@ class Test3Dplotting:
             os.mkdir(self.img_folder)
 
         # -------------- Custom time loop  -----------------
-        Nt = 3000
+        Nt = 1000
         for n in tqdm(range(Nt)):
             beam.update(solver, n*solver.dt)
             solver.one_step()
@@ -104,16 +106,19 @@ class Test3Dplotting:
     def test_grid_inspect(self):
         # Plot grid and imported solids
         global solver
-        solver.grid.inspect(add_stl=['cavity', 'shell'],
+        pl = solver.grid.inspect(add_stl=['cavity', 'shell'],
                             stl_opacity=0.1, off_screen=flag_offscreen,
                             anti_aliasing='ssaa')
+        if flag_offscreen:
+            #pl.screenshot(self.img_folder+'grid_inspect.png')
+            pl.export_html(self.img_folder+'grid_inspect.html')
 
     @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_grid_plot_solids(self):
         # Plot only imported solids
         global solver
         solver.grid.plot_solids(bounding_box=True,
-                                show_grid=True,
+                                show_grid=False,
                                 opacity=1,
                                 specular=0.5,
                                 smooth_shading=False,
@@ -137,20 +142,21 @@ class Test3Dplotting:
         # Plot imported solids and beam source and integraiton path
         global solver
         pl = solver.inspect(window_size=(1200,800), off_screen=flag_offscreen,
-                            specular=0.,opacity=1, inactive_opacity=0.1,
+                            specular=0., opacity=1, inactive_opacity=0.1,
                             add_silhouette=True,)
         if flag_offscreen:
+            #pl.screenshot(self.img_folder+'solver_inspect.png')
             pl.export_html(self.img_folder+'solver_inspect.html')
-            pl.screenshot(self.img_folder+'solver_inspect.png')
 
     @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_plot3D(self):
         # Plot Abs Electric field on domain
         global solver
-        solver.plot3D('E', component='Abs',
+        solver.plot3D('E', component='z',
                 cmap='rainbow', clim=[0, 500],
                 add_stl=['cavity', 'shell'], stl_opacity=0.1,
                 clip_interactive=True, clip_normal='-y',
+                title=self.img_folder+'Ez3d',
                 off_screen=flag_offscreen)
 
     @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
@@ -162,4 +168,4 @@ class Test3Dplotting:
                         stl_with_field='cavity', field_opacity=1.0,
                         stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
                         clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
-                        off_screen=flag_offscreen, zoom=1.2, title=self.img_folder+'Ez3d')
+                        off_screen=flag_offscreen, zoom=1.2, title=self.img_folder+'EAbs3donSTL')

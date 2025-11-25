@@ -324,7 +324,7 @@ class PlotMixin:
                     except Exception:
                         print("[!] Surface non-manifold, clip with plane skipped")
 
-                fieldonsurf = surf.sample(points, tolerance)
+                fieldonsurf = surf.sample(points, tolerance=tolerance)
 
                 if clip_interactive: # interactive plotting with a plane
                     ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
@@ -359,7 +359,7 @@ class PlotMixin:
                         except Exception:
                             print("Surface non-manifold, clip with plane skipped")
 
-                    fieldonsurf = surf.sample(points)
+                    fieldonsurf = surf.sample(points, tolerance=tolerance)
 
                     if clip_interactive: # interactive plotting with a plane
                         ac1 = pl.add_mesh_clip_plane(fieldonsurf, normal=clip_normal, normal_rotation=False,
@@ -954,6 +954,7 @@ class PlotMixin:
 
         # Save
         if off_screen:
+            pl.off_screen = True
             return pl
         else:
             pl.show()

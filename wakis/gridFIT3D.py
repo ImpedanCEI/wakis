@@ -929,9 +929,12 @@ class GridFIT3D:
         pl.enable_anti_aliasing(anti_aliasing)
 
         if off_screen:
-            pl.export_html('grid_inspect.html')
+            pl.off_screen = True
+            return pl
+            #pl.export_html('grid_inspect.html')
         else:
             pl.show()
+            return None
 
     def save_to_h5(self, filename='grid.h5'):
         '''Save generated grid to HDF5 file
