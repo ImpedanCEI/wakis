@@ -48,7 +48,7 @@ class TestPML:
         solver.dt = 1/f/200 #ensure right amplitude
 
         # Simulation
-        Nt = int(2.0*(zmax-zmin-solver.n_pml*solver.dz)/c/solver.dt)
+        Nt = int(2.0*(zmax-zmin-solver.n_pml*np.min(solver.dz))/c/solver.dt) #only temporary solution, it takes the smallest dz as measure for pml time
 
         for n in tqdm(range(Nt)):
             planeWave.update(solver, n*solver.dt)

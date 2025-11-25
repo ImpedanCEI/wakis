@@ -54,7 +54,8 @@ class Beam:
             self.ixs, self.iys = np.abs(solver.x-self.xsource).argmin(), np.abs(solver.y-self.ysource).argmin()
             self.is_first_update = False
             if hasattr(solver, 'ZMIN'): # support for MPI
-                self.zmin = solver.ZMIN + solver.dz[0]/2
+                zminIdx = np.abs(solver.z-solver.ZMIN).argmin()
+                self.zmin = solver.ZMIN + solver.dz[zminIdx]/2
             else:
                 self.zmin = solver.z.min()
         # reference shift
@@ -62,6 +63,8 @@ class Beam:
         s = solver.z - self.v*t
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
+        #profile = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
+        #profile /= np.sum(profile*solver.dz)
         # update 
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx[self.ixs]/solver.dy[self.iys]
     

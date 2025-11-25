@@ -326,7 +326,7 @@ class GridFIT3D:
 
         return surf
     
-    def compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
+    def compute_snap_points(self, snap_solids=None, snap_tol=1e-5):
         if self.verbose: print('* Calculating snappy points...')
         # Support for user-defined stl_keys as list
         if snap_solids is None:
@@ -343,13 +343,17 @@ class GridFIT3D:
                 model = model + solid  
     
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
+        print(edges)
+        print("min abs(Y):", np.min(np.abs(edges.points[:,1])))
+        print("min abs(X):", np.min(np.abs(edges.points[:,0])))
+        print("min abs(Z):", np.min(np.abs(edges.points[:,2])))
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
         xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         self.snap_points = np.r_[xz_plane_points, yz_plane_points, xy_plane_points]
 
@@ -386,7 +390,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         xz_cloud = pv.PolyData(xz_plane_points)
         yz_cloud = pv.PolyData(yz_plane_points)

@@ -551,8 +551,8 @@ class WakeSolver():
                         pbar.update(1)
 
                 # Perform the gradient (second order scheme)
-                WPx[n] = - (int_WP[i0+1,j0,n]-int_WP[i0-1,j0,n])/(2*self.dx[i0])
-                WPy[n] = - (int_WP[i0,j0+1,n]-int_WP[i0,j0-1,n])/(2*self.dy[j0])
+                WPx[n] = - (int_WP[i0+1,j0,n]-int_WP[i0-1,j0,n])/(self.dx[i0-1]+self.dx[i0])
+                WPy[n] = - (int_WP[i0,j0+1,n]-int_WP[i0,j0-1,n])/(self.dy[j0-1]+self.dy[j0])
     
         self.WPx = WPx
         self.WPy = WPy
