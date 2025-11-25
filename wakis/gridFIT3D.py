@@ -57,6 +57,9 @@ class GridFIT3D:
         - if dict, it must contain the same keys as `stl_solids`
     use_mpi: bool, default False
         Enable MPI domain decomposition in the z direction.
+    use_SIBC: bool, default True
+        Enable SIBC (Leontovich boundary condition) to model high-conductive
+        materials. Applied when material conductivity > 1e3 S/m
     use_mesh_refinement: bool, default False
         [!] WIP -- Enable mesh refinement based on snap points
         extracted from the stl solids
@@ -76,6 +79,7 @@ class GridFIT3D:
                 Nx=None, Ny=None, Nz=None,
                 x=None, y=None, z=None,
                 use_mpi=False,
+                use_SIBC=True,
                 use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
                 snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None,
@@ -137,6 +141,7 @@ class GridFIT3D:
         self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
         # stl info
+        self.use_SIBC = use_SIBC
         self.stl_solids = stl_solids
         self.stl_materials = stl_materials
         self.stl_rotate = stl_rotate
@@ -199,6 +204,8 @@ class GridFIT3D:
         self.stl_tol = stl_tol
         if stl_solids is not None:
             self._mark_cells_in_stl()
+            if use_SIBC:
+                self._mark_cells_in_surface()
 
         if verbose:
             print(f'Total grid initialization time: {time.time() - t0} s')
@@ -395,6 +402,7 @@ class GridFIT3D:
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 
+            # TODO: adapt for subpixel smoothing
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
 
             if self.verbose and np.sum(self.grid[key]) == 0:
@@ -402,6 +410,16 @@ class GridFIT3D:
 
             if self.verbose > 1:
                 print(f' * STL solid {key}: {np.sum(self.grid[key])} cells marked inside the solid.')
+
+    def _mark_cells_in_surface(self):
+        # Modify the STL mask to account only for the surface
+        # Needed for the SIBC boundary condition when conductivity > 1e3 S/m
+        for key in self.stl_solids.keys():
+            if len(self.stl_materials[key]) == 3 and self.stl_materials[key][2] > 1e3:
+                grad = np.array(self.grid.compute_derivative(scalars=key, gradient='gradient')['gradient'])
+                grad = np.sqrt(grad[:, 0]**2 + grad[:, 1]**2 + grad[:, 2]**2)
+                #TODO: adapt for subpixel smoothing
+                self.grid[key] = grad.astype(bool)
 
     def read_stl(self, key):
         # import stl
