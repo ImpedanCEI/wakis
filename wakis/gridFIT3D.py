@@ -12,7 +12,7 @@ from scipy.optimize import least_squares
 
 from .field import Field
 from .logger import Logger
-from .materials import material_colors
+from .materials import material_colors, material_lib
 
 try:
     from mpi4py import MPI
@@ -310,6 +310,7 @@ class GridFIT3D:
         return _grid
 
     def _prepare_stl_dicts(self):
+        #Ensure all the stl data is stored in dicts
         if type(self.stl_solids) is not dict:
             if type(self.stl_solids) is str:
                 self.stl_solids = {'Solid 1' : self.stl_solids}
@@ -354,6 +355,25 @@ class GridFIT3D:
                 except IndexError:
                     self._assign_colors()
                     print('[!] If `stl_colors` is a list, it must have the same length as `stl_solids`.')
+
+        if type(self.stl_materials) is not dict:
+            if type(self.stl_materials) is str:
+                self.stl_materials = {'Solid 1' : self.stl_materials}
+            else:
+                raise Exception('Attribute `stl_materials` must contain a string or a dictionary')
+
+        for key in self.stl_solids.keys():
+            # if keys are str, convert to array using material library
+            if type(self.stl_materials[key]) is str:
+                mat_key = self.stl_materials[key].lower()
+                eps_r = material_lib[mat_key][0]
+                mu_r = material_lib[mat_key][1]
+
+                self.stl_materials[key] = [eps_r, mu_r]
+
+                if len(material_lib[mat_key]) == 3:
+                    sigma = material_lib[mat_key][2]
+                    self.stl_materials[key].append(sigma)
 
     def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
@@ -655,8 +675,8 @@ class GridFIT3D:
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
             color = self.stl_colors[key]
-            if self.stl_materials[key] == 'vacuum':
-                _opacity = 0.3
+            if self.stl_materials[key] == [1.0, 1.0, 0.0] or self.stl_materials[key] == [1.0, 1.0]:
+                _opacity = 0.3 # vacuum
             else:
                 _opacity = opacity
             pl.add_mesh(self.read_stl(key), color=color,
