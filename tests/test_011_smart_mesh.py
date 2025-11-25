@@ -35,7 +35,7 @@ class TestSmartMesh:
         xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 
         refinement_tol=1e-8
-        snap_tol=1e-3
+        snap_tol=1e-2
         # set grid and geometry
         grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
                         stl_solids=stl_solids, 
