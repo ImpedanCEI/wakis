@@ -12,7 +12,7 @@ from scipy.optimize import least_squares
 
 from .field import Field
 from .logger import Logger
-from .materials import material_colors
+from .materials import material_colors, material_lib
 
 try:
     from mpi4py import MPI
@@ -57,6 +57,9 @@ class GridFIT3D:
         - if dict, it must contain the same keys as `stl_solids`
     use_mpi: bool, default False
         Enable MPI domain decomposition in the z direction.
+    use_SIBC: bool, default True
+        Enable SIBC (Leontovich boundary condition) to model high-conductive
+        materials. Applied when material conductivity > 1e3 S/m
     use_mesh_refinement: bool, default False
         [!] WIP -- Enable mesh refinement based on snap points
         extracted from the stl solids
@@ -76,6 +79,7 @@ class GridFIT3D:
                 Nx=None, Ny=None, Nz=None,
                 x=None, y=None, z=None,
                 use_mpi=False,
+                use_SIBC=True,
                 use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
                 snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None,
@@ -137,6 +141,7 @@ class GridFIT3D:
         self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
         # stl info
+        self.use_SIBC = use_SIBC
         self.stl_solids = stl_solids
         self.stl_materials = stl_materials
         self.stl_rotate = stl_rotate
@@ -199,6 +204,8 @@ class GridFIT3D:
         self.stl_tol = stl_tol
         if stl_solids is not None:
             self._mark_cells_in_stl()
+            if use_SIBC:
+                self._mark_cells_in_surface()
 
         if verbose:
             print(f'Total grid initialization time: {time.time() - t0} s')
@@ -310,6 +317,7 @@ class GridFIT3D:
         return _grid
 
     def _prepare_stl_dicts(self):
+        #Ensure all the stl data is stored in dicts
         if type(self.stl_solids) is not dict:
             if type(self.stl_solids) is str:
                 self.stl_solids = {'Solid 1' : self.stl_solids}
@@ -355,6 +363,25 @@ class GridFIT3D:
                     self._assign_colors()
                     print('[!] If `stl_colors` is a list, it must have the same length as `stl_solids`.')
 
+        if type(self.stl_materials) is not dict:
+            if type(self.stl_materials) is str:
+                self.stl_materials = {'Solid 1' : self.stl_materials}
+            else:
+                raise Exception('Attribute `stl_materials` must contain a string or a dictionary')
+
+        for key in self.stl_solids.keys():
+            # if keys are str, convert to array using material library
+            if type(self.stl_materials[key]) is str:
+                mat_key = self.stl_materials[key].lower()
+                eps_r = material_lib[mat_key][0]
+                mu_r = material_lib[mat_key][1]
+
+                self.stl_materials[key] = [eps_r, mu_r]
+
+                if len(material_lib[mat_key]) == 3:
+                    sigma = material_lib[mat_key][2]
+                    self.stl_materials[key].append(sigma)
+
     def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
         stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
@@ -375,6 +402,7 @@ class GridFIT3D:
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 
+            # TODO: adapt for subpixel smoothing
             self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
 
             if self.verbose and np.sum(self.grid[key]) == 0:
@@ -382,6 +410,16 @@ class GridFIT3D:
 
             if self.verbose > 1:
                 print(f' * STL solid {key}: {np.sum(self.grid[key])} cells marked inside the solid.')
+
+    def _mark_cells_in_surface(self):
+        # Modify the STL mask to account only for the surface
+        # Needed for the SIBC boundary condition when conductivity > 1e3 S/m
+        for key in self.stl_solids.keys():
+            if len(self.stl_materials[key]) == 3 and self.stl_materials[key][2] > 1e3:
+                grad = np.array(self.grid.compute_derivative(scalars=key, gradient='gradient')['gradient'])
+                grad = np.sqrt(grad[:, 0]**2 + grad[:, 1]**2 + grad[:, 2]**2)
+                #TODO: adapt for subpixel smoothing
+                self.grid[key] = grad.astype(bool)
 
     def read_stl(self, key):
         # import stl
@@ -655,8 +693,8 @@ class GridFIT3D:
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
             color = self.stl_colors[key]
-            if self.stl_materials[key] == 'vacuum':
-                _opacity = 0.3
+            if self.stl_materials[key] == [1.0, 1.0, 0.0] or self.stl_materials[key] == [1.0, 1.0]:
+                _opacity = 0.3 # vacuum
             else:
                 _opacity = opacity
             pl.add_mesh(self.read_stl(key), color=color,
