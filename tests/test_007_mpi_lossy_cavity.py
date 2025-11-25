@@ -92,7 +92,7 @@ class TestMPILossyCavity:
                 'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684,
                 'zmin': -0.25, 'zmax': 0.550000011920929,
                 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
-                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]},
+                'stl_materials': {'cavity': [1.0, 1.0], 'shell': [30, 1.0, 30]},
                 'gridInitializationTime': 0}
 
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec',
@@ -202,7 +202,7 @@ class TestMPILossyCavity:
             for n in tqdm(range(Nt)):
 
                 beam.update(solver, n*solver.dt)
-                solver.mpi_one_step()
+                solver.one_step()
 
             Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2))
             if solver.rank == 0:
