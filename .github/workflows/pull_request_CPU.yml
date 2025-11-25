@@ -32,6 +32,8 @@ jobs:
         run: |
           cd wakis
           pip install .['notebook']
+          pip uninstall vtk -y
+          pip install --extra-index-url https://wheels.vtk.org vtk-osmesa
 
       - name: Print installed packages
         run: conda list
