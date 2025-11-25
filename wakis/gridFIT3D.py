@@ -5,10 +5,13 @@
 
 import numpy as np
 import pyvista as pv
-from functools import partial
+import time
+import h5py
+
 from scipy.optimize import least_squares
 
 from .field import Field
+from .logger import Logger
 
 try:
     from mpi4py import MPI
@@ -18,15 +21,20 @@ except ImportError:
 
 class GridFIT3D:
     """
-    Class holding the grid information and 
+    Class holding the grid information and
     stl importing handling using PyVista
 
     Parameters
     ----------
-    xmin, xmax, ymin, ymax, zmin, zmax: float
-        extent of the domain.
+    xmin, xmax, ymin, ymax, zmin, zmax: float, default None
+        Extent of the simulation domain.
+        If None, must provide x, y, z arrays.
     Nx, Ny, Nz: int
-        number of cells per direction
+        Number of cells per direction
+        If None, must provide x, y, z arrays.
+    x, y, z: array_like, optional
+        Custom grid axis arrays to be used in the meshgrid generation.
+        Non-uniform grids are supported.
     stl_solids: dict, optional
         stl files to import in the domain.
         {'Solid 1': stl_1, 'Solid 2': stl_2, ...}
@@ -35,53 +43,98 @@ class GridFIT3D:
     stl_materials: dict, optional
         Material properties associated with stl
         {'Solid 1': [eps1, mu1],
-         'Solid 2': [eps1, mu1], 
+         'Solid 2': [eps1, mu1],
          ...}
     stl_rotate: list or dict, optional
         Angle of rotation to apply to the stl models: [rot_x, rot_y, rot_z]
         - if list, it will be applied to all stls in `stl_solids`
-        - if dict, it must contain the same keys as `stl_solids`, 
+        - if dict, it must contain the same keys as `stl_solids`,
           indicating the rotation angle per stl
     stl_scale: float or dict, optional
         Scaling value to apply to the stl model to convert to [m]
         - if float, it will be applied to all stl in `stl_solids`
-        - if dict, it must contain the same keys as `stl_solids` 
-    tol: float, default 1e-3
+        - if dict, it must contain the same keys as `stl_solids`
+    use_mpi: bool, default False
+        Enable MPI domain decomposition in the z direction.
+    use_mesh_refinement: bool, default False
+        [!] WIP -- Enable mesh refinement based on snap points
+        extracted from the stl solids
+    stl_tol: float, default 1e-3
         Tolerance factor for stl import, used in grid.select_enclosed_points.
-        Importing tolerance is computed by: tol*min(dx,dy,dz). 
+        Importing tolerance is computed by: tol*min(dx,dy,dz).
+    load_from_h5: str, optional
+        Load grid from an h5 file previously saved with `save_to_h5`.
     verbose: int or bool, default 1
-        Enable verbose ouput on the terminal
+        Enable verbose ouput on the terminal.
+        Use `verbose=2` for more detailed output.
     """
 
-    def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, 
-                x=None, y=None, z=None, 
-                use_mpi=False, 
+    def __init__(self, xmin=None, xmax=None,
+                ymin=None, ymax=None,
+                zmin=None, zmax=None,
+                Nx=None, Ny=None, Nz=None,
+                x=None, y=None, z=None,
+                use_mpi=False,
                 use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
                 snap_points=None, snap_tol=1e-5, snap_solids=None,
-                stl_solids=None, stl_materials=None, 
+                stl_solids=None, stl_materials=None,
                 stl_rotate=[0., 0., 0.], stl_translate=[0., 0., 0.], stl_scale=1.0,
-                stl_colors=None, verbose=1, stl_tol=1e-3):
-        
-        if verbose: print('Generating grid...')
+                stl_colors=None, stl_tol=1e-3,
+                load_from_h5=None, verbose=1,):
+
+        t0 = time.time()
+        self.logger = Logger()
         self.verbose = verbose
         self.use_mpi = use_mpi
-        self.use_mesh_refinement = use_mesh_refinement
 
-        # domain limits
-        self.xmin = xmin
-        self.xmax = xmax
-        self.ymin = ymin
-        self.ymax = ymax
-        self.zmin = zmin
-        self.zmax = zmax
-        self.Nx = Nx
-        self.Ny = Ny
-        self.Nz = Nz
-        self.dx = (xmax - xmin) / Nx
-        self.dy = (ymax - ymin) / Ny
-        self.dz = (zmax - zmin) / Nz
-        
+        # Grid data
+        # generate from file
+        if load_from_h5 is not None:
+            self.load_from_h5(load_from_h5)
+            return #TODO: support MPI decomposition
+
+        # generate from custom x,y,z arrays
+        elif x is not None and y is not None and z is not None:
+            # allow user to set the grid axis manually
+            self.x = x
+            self.y = y
+            self.z = z
+            self.Nx = len(self.x) - 1
+            self.Ny = len(self.y) - 1
+            self.Nz = len(self.z) - 1
+            self.xmin, self.xmax = self.x[0], self.x[-1]
+            self.ymin, self.ymax = self.y[0], self.y[-1]
+            self.zmin, self.zmax = self.z[0], self.z[-1]
+            if self.use_mpi:
+                raise ValueError("[!] Error: use_mpi=True is not compatible with custom x,y,z arrays.")
+
+        # generate from domain extents and number of cells [LEGACY]
+        elif all(v is not None for v in [xmin, xmax, ymin, ymax, zmin, zmax]):
+            # uniform grid from domain extents and number of cells
+            self.xmin, self.xmax = xmin, xmax
+            self.ymin, self.ymax = ymin, ymax
+            self.zmin, self.zmax = zmin, zmax
+            self.Nx, self.Ny, self.Nz = Nx, Ny, Nz
+            self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
+            self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
+            self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
+
+        else:
+            raise ValueError(
+                "[!] Error initializing GridFIT3D:\n"
+                "  - Provide grid axis arrays: x, y, z\n"
+                "  - OR domain extents and number of cells: xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz\n"
+                "  - OR load from a HDF5 file using load_from_h5"
+            )
+
+        #TODO: allow non uniform dx, dy, dz
+        self.dx = np.min(np.diff(self.x))
+        self.dy = np.min(np.diff(self.y))
+        #self.dz = np.min(np.diff(self.z))
+        self.dz = (self.zmax - self.zmin)/self.Nz
+        self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+        self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
+
         # stl info
         self.stl_solids = stl_solids
         self.stl_materials = stl_materials
@@ -89,59 +142,70 @@ class GridFIT3D:
         self.stl_translate = stl_translate
         self.stl_scale = stl_scale
         self.stl_colors = stl_colors
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
+
         if stl_solids is not None:
             self._prepare_stl_dicts()
 
-        # MPI subdivide domain 
-        if self.use_mpi: 
+        # refine self.x, self.y, self.z using snap points
+        self.use_mesh_refinement = use_mesh_refinement
+        self.refinement_method = refinement_method
+        self.snap_points = snap_points
+        self.snap_tol = snap_tol
+        self.snap_solids = snap_solids # if None, use all stl_solids
+        self.update_logger(['use_mesh_refinement'])
+
+        if self.use_mesh_refinement:
+            if verbose:
+                print('Applying mesh refinement...')
+            if self.snap_points is None and stl_solids is not None:
+                self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
+            self.refine_xyz_axis(method=refinement_method, tol=refinement_tol)
+
+        if verbose:
+            print(f'Generating grid with {self.Nx*self.Ny*self.Nz} mesh cells...')
+            if verbose > 1:
+                print(f' * Simulation domain bounds: \n\
+                    x:[{xmin:.3f}, {xmax:.3f}],\n\
+                    y:[{ymin:.3f}, {ymax:.3f}],\n\
+                    z:[{zmin:.3f}, {zmax:.3f}]')
+
+        # MPI subdivide domain
+        if self.use_mpi:
             self.ZMIN = None
             self.ZMAX = None
             self.NZ = None
             self.Z = None
             if imported_mpi:
                 self.mpi_initialize()
-                if self.verbose: print(f"MPI initialized for {self.rank} of {self.size}")
+                if self.verbose:
+                    print(f"MPI initialized for {self.rank} of {self.size}")
             else:
-                raise ImportError("*** mpi4py is required when use_mpi=True but was not found")
-            
-        # primal Grid G base axis x, y, z
-        self.x = x
-        self.y = y
-        self.z = z
-        self.refinement_method = refinement_method
-        self.snap_points = snap_points
-        self.snap_tol = snap_tol
-        self.snap_solids = snap_solids # if None, use all stl_solids
+                raise ImportError("[!] mpi4py is required when use_mpi=True but was not found")
 
-        if self.x is not None and self.y is not None and self.z is not None:
-            # allow user to set the grid axis manually
-            self.Nx = len(self.x) - 1
-            self.Ny = len(self.y) - 1
-            self.Nz = len(self.z) - 1
-            self.dx = np.min(np.diff(self.x)) 
-            self.dy = np.min(np.diff(self.y))  
-            self.dz = np.min(np.diff(self.z))
-
-        elif self.use_mesh_refinement:
-            if verbose: print('Applying mesh refinement...')
-            if self.snap_points is None and stl_solids is not None:
-                self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
-            self.refine_xyz_axis(method=refinement_method, tol=refinement_tol)  # obtain self.x, self.y, self.z
-        else:
-            self.x = np.linspace(self.xmin, self.xmax, self.Nx+1)
-            self.y = np.linspace(self.ymin, self.ymax, self.Ny+1)
-            self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
-            
         # grid G and tilde grid ~G, lengths and inverse areas
         self.compute_grid()
 
         # tolerance for stl import tol*min(dx,dy,dz)
-        if verbose: print('Importing STL solids...')
-        self.tol = stl_tol 
+        if verbose:
+            print('Importing STL solids...')
+        self.stl_tol = stl_tol
         if stl_solids is not None:
             self.mark_cells_in_stl()
             if stl_colors is None:
                 self.assign_colors()
+
+        if verbose:
+            print(f'Total grid initialization time: {time.time() - t0} s')
+
+        self.gridInitializationTime = time.time()-t0
+        self.update_logger(['gridInitializationTime'])
 
     def compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
@@ -158,7 +222,7 @@ class GridFIT3D:
         self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
 
         # tilde grid ~G
-        self.tx = (self.x[1:]+self.x[:-1])/2 
+        self.tx = (self.x[1:]+self.x[:-1])/2
         self.ty = (self.y[1:]+self.y[:-1])/2
         self.tz = (self.z[1:]+self.z[:-1])/2
 
@@ -181,34 +245,35 @@ class GridFIT3D:
         aux = self.tL.field_x * self.tL.field_y
         self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
         del aux
-    
+
     def mpi_initialize(self):
         comm = MPI.COMM_WORLD  # Get MPI communicator
         self.comm = comm
         self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size() 
+        self.size = self.comm.Get_size()
 
         # Error handling for Nz < size
         if self.Nz < self.size:
             raise ValueError(f"Nz ({self.Nz}) must be greater than or equal to the number of MPI processes ({self.size}).")
-        
+
         # global z quantities [ALLCAPS]
         self.ZMIN = self.zmin
         self.ZMAX = self.zmax
         self.NZ = self.Nz - self.Nz%(self.size) # ensure multiple of MPI size
         self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ+1)[:-1] + self.dz/2
 
-        if self.verbose and self.rank==0: 
-            print(f"Global grid ZMIN={self.ZMIN}, ZMAX={self.ZMAX}, NZ={self.NZ}")
+        if self.verbose and self.rank==0:
+            print(f" * Global grid ZMIN={self.ZMIN}, ZMAX={self.ZMAX}, NZ={self.NZ}")
 
-        # MPI subdomain quantities 
-        self.Nz = self.NZ // (self.size) 
+        # MPI subdomain quantities
+        self.Nz = self.NZ // (self.size)
         self.dz = (self.ZMAX - self.ZMIN) / self.NZ
         self.zmin = self.rank * self.Nz * self.dz + self.ZMIN
-        self.zmax = (self.rank+1) * self.Nz * self.dz + self.ZMIN 
+        self.zmax = (self.rank+1) * self.Nz * self.dz + self.ZMIN
 
-        if self.verbose: print(f"MPI rank {self.rank} of {self.size} initialized with \
-                                zmin={self.zmin}, zmax={self.zmax}, Nz={self.Nz}")
+        if self.verbose:
+            print(f"MPI rank {self.rank} of {self.size} initialized with \
+                        zmin={self.zmin}, zmax={self.zmax}, Nz={self.Nz}")
         # Add ghost cells
         self.n_ghosts = 1
         if self.rank > 0:
@@ -219,15 +284,17 @@ class GridFIT3D:
             self.Nz += self.n_ghosts
 
         # Support for single core
-        if self.rank == 0 and self.size == 1: 
+        if self.rank == 0 and self.size == 1:
             self.zmax += self.n_ghosts * self.dz
             self.Nz += self.n_ghosts
-            
+
+        self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
+
     def mpi_gather_asGrid(self):
         _grid = None
         if self.rank == 0:
             print(f"Generating global grid from {self.ZMIN} to {self.ZMAX}")
-            _grid = GridFIT3D(self.xmin, self.xmax, 
+            _grid = GridFIT3D(self.xmin, self.xmax,
                             self.ymin, self.ymax,
                             self.ZMIN, self.ZMAX,
                             self.Nx, self.Ny, self.NZ,
@@ -239,7 +306,7 @@ class GridFIT3D:
                             stl_translate=self.stl_translate,
                             stl_colors=self.stl_colors,
                             verbose=self.verbose,
-                            tol=self.tol,
+                            stl_tol=self.stl_tol,
                             )
         return _grid
 
@@ -273,37 +340,47 @@ class GridFIT3D:
 
     def mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        tol = np.min([self.dx, self.dy, self.dz])*self.tol
+        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol)
-            except:
-                select = self.grid.select_enclosed_points(surf, tolerance=tol, check_surface=False)
-            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > tol
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
+            except Exception:
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
+                if self.verbose > 1:
+                    print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
+
+            self.grid[key] = select.point_data_to_cell_data()['SelectedPoints'] > stl_tolerance
+
+            if self.verbose and np.sum(self.grid[key]) == 0:
+                print(f'[!] Warning: no cells were marked inside stl solid {key}. Consider increasing the tolerance factor (currently {self.stl_tol}).')
+
+            if self.verbose > 1:
+                print(f' * STL solid {key}: {np.sum(self.grid[key])} cells marked inside the solid.')
 
     def read_stl(self, key):
         # import stl
         surf = pv.read(self.stl_solids[key])
 
         # rotate
-        surf = surf.rotate_x(self.stl_rotate[key][0])  
-        surf = surf.rotate_y(self.stl_rotate[key][1])  
-        surf = surf.rotate_z(self.stl_rotate[key][2])  
+        surf = surf.rotate_x(self.stl_rotate[key][0])
+        surf = surf.rotate_y(self.stl_rotate[key][1])
+        surf = surf.rotate_z(self.stl_rotate[key][2])
 
         # translate
         surf = surf.translate(self.stl_translate[key])
 
         # scale
-        surf = surf.scale(self.stl_scale[key]) 
+        surf = surf.scale(self.stl_scale[key])
 
         return surf
-    
+
     def compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
-        if self.verbose: print('* Calculating snappy points...')
+        if self.verbose > 1:
+            print(' * Calculating snappy points...')
         # Support for user-defined stl_keys as list
         if snap_solids is None:
             snap_solids = self.stl_solids.keys()
@@ -316,8 +393,8 @@ class GridFIT3D:
             if model is None:
                 model = solid
             else:
-                model = model + solid  
-    
+                model = model + solid
+
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
@@ -325,7 +402,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         self.snap_points = np.r_[xz_plane_points, yz_plane_points, xy_plane_points]
 
@@ -353,8 +430,8 @@ class GridFIT3D:
             if model is None:
                 model = solid
             else:
-                model = model + solid  
-    
+                model = model + solid
+
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
@@ -362,7 +439,7 @@ class GridFIT3D:
         # Extract points lying in the Y-Z plane (X ≈ 0)
         yz_plane_points = edges.points[np.abs(edges.points[:, 0]) < snap_tol]
         # Extract points lying in the X-Y plane (Z ≈ 0)
-        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < 1e-5]
+        xy_plane_points = edges.points[np.abs(edges.points[:, 2]) < snap_tol]
 
         xz_cloud = pv.PolyData(xz_plane_points)
         yz_cloud = pv.PolyData(yz_plane_points)
@@ -377,7 +454,7 @@ class GridFIT3D:
         pl.add_legend()
         pl.show()
 
-    def refine_axis(self, xmin, xmax, Nx, x_snaps, 
+    def refine_axis(self, xmin, xmax, Nx, x_snaps,
                     method='insert', tol=1e-12):
 
         # Loss function to minimize cell size spread
@@ -387,7 +464,7 @@ class GridFIT3D:
             # avoid gaps < uniform gap
             dx = np.diff(x)
             threshold = 1/(len(x)-1) # or a hardcoded `min_spacing`
-            penalty_small_gaps = np.sum((threshold - dx[dx < threshold])**2) 
+            penalty_small_gaps = np.sum((threshold - dx[dx < threshold])**2)
             # avoid large spread in gap length
             dx = np.diff(x)
             penalty_variance = np.std(dx) * 10
@@ -403,14 +480,12 @@ class GridFIT3D:
         elif method == 'neighbor':
             x = np.linspace(0, 1, Nx)
             dx = np.diff(x)[0]
-            mask = np.zeros_like(x, dtype=bool)
-            i=0
             for s in x_snaps:
                 m = np.isclose(x, s, rtol=0.0, atol=dx/2)
                 if np.sum(m)>0:
                     x[np.argmax(m)] = s
             x0 = x.copy()
-        
+
         elif method == 'subdivision':
             # x = snaps
             while len(x) < Nx:
@@ -429,7 +504,7 @@ class GridFIT3D:
         else:
             raise ValueError(f"Method {method} not supported. Use 'insert', 'neighbor' or 'subdivision'.")
 
-        # minimize segment length spread for the test points 
+        # minimize segment length spread for the test points
         is_snap = np.isin(x0, x_snaps)
         result = least_squares(loss_function,
                                 x0=x0.copy(),
@@ -444,33 +519,37 @@ class GridFIT3D:
                                 args=(x0.copy(), is_snap.copy()),
                                 )
         # transform back to [xmin, xmax]
-        return result.x*(xmax-xmin)+xmin 
+        return result.x*(xmax-xmin)+xmin
 
     def refine_xyz_axis(self, method='insert', tol=1e-6):
         '''Refine the grid in the x, y, z axis
         using the snap points extracted from the stl solids.
         The snap points are used to refine the grid '''
 
-        if self.verbose: print(f'* Refining x axis with {len(self.x_snaps)} snaps...')
+        if self.verbose > 1:
+            print(f' * Refining x axis with {len(self.x_snaps)} snaps...')
         self.x = self.refine_axis(self.xmin, self.xmax, self.Nx+1, self.x_snaps,
                                   method=method, tol=tol)
-        
-        if self.verbose: print(f'* Refining y axis with {len(self.y_snaps)} snaps...')
+
+        if self.verbose > 1:
+            print(f' * Refining y axis with {len(self.y_snaps)} snaps...')
         self.y = self.refine_axis(self.ymin, self.ymax, self.Ny+1, self.y_snaps,
                                   method=method, tol=tol)
-        
-        if self.verbose: print(f'* Refining z axis with {len(self.z_snaps)} snaps...')
+
+        if self.verbose > 1:
+            print(f' * Refining z axis with {len(self.z_snaps)} snaps...')
         self.z = self.refine_axis(self.zmin, self.zmax, self.Nz+1, self.z_snaps,
                                   method=method, tol=tol)
 
         self.Nx = len(self.x) - 1
-        self.Ny = len(self.y) - 1       
+        self.Ny = len(self.y) - 1
         self.Nz = len(self.z) - 1
         self.dx = np.min(np.diff(self.x))  #TODO: should this be an array?
-        self.dy = np.min(np.diff(self.y))  
+        self.dy = np.min(np.diff(self.y))
         self.dz = np.min(np.diff(self.z))
 
-        print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
+        if self.verbose:
+            print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
 
     def assign_colors(self):
         '''Classify colors assigned to each solid
@@ -483,7 +562,7 @@ class GridFIT3D:
             mat = self.stl_materials[key]
             if type(mat) is str:
                 self.stl_colors[key] = mat
-            elif len(mat) == 2: 
+            elif len(mat) == 2:
                 if mat[0] is np.inf:  #eps_r
                     self.stl_colors[key] = 'pec'
                 elif mat[0] > 1.0:    #eps_r
@@ -494,6 +573,23 @@ class GridFIT3D:
                 self.stl_colors[key] = 'lossy metal'
             else:
                 self.stl_colors[key] = 'other'
+
+    def _add_logo_widget(self, pl):
+        """Add packaged logo via importlib.resources (Python 3.9+)."""
+        try:
+            from importlib import resources
+            # resource inside the installed package (use current package)
+            logo_res = resources.files(__package__).joinpath('static', 'img', 'wakis-logo-pink.png')
+            with resources.as_file(logo_res) as logo_path:
+                pl.add_logo_widget(str(logo_path))
+                return
+        except Exception as e:
+            # fallback to the legacy relative path for dev installs
+            try:
+                pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except Exception:
+                if self.verbose > 1:
+                    print(f'[!] Could not add logo widget: {e}')
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
                     opacity=1.0, specular=0.5, offscreen=False, **kwargs):
@@ -506,21 +602,21 @@ class GridFIT3D:
             If True, adds a bounding box around the plotted geometry (default: False).
 
         show_grid : bool, optional
-            If True, adds the grid's mesh wireframe to the display (default: False).   
+            If True, adds the grid's mesh wireframe to the display (default: False).
 
         anti_aliasing : str or None, optional
             Enables anti-aliasing if provided. Valid values depend on PyVista settings (default: None).
-        
+
         opacity : float, optional
-            Controls the transparency of the plotted solids. A value of 1.0 is fully opaque, 
+            Controls the transparency of the plotted solids. A value of 1.0 is fully opaque,
             while 0.0 is fully transparent (default: 1.0).
-        
+
         specular : float, optional
             Adjusts the specular lighting effect on the surface. Higher values increase shininess (default: 0.5).
-        
+
         **kwargs : dict
             Additional keyword arguments passed to `pyvista.add_mesh()`, allowing customization of the mesh rendering.
-        
+
         Notes:
         ------
         - Colors are determined by the `GridFIT3D.stl_colors` attribute dictionary if not None
@@ -528,30 +624,29 @@ class GridFIT3D:
         - The camera is positioned at an angle to provide better depth perception.
         - If `bounding_box=True`, a bounding box is drawn around the model.
         - If `anti_aliasing` is specified, it is enabled to improve rendering quality.
-        
+
         """
 
         from .materials import material_colors
-        
+
         pl = pv.Plotter()
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
             try:
                 color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
-            except: 
+            except KeyError:
                 color = self.stl_colors[key] # specifies color e.g. 'tab:red'
 
             if self.stl_colors[key] == 'vacuum' or self.stl_materials[key] == 'vacuum':
                 _opacity = 0.3
             else:
                 _opacity = opacity
-            pl.add_mesh(self.read_stl(key), color=color, 
+            pl.add_mesh(self.read_stl(key), color=color,
                         opacity=_opacity, specular=specular, smooth_shading=True,
                         **kwargs)
-        
+
         pl.set_background('mistyrose', top='white')
-        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
-        except: pass
+        self._add_logo_widget(pl)
         pl.camera_position = 'zx'
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
@@ -562,7 +657,7 @@ class GridFIT3D:
 
         if bounding_box:
             pl.add_bounding_box()
-            
+
         if show_grid:
             pl.add_mesh(self.grid, style='wireframe', color='grey', opacity=0.3, name='grid')
 
@@ -575,7 +670,7 @@ class GridFIT3D:
                       add_stl='all', stl_opacity=0., stl_colors=None,
                       xmax=None, ymax=None, zmax=None,
                       anti_aliasing='ssaa', offscreen=False):
-        
+
         """
         Interactive 3D visualization of the structured grid mask and imported STL geometries.
 
@@ -635,9 +730,12 @@ class GridFIT3D:
         if stl_colors is None:
             stl_colors = self.stl_colors
 
-        if xmax is None: xmax = self.xmax
-        if ymax is None: ymax = self.ymax
-        if zmax is None: zmax = self.zmax
+        if xmax is None:
+            xmax = self.xmax
+        if ymax is None:
+            ymax = self.ymax
+        if zmax is None:
+            zmax = self.zmax
 
         pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
@@ -656,8 +754,8 @@ class GridFIT3D:
 
             # add clipped volume (scalars)
             pl.add_mesh(
-                self.grid.clip_box(bounds=(self.xmin, vals['x'], 
-                                           self.ymin, vals['y'], 
+                self.grid.clip_box(bounds=(self.xmin, vals['x'],
+                                           self.ymin, vals['y'],
                                            self.zmin, vals['z']), invert=False),
                 scalars=stl_solid,
                 cmap=cmap,
@@ -669,7 +767,7 @@ class GridFIT3D:
                 pl.add_mesh(slice_obj, style="wireframe", color="grey", name="slice")
 
         # Plot stl surface(s)
-        if add_stl is not None: 
+        if add_stl is not None:
             if type(add_stl) is str: #add all stl solids
                 if add_stl.lower() == 'all':
                     for i, key in enumerate(self.stl_solids):
@@ -734,8 +832,7 @@ class GridFIT3D:
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
         pl.set_background('mistyrose', top='white')
-        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
-        except: pass
+        self._add_logo_widget(pl)
         pl.add_axes()
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
@@ -751,8 +848,8 @@ class GridFIT3D:
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
                 anti_aliasing='ssaa', offscreen=False):
-        
-        '''3D plot using pyvista to visualize 
+
+        '''3D plot using pyvista to visualize
         the structured grid and
         the imported stl geometries
 
@@ -806,7 +903,7 @@ class GridFIT3D:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
                         else:
                             pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
-            
+
             else: #add all stl solids
                 for i, key in enumerate(self.stl_solids):
                     surf = self.read_stl(key)
@@ -828,9 +925,7 @@ class GridFIT3D:
         pl.camera.azimuth += 30
         pl.camera.elevation += 30
         pl.set_background('mistyrose', top='white')
-        try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
-        except: pass
-        #pl.camera.zoom(zoom)
+        self._add_logo_widget(pl)
         pl.add_axes()
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
@@ -839,3 +934,129 @@ class GridFIT3D:
             pl.export_html('grid_inspect.html')
         else:
             pl.show()
+
+    def save_to_h5(self, filename='grid.h5'):
+        '''Save generated grid to HDF5 file
+
+        Stored data:
+        ------------
+        * STL solid masks imported available to fill grid.cell_data
+        * x, y, z: grid axis arrays
+        * All `stl_` related variables:
+            stl_solids, stl_materials, stl_colors,
+            stl_scale, stl_rotate, stl_translate
+        '''
+
+        if not filename.endswith('.h5'):
+            filename += '.h5'
+
+        if self.verbose:
+            print('Saving grid to HDF5 file:', filename)
+
+        with h5py.File(filename, 'w') as hf:
+            hf.create_dataset('x', data=np.array(self.x))
+            hf.create_dataset('y', data=np.array(self.y))
+            hf.create_dataset('z', data=np.array(self.z))
+
+            # Save stl_ variables as groups
+            for attr in ['stl_solids', 'stl_materials',
+                        'stl_colors', 'stl_scale',
+                        'stl_rotate', 'stl_translate']:
+                grp = hf.create_group(attr)
+                dct = getattr(self, attr)
+                for key, val in dct.items():
+                    # Use dtype='S' for strings, otherwise np.array
+                    if isinstance(val, str):
+                        grp.create_dataset(str(key), data=np.string_(val))
+                    else:
+                        grp.create_dataset(str(key), data=np.array(val))
+
+            for key in self.stl_solids.keys():
+                hf.create_dataset('grid_'+key, data=np.array(self.grid[key]))
+
+    def load_from_h5(self, filename):
+        '''Load grid from HDF5 file
+
+        Stored data:
+        ------------
+        * STL solid masks imported available to fill grid.cell_data
+        * x, y, z: grid axis arrays
+        * All `stl_` related variables:
+            stl_solids, stl_materials, stl_colors,
+            stl_scale, stl_rotate, stl_translate
+        '''
+        if not filename.endswith('.h5'):
+            filename += '.h5'
+
+        if self.verbose:
+            print('Loading grid from HDF5 file:', filename)
+
+        with h5py.File(filename, 'r') as hf:
+            # reconstruct stl dicts
+            self.x = hf['x'][()]
+            self.y = hf['y'][()]
+            self.z = hf['z'][()]
+
+            # Load stl_ variables from groups
+            for attr in ['stl_solids', 'stl_materials',
+                        'stl_colors', 'stl_scale',
+                        'stl_rotate', 'stl_translate']:
+                dct = {}
+                grp = hf[attr]
+                for key in grp.keys():
+                    val = grp[key][()]
+                    # Decode bytes to string if needed
+                    if isinstance(val, bytes):
+                        val = val.decode()
+                    dct[key] = val
+                setattr(self, attr, dct)
+
+        # recompute dx, dy, dz, Nx, Ny, Nz
+        self.Nx = len(self.x) - 1
+        self.Ny = len(self.y) - 1
+        self.Nz = len(self.z) - 1
+        self.dx = np.min(np.diff(self.x))
+        self.dy = np.min(np.diff(self.y))
+        self.dz = np.min(np.diff(self.z))
+        self.xmin, self.xmax = self.x[0], self.x[-1]
+        self.ymin, self.ymax = self.y[0], self.y[-1]
+        self.zmin, self.zmax = self.z[0], self.z[-1]
+
+        # recommpute grid and L, iA, tL, itA
+        self.compute_grid()
+
+        # asign masks to grid.cell_data
+        with h5py.File(filename, 'r') as hf:
+            for key in self.stl_solids.keys():
+                self.grid[key] = hf['grid_'+key][()]
+
+        # add verbosity
+        if self.verbose > 1:
+            print(f'Loaded grid with {self.Nx*self.Ny*self.Nz} mesh cells:')
+            print(f' * Number of cells: Nx={self.Nx}, Ny={self.Ny}, Nz={self.Nz}')
+            print(f' * Simulation domain bounds: \n\
+                x:[{self.xmin:.3f}, {self.xmax:.3f}],\n\
+                y:[{self.ymin:.3f}, {self.ymax:.3f}],\n\
+                z:[{self.zmin:.3f}, {self.zmax:.3f}]')
+            print(f' * STL solids imported:\n\
+                {list(self.stl_solids.keys())}')
+            print(f' * STL solids assigned materials [eps_r, mu_r, sigma]:\n\
+                {list(self.stl_materials.values())}')
+
+        # update logger
+        self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
+        self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
+        self.update_logger(['stl_solids', 'stl_materials'])
+        if self.stl_rotate != [0., 0., 0.]:
+            self.update_logger(['stl_rotate'])
+        if self.stl_translate != [0., 0., 0.]:
+            self.update_logger(['stl_translate'])
+        if self.stl_scale != 1.0:
+            self.update_logger(['stl_scale'])
+
+    def update_logger(self, attrs):
+        """
+        Assigns the parameters handed via attrs to the logger
+        """
+        for atr in attrs:
+            self.logger.grid[atr] = getattr(self, atr)

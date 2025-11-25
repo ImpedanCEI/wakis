@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
@@ -9,14 +10,17 @@ from tqdm import tqdm
 from scipy.constants import c
 
 from wakis import SolverFIT3D
-from wakis import GridFIT3D 
+from wakis import GridFIT3D
 from wakis import WakeSolver
 from wakis.sources import Beam
 
-import pytest 
+import pytest
+
+# Run with:
+# mpiexec -n 2 python -m pytest --color=yes -v -s tests/test_007_mpi_lossy_cavity.py
 
 # Turn true when running local
-flag_plot_3D = False 
+flag_plot_3D = False
 
 @pytest.mark.slow
 class TestMPILossyCavity:
@@ -82,6 +86,23 @@ class TestMPILossyCavity:
                     -6.04105997e+01 ,-3.06532160e+01 ,-1.17749936e+01 ,-3.12574866e+00,
                     -7.35339521e-01 ,-1.13085658e-01 , 7.18247535e-01 , 8.73829036e-02])
 
+    gridLogs = {'use_mesh_refinement': False, 'Nx': 60, 'Ny': 60, 'Nz': 140, 'dx': 0.00866666634877522, 
+                'dy': 0.00866666634877522, 'dz': 0.005714285799435207, 
+                'xmin': -0.25999999046325684, 'xmax': 0.25999999046325684, 
+                'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684, 
+                'zmin': -0.25, 'zmax': 0.550000011920929, 
+                'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
+                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]}, 
+                'gridInitializationTime': 0}
+    
+    solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec',
+                'bc_low': ['pec', 'pec', 'pec'], 'bc_high': ['pec', 'pec', 'pec'], 
+                'dt': 6.970326728398966e-12, 'solverInitializationTime': 0}
+    
+    wakeSolverLogs = {'ti': 2.8516132094735135e-09, 'q': 1e-09, 'sigmaz': 0.1, 'beta': 1.0,
+                       'xsource': 0.0, 'ysource': 0.0, 'xtest': 0.0, 'ytest': 0.0, 'chargedist': None,
+                       'skip_cells': 10, 'results_folder': 'tests/007_results/', 'wakelength': 10.0, 'simulationTime': 0}
+
     img_folder = 'tests/007_img/'
 
     def test_mpi_import(self):
@@ -89,18 +110,18 @@ class TestMPILossyCavity:
         global use_mpi
         try:
             # can be skipped since it is handled inside GridFIT3D
-            from mpi4py import MPI 
+            from mpi4py import MPI
 
             comm = MPI.COMM_WORLD  # Get MPI communicator
-            rank = comm.Get_rank()  # Process ID
             size = comm.Get_size()  # Total number of MPI processes
             if size > 1:
                 use_mpi = True
             else:
                 use_mpi = False
-        except:
+        except Exception as e:
+            print(f"[!] MPI not available: {e}")
             use_mpi = False
-        
+
         print(f"Using mpi: {use_mpi}")
 
     def test_mpi_simulation(self):
@@ -111,11 +132,11 @@ class TestMPILossyCavity:
         solid_1 = 'tests/stl/007_vacuum_cavity.stl'
         solid_2 = 'tests/stl/007_lossymetal_shell.stl'
 
-        stl_solids = {'cavity': solid_1, 
+        stl_solids = {'cavity': solid_1,
                     'shell': solid_2
                     }
 
-        stl_materials = {'cavity': 'vacuum', 
+        stl_materials = {'cavity': 'vacuum',
                         'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
                         }
 
@@ -128,10 +149,10 @@ class TestMPILossyCavity:
         Ny = 60
         NZ = 140
         global use_mpi
-        grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX, 
-                        Nx, Ny, NZ, 
+        grid = GridFIT3D(xmin, xmax, ymin, ymax, ZMIN, ZMAX,
+                        Nx, Ny, NZ,
                         use_mpi=use_mpi, # Enables MPI subdivision of the domain
-                        stl_solids=stl_solids, 
+                        stl_solids=stl_solids,
                         stl_materials=stl_materials,
                         stl_scale=1.0,
                         stl_rotate=[0,0,0],
@@ -144,7 +165,7 @@ class TestMPILossyCavity:
         # Beam parameters
         sigmaz = 10e-2      #[m] -> 2 GHz
         q = 1e-9            #[C]
-        beta = 1.0          # beam beta 
+        beta = 1.0          # beam beta
         xs = 0.             # x source position [m]
         ys = 0.             # y source position [m]
         ti = 3*sigmaz/c     # injection time [s]
@@ -160,19 +181,19 @@ class TestMPILossyCavity:
         # Solver setup
         global solver
         solver = SolverFIT3D(grid,
-                            bc_low=bc_low, 
-                            bc_high=bc_high, 
-                            use_stl=True, 
+                            bc_low=bc_low,
+                            bc_high=bc_high,
+                            use_stl=True,
                             use_mpi=use_mpi, # Activate MPI
                             bg='pec' # Background material
                             )
-        
+
         # -------------- Output folder ---------------------
         if use_mpi and solver.rank == 0:
-            if not os.path.exists(self.img_folder): 
+            if not os.path.exists(self.img_folder):
                 os.mkdir(self.img_folder)
         elif not use_mpi:
-            if not os.path.exists(self.img_folder): 
+            if not os.path.exists(self.img_folder):
                 os.mkdir(self.img_folder)
 
         # -------------- Custom time loop  -----------------
@@ -183,21 +204,23 @@ class TestMPILossyCavity:
                 beam.update(solver, n*solver.dt)
                 solver.mpi_one_step()
 
-            Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2), z=np.s_[::5])
+            Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2))
             if solver.rank == 0:
                 #print(Ez)
-                assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples MPI failed"
+                print(len(Ez))
+                assert len(Ez) == NZ, "Electric field Ez samples length mismatch"
+                assert np.allclose(Ez[np.s_[::5]], self.Ez, rtol=0.1), "Electric field Ez samples MPI failed"
         else:
             Nt = 3000
             for n in tqdm(range(Nt)):
 
                 beam.update(solver, n*solver.dt)
                 solver.one_step()
-            
+
             Ez = solver.E[int(Nx/2), int(Ny/2), np.s_[::5], 'z']
             #print(Ez)
+            assert len(solver.E[int(Nx/2), int(Ny/2), :, 'z']) == NZ, "Electric field Ez samples length mismatch"
             assert np.allclose(Ez, self.Ez, rtol=0.1), "Electric field Ez samples failed"
-
 
     def test_mpi_gather_asField(self):
         # Plot inspect after mpi gather
@@ -214,44 +237,44 @@ class TestMPILossyCavity:
             plt.close(fig)
 
     def test_mpi_plot2D(self):
-        # Plot E abs in 2D every 20 timesteps 
+        # Plot E abs in 2D every 20 timesteps
         global solver
-        solver.plot2D(field='E', component='Abs', 
-                    plane='YZ', pos=0.5, 
+        solver.plot2D(field='E', component='Abs',
+                    plane='YZ', pos=0.5,
                     cmap='rainbow', vmin=0, vmax=500., interpolation='hanning',
                     off_screen=True, title=self.img_folder+'Ez2d', n=3000)
 
     def test_mpi_plot1D(self):
         # Plot E z in 1D at diferent transverse positions `pos` every 20 timesteps
         global solver
-        solver.plot1D(field='E', component='z', 
-                line='z', pos=[0.45, 0.5, 0.55], 
+        solver.plot1D(field='E', component='z',
+                line='z', pos=[0.45, 0.5, 0.55],
                 xscale='linear', yscale='linear',
                 off_screen=True, title=self.img_folder+'Ez1d', n=3000)
-    
+
     @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_mpi_plot3D(self):
         # Plot Abs Electric field on domain
         # disabled when mpi = True
         global solver
-        solver.plot3D('E', component='Abs', 
+        solver.plot3D('E', component='Abs',
                 cmap='rainbow', clim=[0, 500],
                 add_stl=['cavity', 'shell'], stl_opacity=0.1,
                 clip_interactive=True, clip_normal='-y')
-        
-    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")    
+
+    @pytest.mark.skipif(not flag_plot_3D, reason="Requires interactive plotting")
     def test_mpi_plot3DonSTL(self):
         # Plot Abs Electric field on STL solid `cavity`
         # disabled when mpi = True
         global solver
-        solver.plot3DonSTL('E', component='Abs', 
+        solver.plot3DonSTL('E', component='Abs',
                         cmap='rainbow', clim=[0, 500],
                         stl_with_field='cavity', field_opacity=1.0,
                         stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-                        clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], 
+                        clip_plane=True, clip_normal='-y', clip_origin=[0,0,0],
                         off_screen=False, zoom=1.2, title=self.img_folder+'Ez3d')
-            
-    
+
+
     def test_mpi_wakefield(self):
         # Reset fields
         global solver
@@ -261,12 +284,12 @@ class TestMPILossyCavity:
         # Beam parameters
         sigmaz = 10e-2      #[m] -> 2 GHz
         q = 1e-9            #[C]
-        beta = 1.0          # beam beta 
+        beta = 1.0          # beam beta
         xs = 0.             # x source position [m]
         ys = 0.             # y source position [m]
         xt = 0.             # x test position [m]
         yt = 0.             # y test position [m]
-        # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
+        # [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s]
 
         # ----------- Wake Solver  setup  ----------
         # Wakefield post-processor
@@ -282,19 +305,22 @@ class TestMPILossyCavity:
                         Ez_file=results_folder+'Ez.h5',)
 
         # Run simulation
-        solver.wakesolve(wakelength=wakelength, 
+        solver.wakesolve(wakelength=wakelength,
                          wake=wake)
-    
+
     def test_long_wake_potential(self):
         global wake
         global solver
         if use_mpi:
             if solver.rank == 0:
                 #print(wake.WP[::50])
+                print(len(wake.WP))
+                assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
                 assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
                 assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
         else:
             #print(wake.WP[::50])
+            assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
             assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
 
@@ -304,14 +330,65 @@ class TestMPILossyCavity:
         if use_mpi:
             if solver.rank == 0:
                 #print(wake.Z[::20])
+                print(len(wake.Z))
+                assert len(wake.Z) == 998, "Impedance samples length mismatch"
                 assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples MPI failed"
                 assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples MPI failed"
                 assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples MPI failed"
                 assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum MPI failed"
         else:
             #print(wake.Z[::20])
+            assert len(wake.Z) == 998, "Impedance samples length mismatch"
             assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), "Abs Impedance samples failed"
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
     
+    def test_log_file(self):
+        # Helper function to compare nested dicts with float tolerance
+        def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):
+            assert set(d1.keys()) == set(d2.keys()), \
+                f"Key mismatch at {path}: {set(d1.keys())} != {set(d2.keys())}"
+
+            for k in d1:
+                v1, v2 = d1[k], d2[k]
+                p = f"{path}.{k}" if path else k
+
+                # nested dict
+                if isinstance(v1, dict) and isinstance(v2, dict):
+                    assert_dict_allclose(v1, v2, rtol, atol, p)
+
+                # floats
+                elif isinstance(v1, float) and isinstance(v2, float):
+                    assert np.isclose(v1, v2, rtol=rtol, atol=atol), \
+                        f"Float mismatch at {p}: {v1} != {v2}"
+
+                # lists/tuples/arrays
+                elif isinstance(v1, (list, tuple)) and isinstance(v2, (list, tuple)):
+                    assert len(v1) == len(v2), f"Length mismatch at {p}"
+                    for i, (a, b) in enumerate(zip(v1, v2)):
+                        if isinstance(a, float) and isinstance(b, float):
+                            assert np.isclose(a, b, rtol=rtol, atol=atol), \
+                                f"Float mismatch at {p}[{i}]: {a} != {b}"
+                        else:
+                            assert a == b, f"Value mismatch at {p}[{i}]: {a} != {b}"
+
+                # everything else → exact match
+                else:
+                    assert v1 == v2, f"Mismatch at {p}: {v1} != {v2}"
+
+        global solver
+        # Exclude timing info from comparison as they can vary between runs
+        solver.logger.grid["gridInitializationTime"] = 0 
+        solver.logger.solver["solverInitializationTime"] = 0
+        solver.logger.wakeSolver["simulationTime"] = 0
+        self.solverLogs['use_mpi'] = use_mpi
+
+        # Check log file exists
+        logfile = os.path.join(solver.logger.wakeSolver["results_folder"], "wakis.log")
+        assert os.path.exists(logfile), "Log file not created"
+
+        # Compare log dict contents
+        assert_dict_allclose(solver.logger.grid, self.gridLogs)
+        assert_dict_allclose(solver.logger.solver, self.solverLogs)
+        assert_dict_allclose(solver.logger.wakeSolver, self.wakeSolverLogs)
