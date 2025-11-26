@@ -129,10 +129,9 @@ class GridFIT3D:
             )
 
         #TODO: allow non uniform dx, dy, dz
-        self.dx = np.min(np.diff(self.x))
-        self.dy = np.min(np.diff(self.y))
-        #self.dz = np.min(np.diff(self.z))
-        self.dz = (self.zmax - self.zmin)/self.Nz
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
         self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
         self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
@@ -1022,9 +1021,9 @@ class GridFIT3D:
         self.Nx = len(self.x) - 1
         self.Ny = len(self.y) - 1
         self.Nz = len(self.z) - 1
-        self.dx = np.min(np.diff(self.x))
-        self.dy = np.min(np.diff(self.y))
-        self.dz = np.min(np.diff(self.z))
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
         self.xmin, self.xmax = self.x[0], self.x[-1]
         self.ymin, self.ymax = self.y[0], self.y[-1]
         self.zmin, self.zmax = self.z[0], self.z[-1]
