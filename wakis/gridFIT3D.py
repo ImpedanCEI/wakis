@@ -9,6 +9,7 @@ import time
 import h5py
 
 from scipy.optimize import least_squares
+import time
 
 from .field import Field
 from .logger import Logger
@@ -129,10 +130,9 @@ class GridFIT3D:
             )
 
         #TODO: allow non uniform dx, dy, dz
-        self.dx = np.min(np.diff(self.x))
-        self.dy = np.min(np.diff(self.y))
-        #self.dz = np.min(np.diff(self.z))
-        self.dz = (self.zmax - self.zmin)/self.Nz
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
         self.update_logger(['Nx', 'Ny', 'Nz', 'dx', 'dy', 'dz'])
         self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
@@ -216,9 +216,12 @@ class GridFIT3D:
         self.L.field_z = Z[1:, 1:, 1:] - Z[:-1, :-1, :-1]
 
         self.iA = Field(self.Nx, self.Ny, self.Nz)
-        self.iA.field_x = np.divide(1.0, self.L.field_y * self.L.field_z)
-        self.iA.field_y = np.divide(1.0, self.L.field_x * self.L.field_z)
-        self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
+        aux = self.L.field_y * self.L.field_z
+        self.iA.field_x = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
+        aux = self.L.field_x * self.L.field_z
+        self.iA.field_y = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
+        aux = self.L.field_x * self.L.field_y
+        self.iA.field_z = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
 
         # tilde grid ~G
         self.tx = (self.x[1:]+self.x[:-1])/2
@@ -357,7 +360,7 @@ class GridFIT3D:
 
     def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
-        stl_tolerance = np.min([self.dx, self.dy, self.dz])*self.stl_tol
+        stl_tolerance = np.min([np.min(self.dx), np.min(self.dy), np.min(self.dz)])*self.stl_tol
         progress_bar = False
         if self.Nx*self.Ny*self.Nz > 5e6 and self.verbose:
             progress_bar = True
@@ -418,6 +421,10 @@ class GridFIT3D:
                 model = model + solid
 
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
+        print(edges)
+        print("min abs(Y):", np.min(np.abs(edges.points[:,1])))
+        print("min abs(X):", np.min(np.abs(edges.points[:,0])))
+        print("min abs(Z):", np.min(np.abs(edges.points[:,2])))
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
         xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
@@ -566,12 +573,11 @@ class GridFIT3D:
         self.Nx = len(self.x) - 1
         self.Ny = len(self.y) - 1
         self.Nz = len(self.z) - 1
-        self.dx = np.min(np.diff(self.x))  #TODO: should this be an array?
-        self.dy = np.min(np.diff(self.y))
-        self.dz = np.min(np.diff(self.z))
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
 
-        if self.verbose:
-            print(f"Refined grid: Nx = {len(self.x)}, Ny ={len(self.y)}, Nz = {len(self.z)}")
+        print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
 
     def _assign_colors(self):
         '''Classify colors assigned to each solid
@@ -1016,9 +1022,9 @@ class GridFIT3D:
         self.Nx = len(self.x) - 1
         self.Ny = len(self.y) - 1
         self.Nz = len(self.z) - 1
-        self.dx = np.min(np.diff(self.x))
-        self.dy = np.min(np.diff(self.y))
-        self.dz = np.min(np.diff(self.z))
+        self.dx = np.diff(self.x)
+        self.dy = np.diff(self.y)
+        self.dz = np.diff(self.z)
         self.xmin, self.xmax = self.x[0], self.x[-1]
         self.ymin, self.ymax = self.y[0], self.y[-1]
         self.zmin, self.zmax = self.z[0], self.z[-1]
