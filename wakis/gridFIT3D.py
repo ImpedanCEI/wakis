@@ -13,6 +13,7 @@ import time
 
 from .field import Field
 from .logger import Logger
+from .materials import material_colors
 
 try:
     from mpi4py import MPI
@@ -165,8 +166,8 @@ class GridFIT3D:
             if verbose:
                 print('Applying mesh refinement...')
             if self.snap_points is None and stl_solids is not None:
-                self.compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
-            self.refine_xyz_axis(method=refinement_method, tol=refinement_tol)
+                self._compute_snap_points(snap_solids=snap_solids, snap_tol=snap_tol)
+            self._refine_xyz_axis(method=refinement_method, tol=refinement_tol)
 
         if verbose:
             print(f'Generating grid with {self.Nx*self.Ny*self.Nz} mesh cells...')
@@ -183,23 +184,21 @@ class GridFIT3D:
             self.NZ = None
             self.Z = None
             if imported_mpi:
-                self.mpi_initialize()
+                self._mpi_initialize()
                 if self.verbose:
                     print(f"MPI initialized for {self.rank} of {self.size}")
             else:
                 raise ImportError("[!] mpi4py is required when use_mpi=True but was not found")
 
         # grid G and tilde grid ~G, lengths and inverse areas
-        self.compute_grid()
+        self._compute_grid()
 
         # tolerance for stl import tol*min(dx,dy,dz)
         if verbose:
             print('Importing STL solids...')
         self.stl_tol = stl_tol
         if stl_solids is not None:
-            self.mark_cells_in_stl()
-            if stl_colors is None:
-                self.assign_colors()
+            self._mark_cells_in_stl()
 
         if verbose:
             print(f'Total grid initialization time: {time.time() - t0} s')
@@ -207,7 +206,7 @@ class GridFIT3D:
         self.gridInitializationTime = time.time()-t0
         self.update_logger(['gridInitializationTime'])
 
-    def compute_grid(self):
+    def _compute_grid(self):
         X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing='ij')
         self.grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -249,7 +248,7 @@ class GridFIT3D:
         self.itA.field_z = np.divide(1.0, aux, out=np.zeros_like(aux), where=aux!=0)
         del aux
 
-    def mpi_initialize(self):
+    def _mpi_initialize(self):
         comm = MPI.COMM_WORLD  # Get MPI communicator
         self.comm = comm
         self.rank = self.comm.Get_rank()
@@ -341,18 +340,41 @@ class GridFIT3D:
                 stl_translate[key] = self.stl_translate
             self.stl_translate = stl_translate
 
-    def mark_cells_in_stl(self):
+        if type(self.stl_colors) is not dict:
+            if self.stl_colors is None:
+                self._assign_colors()
+            elif self.stl_colors is str: # single color for all solids
+                stl_colors = {}
+                for key in self.stl_solids.keys():
+                    stl_colors[key] = self.stl_colors
+                self.stl_colors = stl_colors
+            elif type(self.stl_colors) is list:
+                stl_colors = {}
+                try:
+                    for i, key in enumerate(self.stl_solids.keys()):
+                        stl_colors[key] = self.stl_colors[i]
+                    self.stl_colors = stl_colors
+                except IndexError:
+                    self._assign_colors()
+                    print('[!] If `stl_colors` is a list, it must have the same length as `stl_solids`.')
+
+    def _mark_cells_in_stl(self):
         # Obtain masks with grid cells inside each stl solid
         stl_tolerance = np.min([np.min(self.dx), np.min(self.dy), np.min(self.dz)])*self.stl_tol
+        progress_bar = False
+        if self.Nx*self.Ny*self.Nz > 5e6 and self.verbose:
+            progress_bar = True
         for key in self.stl_solids.keys():
 
             surf = self.read_stl(key)
 
             # mark cells in stl [True == in stl, False == out stl]
             try:
-                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance,
+                                                          progress_bar=progress_bar)
             except Exception:
-                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance, check_surface=False)
+                select = self.grid.select_enclosed_points(surf, tolerance=stl_tolerance,
+                                                          check_surface=False, progress_bar=progress_bar)
                 if self.verbose > 1:
                     print(f'[!] Warning: stl solid {key} may have issues with closed surfaces. Consider checking the STL file.')
 
@@ -381,7 +403,7 @@ class GridFIT3D:
 
         return surf
 
-    def compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
+    def _compute_snap_points(self, snap_solids=None, snap_tol=1e-8):
         if self.verbose > 1:
             print(' * Calculating snappy points...')
         # Support for user-defined stl_keys as list
@@ -528,7 +550,7 @@ class GridFIT3D:
         # transform back to [xmin, xmax]
         return result.x*(xmax-xmin)+xmin
 
-    def refine_xyz_axis(self, method='insert', tol=1e-6):
+    def _refine_xyz_axis(self, method='insert', tol=1e-6):
         '''Refine the grid in the x, y, z axis
         using the snap points extracted from the stl solids.
         The snap points are used to refine the grid '''
@@ -557,7 +579,7 @@ class GridFIT3D:
 
         print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
 
-    def assign_colors(self):
+    def _assign_colors(self):
         '''Classify colors assigned to each solid
         based on the categories in `material_colors` dict
         inside `materials.py`
@@ -567,18 +589,19 @@ class GridFIT3D:
         for key in self.stl_solids:
             mat = self.stl_materials[key]
             if type(mat) is str:
-                self.stl_colors[key] = mat
+                _color = material_colors.get(mat, material_colors['other'])
+                self.stl_colors[key] = _color
             elif len(mat) == 2:
                 if mat[0] is np.inf:  #eps_r
-                    self.stl_colors[key] = 'pec'
+                    self.stl_colors[key] = material_colors['pec']
                 elif mat[0] > 1.0:    #eps_r
-                    self.stl_colors[key] = 'dielectric'
+                    self.stl_colors[key] = material_colors['dielectric']
                 else:
-                    self.stl_colors[key] = 'vacuum'
+                    self.stl_colors[key] = material_colors['vacuum']
             elif len(mat) == 3:
-                self.stl_colors[key] = 'lossy metal'
+                self.stl_colors[key] = material_colors['lossy metal']
             else:
-                self.stl_colors[key] = 'other'
+                self.stl_colors[key] = material_colors['other']
 
     def _add_logo_widget(self, pl):
         """Add packaged logo via importlib.resources (Python 3.9+)."""
@@ -598,7 +621,8 @@ class GridFIT3D:
                     print(f'[!] Could not add logo widget: {e}')
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
-                    opacity=1.0, specular=0.5, offscreen=False, **kwargs):
+                    opacity=1.0, specular=0.5, smooth_shading=False,
+                    off_screen=False, **kwargs):
         """
         Generates a 3D visualization of the imported STL geometries using PyVista.
 
@@ -633,22 +657,16 @@ class GridFIT3D:
 
         """
 
-        from .materials import material_colors
-
         pl = pv.Plotter()
         pl.add_mesh(self.grid, opacity=0., name='grid', show_scalar_bar=False)
         for key in self.stl_solids:
-            try:
-                color = material_colors[self.stl_colors[key]] # match library e.g. 'vacuum'
-            except KeyError:
-                color = self.stl_colors[key] # specifies color e.g. 'tab:red'
-
-            if self.stl_colors[key] == 'vacuum' or self.stl_materials[key] == 'vacuum':
+            color = self.stl_colors[key]
+            if self.stl_materials[key] == 'vacuum':
                 _opacity = 0.3
             else:
                 _opacity = opacity
             pl.add_mesh(self.read_stl(key), color=color,
-                        opacity=_opacity, specular=specular, smooth_shading=True,
+                        opacity=_opacity, specular=specular, smooth_shading=smooth_shading,
                         **kwargs)
 
         pl.set_background('mistyrose', top='white')
@@ -667,7 +685,7 @@ class GridFIT3D:
         if show_grid:
             pl.add_mesh(self.grid, style='wireframe', color='grey', opacity=0.3, name='grid')
 
-        if offscreen:
+        if off_screen:
             pl.export_html('grid_plot_solids.html')
         else:
             pl.show()
@@ -675,7 +693,7 @@ class GridFIT3D:
     def plot_stl_mask(self, stl_solid, cmap='viridis', bounding_box=True, show_grid=True,
                       add_stl='all', stl_opacity=0., stl_colors=None,
                       xmax=None, ymax=None, zmax=None,
-                      anti_aliasing='ssaa', offscreen=False):
+                      anti_aliasing='ssaa', smooth_shading=False, off_screen=False):
 
         """
         Interactive 3D visualization of the structured grid mask and imported STL geometries.
@@ -710,15 +728,15 @@ class GridFIT3D:
             Color(s) of the STL surfaces:
             * str   → single color for all STL surfaces
             * list  → per-solid colors, in order
-            * dict  → mapping from STL key to color (using `material_colors`)
+            * dict  → mapping from STL key to color
             * None  → use default colors from `self.stl_colors`
         xmax, ymax, zmax : float, optional
             Initial clipping positions along each axis. If None, use the
             maximum domain extent.
         anti_aliasing : {'ssaa', 'fxaa', None}, default 'ssaa'
             Anti-aliasing mode passed to `pl.enable_anti_aliasing`.
-        offscreen : bool, default False
-            If True, render offscreen and export the scene to
+        off_screen : bool, default False
+            If True, render off-screen and export the scene to
             ``grid_stl_mask_<stl_solid>.html``. If False, open an interactive window.
 
         Notes
@@ -732,7 +750,6 @@ class GridFIT3D:
         * A static domain bounding box can be added for reference.
         * Camera, background, and lighting are pre-configured for clarity
         """
-        from .materials import material_colors
         if stl_colors is None:
             stl_colors = self.stl_colors
 
@@ -779,10 +796,7 @@ class GridFIT3D:
                     for i, key in enumerate(self.stl_solids):
                         surf = self.read_stl(key)
                         if type(stl_colors) is dict:
-                            if type(stl_colors[key]) is str:
-                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
-                            else:
-                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
                         elif type(stl_colors) is list:
                             pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
                         else:
@@ -790,19 +804,13 @@ class GridFIT3D:
                 else: #add 1 selected stl solid
                     key = add_stl
                     surf = self.read_stl(key)
-                    if type(stl_colors[key]) is str:
-                        pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
-                    else:
-                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+                    pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
 
             elif type(add_stl) is list: #add selected list of stl solids
                 for i, key in enumerate(add_stl):
                     surf = self.read_stl(key)
                     if type(stl_colors[key]) is dict:
-                        if type(stl_colors) is str:
-                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=dict(color=material_colors[stl_colors[key]]), name=key)
-                        else:
-                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=dict(color=stl_colors[key]), name=key)
                     elif type(stl_colors) is list:
                         pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=dict(color=stl_colors[i]), name=key)
                     else:
@@ -847,13 +855,13 @@ class GridFIT3D:
             pl.add_mesh(pv.Box(bounds=(self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax)),
             style="wireframe", color="black", line_width=2, name="domain_box")
 
-        if offscreen:
+        if off_screen:
             pl.export_html(f'grid_stl_mask_{stl_solid}.html')
         else:
             pl.show()
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
-                anti_aliasing='ssaa', offscreen=False):
+                anti_aliasing='ssaa', smooth_shading=True, off_screen=False):
 
         '''3D plot using pyvista to visualize
         the structured grid and
@@ -868,7 +876,6 @@ class GridFIT3D:
         stl_colors: str or list of str, default 'white'
             Color of the stl surfaces
         '''
-        from .materials import material_colors
         if stl_colors is None:
             stl_colors = self.stl_colors
 
@@ -891,38 +898,29 @@ class GridFIT3D:
                     key = add_stl
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
-                    if type(stl_colors[key]) is str:
-                        pl.add_mesh(surf, color=material_colors[self.stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
-                    else:
-                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                    pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
 
                 elif type(add_stl) is list: #add selected list of stl solids
                     for i, key in enumerate(add_stl):
                         surf = self.read_stl(key)
                         surf = surf.clip_box(widget.bounds, invert=False)
                         if type(stl_colors) is dict:
-                            if type(stl_colors[key]) is str:
-                                pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
-                            else:
-                                pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
                         elif type(stl_colors) is list:
-                            pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
                         else:
-                            pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                            pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
 
             else: #add all stl solids
                 for i, key in enumerate(self.stl_solids):
                     surf = self.read_stl(key)
                     surf = surf.clip_box(widget.bounds, invert=False)
                     if type(stl_colors) is dict:
-                        if type(stl_colors[key]) is str:
-                            pl.add_mesh(surf, color=material_colors[stl_colors[key]], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
-                        else:
-                            pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=stl_colors[key], opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
                     elif type(stl_colors) is list:
-                        pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color=stl_colors[i], opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
                     else:
-                        pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=True, name=key)
+                        pl.add_mesh(surf, color='white', opacity=stl_opacity, silhouette=True, smooth_shading=smooth_shading, name=key)
 
         _ = pl.add_box_widget(callback=clip, rotation_enabled=False)
 
@@ -936,10 +934,13 @@ class GridFIT3D:
         pl.enable_3_lights()
         pl.enable_anti_aliasing(anti_aliasing)
 
-        if offscreen:
-            pl.export_html('grid_inspect.html')
+        if off_screen:
+            pl.off_screen = True
+            return pl
+            #pl.export_html('grid_inspect.html')
         else:
             pl.show()
+            return None
 
     def save_to_h5(self, filename='grid.h5'):
         '''Save generated grid to HDF5 file
@@ -1029,7 +1030,7 @@ class GridFIT3D:
         self.zmin, self.zmax = self.z[0], self.z[-1]
 
         # recommpute grid and L, iA, tL, itA
-        self.compute_grid()
+        self._compute_grid()
 
         # asign masks to grid.cell_data
         with h5py.File(filename, 'r') as hf:
