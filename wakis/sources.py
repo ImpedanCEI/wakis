@@ -63,8 +63,6 @@ class Beam:
         s = solver.z - self.v*t
         # gaussian
         profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
-        #profile = np.exp(-(s-s0)**2/(2*self.sigmaz**2))
-        #profile /= np.sum(profile*solver.dz)
         # update 
         solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx[self.ixs]/solver.dy[self.iys]
     

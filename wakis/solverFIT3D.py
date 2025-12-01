@@ -176,6 +176,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ], dtype=np.int8)
+        
+        self.S = hstack([self.Px, self.Py, self.Pz])
+        print(self.S*self.C)
 
         # Boundaries
         if verbose:
@@ -244,8 +247,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
 
         if imported_mkl and not self.use_gpu: # MKL backend for CPU
             if verbose:
@@ -303,8 +306,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if self.verbose:
             print('Re-Pre-computing ...')
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
         self.step_0 = False
 
     def _one_step(self):
@@ -325,7 +328,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         #include current computation
         if self.use_conductivity:
-            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray()
+                             )
 
     def one_step_mkl(self):
         if self.step_0:
