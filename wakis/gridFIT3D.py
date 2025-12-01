@@ -291,6 +291,7 @@ class GridFIT3D:
             self.Nz += self.n_ghosts
 
         self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
+        self.dz = np.diff(self.z)
 
     def mpi_gather_asGrid(self):
         _grid = None
