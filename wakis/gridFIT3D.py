@@ -291,7 +291,7 @@ class GridFIT3D:
             self.Nz += self.n_ghosts
 
         self.z = np.linspace(self.zmin, self.zmax, self.Nz+1)
-        self.dz = np.diff(self.z)
+        self.dz = np.diff(self.Z) # only uniform grid possible with MPI
 
     def mpi_gather_asGrid(self):
         _grid = None
