@@ -17,43 +17,76 @@ class TestSmartMesh:
     xedges = [-0.025,-0.005, 0.005, 0.025]
     yedges = [-0.025,-0.005, 0.005, 0.025]
 
+    print("\n---------- Initializing simulation ------------------")
+    # Number of mesh cells
+    Nx = 50
+    Ny = 50
+    Nz = 80
+
+    # Embedded boundaries
+    stl_file = 'tests/stl/001_cubic_cavity.stl' 
+    surf = pv.read(stl_file)
+
+    stl_solids = {'cavity': stl_file}
+    stl_materials = {'cavity': 'vacuum'}
+
+    # Domain bounds
+    xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
+
+    refinement_tol=1e-8
+    snap_tol=1e-2
+    # set grid and geometry
+    global grid
+    grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
+                    stl_solids=stl_solids, 
+                    stl_materials=stl_materials,
+                    use_mesh_refinement=True,
+                    snap_tol=snap_tol,
+                    refinement_tol=refinement_tol)
+
+    # Beam parameters
+    beta = 1.          # beam beta
+    sigmaz = 18.5e-3*beta    #[m]
+    q = 1e-9            #[C]
+    xs = 0.             # x source position [m]
+    ys = 0.             # y source position [m]
+    xt = 0.             # x test position [m]
+    yt = 0.             # y test position [m]
+
+    global wake
+    skip_cells = 12  # no. cells to skip in WP integration
+    wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
+                xsource=xs, ysource=ys, xtest=xt, ytest=yt,
+                save=False, Ez_file='tests/011_Ez.h5',
+                skip_cells=skip_cells,
+                )
+
+    # boundary conditions
+    bc_low=['pec', 'pec', 'pec']
+    bc_high=['pec', 'pec', 'pec']
+
+    # set Solver object
+    solver = SolverFIT3D(grid, wake,
+                        bc_low=bc_low, bc_high=bc_high,
+                        use_stl=True, bg='pec')
+
+    wakelength = 1. #[m]
+    solver.wakesolve(wakelength=wakelength, save_J=False)
+    os.remove('tests/011_Ez.h5')
+    
     def test_grid_generation(self):
-        print("\n---------- Initializing simulation ------------------")
-        # Number of mesh cells
-        Nx = 50
-        Ny = 50
-        Nz = 150
-
-        # Embedded boundaries
-        stl_file = 'tests/stl/001_cubic_cavity.stl' 
-        surf = pv.read(stl_file)
-
-        stl_solids = {'cavity': stl_file}
-        stl_materials = {'cavity': 'vacuum'}
-
-        # Domain bounds
-        xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
-
-        refinement_tol=1e-8
-        snap_tol=1e-2
-        # set grid and geometry
-        grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz, 
-                        stl_solids=stl_solids, 
-                        stl_materials=stl_materials,
-                        use_mesh_refinement=True,
-                        snap_tol=snap_tol,
-                        refinement_tol=refinement_tol)
+        global grid
         for edg in self.zedges:
             diff = np.min(np.abs(grid.z-edg))
-            assert diff <= refinement_tol + snap_tol, "Mesh not inside the tolerance at the z edges"
+            assert diff <= 1e-8 + 1e-2, "Mesh not inside the tolerance at the z edges"
 
         for edg in self.yedges:
             diff = np.min(np.abs(grid.y-edg))
-            assert diff <= refinement_tol + snap_tol, "Mesh not inside the tolerance at the y edges"
+            assert diff <= 1e-8 + 1e-2, "Mesh not inside the tolerance at the y edges"
 
         for edg in self.xedges:
             diff = np.min(np.abs(grid.x-edg))
-            assert diff <= refinement_tol + snap_tol, "Mesh not inside the tolerance at the x edges"
+            assert diff <= 1e-8 + 1e-2, "Mesh not inside the tolerance at the x edges"
 
         zdiff=np.abs(np.diff(grid.dz))
         for cell in range(len(grid.dz)-1):
@@ -69,4 +102,9 @@ class TestSmartMesh:
 
         assert np.min(grid.dz) > 0.25 * (grid.zmax-grid.zmin)/grid.Nz, "Smallest z difference is too small"
         assert np.min(grid.dy) > 0.25 * (grid.ymax-grid.ymin)/grid.Ny, "Smallest y difference is too small"
-        assert np.min(grid.dx) > 0.25 * (grid.xmax-grid.xmin)/grid.Nx, "Smallest x difference is too small"                
+        assert np.min(grid.dx) > 0.25 * (grid.xmax-grid.xmin)/grid.Nx, "Smallest x difference is too small"
+
+    def test_nonuniform_simulation(self):
+        global wake
+        assert np.abs(wake.Z[0]) < 0.01 * np.abs(np.max(wake.Z)), "Charge Accumulation - DC component"
+        # TODO: Test that checks the continuity equation
