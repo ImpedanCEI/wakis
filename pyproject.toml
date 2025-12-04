@@ -1,11 +1,77 @@
 [build-system]
-build-backend = 'setuptools.build_meta'
-requires = [
-    'setuptools>=64',
-    'numpy',
-    ]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wakis"
+dynamic = ["version"]
+description = "3D Electromagnetic Time-Domain wake and impedance solver"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Elena de la Fuente et al.", email = "elena.de.la.fuente.garcia@cern.ch" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = ["numpy<2.0", "scipy", "pyvista", "h5py", "tqdm"]
+
+[project.optional-dependencies]
+notebook = [
+    "pyvista[jupyter]",
+    "jupyterlab",
+    "ipykernel",
+    "ipywidgets",
+    "matplotlib",
+]
+gpu = ["cupy"]
+tests = ["pytest", "pytest-cov"]
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "readthedocs-sphinx-search",
+    "sphinx-copybutton",
+    "myst-parser>=0.18.1",
+    "sphinx-design",
+    "sphinx-last-updated-by-git",
+    "matplotlib>=3.4.0",
+]
+dev = ["build", "twine"]
+
+[project.urls]
+Homepage = "https://wakis.readthedocs.io/"
+"Bug Tracker" = "https://github.com/ImpedanCEI/wakis/issues"
+Documentation = "https://wakis.readthedocs.io/en/latest/index.html"
+Repository = "https://github.com/ImpedanCEI/wakis/wakis"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.dynamic]
+version = { attr = "wakis._version.__version__" }
 
 [tool.pytest.ini_options]
+addopts = [
+    "--cov=wakis",
+    "--cov-report=term",
+    "--cov-report=xml",
+]
+testpaths = [
+    "tests",
+]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "serial",

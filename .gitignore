@@ -22,3 +22,13 @@ ECT_*
 _build/
 dist/
 wakis.egg-info/
+.venv
+.coverage
+coverage.xml
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+*.ipynb_checkpoints
+htmlcov/
