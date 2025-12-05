@@ -98,8 +98,7 @@ Create a dedicated **conda environment** and install dependencies:
 cd wakis/
 conda create --name wakis-env python=3.11
 conda activate wakis-env
-pip install -r requirements.txt
-pip install -e .  # install wakis in editable mode
+pip install -e .[notebook, tests, docs]  # install wakis in editable mode
 pip install neffint iddefix bihc  # Optional tools
 ```
 🛠️ **Want to contribute?**  To merge your changes into `main`, create a **Pull Request (PR)** following our [PR template](https://github.com/ImpedanCEI/wakis/blob/main/.github/pull_request_template.md).
