@@ -11,24 +11,24 @@ echo "========================================================================"
 echo "Tagging $NAME v$VER"
 echo "========================================================================"
 
-# git tag -a "v$VER" -m "Release $VER"
-# git push origin "v$VER"
+git tag -a "v$VER" -m "Release $VER"
+git push origin "v$VER"
 
-# echo "========================================================================"
-# echo "Building $NAME v$VER"
-# echo "========================================================================"
+echo "========================================================================"
+echo "Building $NAME v$VER"
+echo "========================================================================"
 
-# # Clean old artifacts
-# rm -rf dist build *.egg-info
+# Clean old artifacts
+rm -rf dist build *.egg-info
 
-# # Build wheel + sdist (PEP 517)
-# python -m build
+# Build wheel + sdist (PEP 517)
+python -m build
 
-# echo "========================================================================"
-# echo "Uploading $NAME v$VER to PyPI"
-# echo "========================================================================"
+echo "========================================================================"
+echo "Uploading $NAME v$VER to PyPI"
+echo "========================================================================"
 
-# twine upload dist/*
+twine upload dist/*
 
 
-# rm -r dist/ *.egg-info/ build/
+rm -r dist/ *.egg-info/ build/

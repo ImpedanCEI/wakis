@@ -48,6 +48,9 @@ docs = [
 ]
 dev = ["build", "twine"]
 
+full = ["wakis[notebook, tests, docs]"]
+full-gpu = ["wakis[notebook, tests, docs, gpu]"]
+
 [project.urls]
 Homepage = "https://wakis.readthedocs.io/"
 "Bug Tracker" = "https://github.com/ImpedanCEI/wakis/issues"
