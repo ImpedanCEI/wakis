@@ -32,3 +32,4 @@ coverage.xml
 .Python
 *.ipynb_checkpoints
 htmlcov/
+uv.lock

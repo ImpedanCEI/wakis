@@ -7,7 +7,7 @@ GREEN := \033[0;32m
 YELLOW := \033[1;33m
 NC := \033[0m # No Color
 
-.PHONY: help install clean docs
+.PHONY: help install install-gpu clean docs
 
 # Based on https://gist.github.com/prwhite/8168133?permalink_comment_id=4718682#gistcomment-4718682
 
@@ -29,7 +29,12 @@ help:
 ## Install Python dependencies
 install:
 	@echo -e "Installing Python dependencies..."
-	@uv pip install -e  .[notebook,docs,tests,dev]
+	@pip install -e  .[full]
+
+## Install Python dependencies
+install-gpu:
+	@echo -e "Installing Python dependencies with GPU support..."
+	@pip install -e  .[full-gpu]
 
 ## Remove temporary and generated files
 clean:
@@ -40,7 +45,7 @@ clean:
 
 ## Run Python tests
 test:
-	uv run pytest -s
+	pytest -s
 
 ## Build documentation
 docs:
