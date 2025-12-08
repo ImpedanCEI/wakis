@@ -40,7 +40,7 @@ jobs:
     - name: pip install
       run:  |
         cd wakis
-        pip install .['notebook']
+        pip install .[notebook, tests]
     - name: Print versions
       run: conda list
     - name: Run pytest
