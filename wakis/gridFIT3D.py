@@ -726,7 +726,6 @@ class GridFIT3D:
                       add_stl='all', stl_opacity=0., stl_colors=None,
                       xmax=None, ymax=None, zmax=None,
                       anti_aliasing='ssaa', smooth_shading=False, off_screen=False):
-
         """
         Interactive 3D visualization of the structured grid mask and imported STL geometries.
 
@@ -796,6 +795,18 @@ class GridFIT3D:
         pl = pv.Plotter()
         vals = {'x':xmax, 'y':ymax, 'z':zmax}
 
+        # --- Initial slice ---
+        initial_clip = self.grid.clip_box(
+            bounds=(self.xmin, xmax, self.ymin, ymax, self.zmin, zmax),
+            invert=False
+        )
+        clip_actor = pl.add_mesh(
+            initial_clip,
+            scalars=stl_solid,
+            cmap=cmap,
+            name="clip",
+        )
+
         # --- Update function ---
         def update_clip(val, axis="x"):
             vals[axis] = val
@@ -807,19 +818,22 @@ class GridFIT3D:
             else:  # z
                 slice_obj = self.grid.slice(normal="z", origin=(0, 0, val))
 
-            # add clipped volume (scalars)
-            pl.add_mesh(
-                self.grid.clip_box(bounds=(self.xmin, vals['x'],
-                                           self.ymin, vals['y'],
-                                           self.zmin, vals['z']), invert=False),
-                scalars=stl_solid,
-                cmap=cmap,
-                name="clip",
+            # compute new clip
+            new_clip = self.grid.clip_box(
+                bounds=(self.xmin, vals['x'],
+                        self.ymin, vals['y'],
+                        self.zmin, vals['z']),
+                invert=False,
             )
+
+            # update existing actors in place
+            clip_actor.mapper.SetInputData(new_clip)
 
             # add slice wireframe (grid structure)
             if show_grid:
                 pl.add_mesh(slice_obj, style="wireframe", color="grey", name="slice")
+
+            pl.render()
 
         # Plot stl surface(s)
         if add_stl is not None:
@@ -880,8 +894,8 @@ class GridFIT3D:
         pl.set_background('mistyrose', top='white')
         self._add_logo_widget(pl)
         pl.add_axes()
-        pl.enable_3_lights()
-        pl.enable_anti_aliasing(anti_aliasing)
+        #pl.enable_3_lights()
+        #pl.enable_anti_aliasing(anti_aliasing)
 
         if bounding_box:
             pl.add_mesh(pv.Box(bounds=(self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax)),
