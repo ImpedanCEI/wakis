@@ -31,7 +31,7 @@ jobs:
       - name: Install wakis
         run: |
           cd wakis
-          pip install .[notebook, tests]
+          pip install .[notebook,tests]
           pip uninstall vtk -y
           pip install --extra-index-url https://wheels.vtk.org vtk-osmesa
 

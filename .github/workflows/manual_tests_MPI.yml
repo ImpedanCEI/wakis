@@ -38,7 +38,7 @@ jobs:
     - name: pip install
       run:  |
         cd wakis
-        pip install .[notebook, tests]
+        pip install .[notebook,tests]
     - name: Run pytest
       run:  |
         cd wakis
