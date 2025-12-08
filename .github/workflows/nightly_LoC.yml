@@ -1,0 +1,48 @@
+# This is a basic workflow that is nighly triggered
+
+name: nightly_LoC
+
+# Controls when the action will run. CRON schedule runs at mm hh dd mm yy UTC TIME
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 0 * * *"
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  run_tests:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Make the default shell a login shell, so that conda is initialised properly
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Setup Miniforge
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-version: latest
+        python-version: "3.10"
+    - name: pip install
+      run:  |
+        pip install wakis['notebook']
+
+    - name: Print versions
+      run: conda list
+    - name: Checkout wakis
+      uses: actions/checkout@v4
+      with:
+        path: wakis
+    - name: Make Code Badge
+      uses: shadowmoose/GHA-LoC-Badge@1.0.0
+      id: badge
+      with:
+        debug: true
+        directory: ./
+        badge: ./docs/img/LoC-badge.svg
+        patterns: '*.js'  # Patterns in the format of a '.gitignore' file, separated by pipes.
+        ignore: 'node_modules'
