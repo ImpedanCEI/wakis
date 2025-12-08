@@ -82,6 +82,15 @@ class TestPlanewave:
         Nt = int(1.0 * (solver.z.max() - solver.z.min()) / c / solver.dt)
         solver.emsolve(Nt, source)
 
+    def test_field_inspect(self):
+        global solver
+        # Inspect plane
+        solver.E.inspect(plane='YZ', cmap='bwr', dpi=100, figsize=[8,6])
+        # Inspect custom slice
+        solver.ieps.inspect(x=slice(20,60), y=slice(20,60), z=int(grid.Nz/2))
+        # Inspect with handles
+        _, _ = solver.H.inspect(plane='XY', cmap='bwr', handles=True)
+        
     def test_plot1D(self):
         global solver
         solver.plot1D(
