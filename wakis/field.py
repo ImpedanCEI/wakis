@@ -318,12 +318,18 @@ class Field:
             else:
                 return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
 
-    def inspect(self, plane='YZ', cmap='bwr', dpi=100, figsize=[8,6], x=None, y=None, z=None, show=True, handles=False, **kwargs):
+    def inspect(self, plane='YZ', cmap='bwr', 
+                dpi=100, figsize=[8,6], 
+                x=None, y=None, z=None, show=True, 
+                handles=False, **kwargs):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        if None not in (x,y,z):
-            pass
+        if None not in (x,y,z): #custom slice
+            transpose = False
+            extent = None
+            xax, yax = 'No. of cells', 'No. of cells'
+
         elif plane == 'XY':
             key=[slice(0,self.Nx), slice(0,self.Ny), int(self.Nz//2)]
             x, y, z = key[0], key[1], key[2]
