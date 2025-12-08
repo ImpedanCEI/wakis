@@ -81,7 +81,7 @@ class TestPlanewave:
         # Inspect custom slice
         solver.ieps.inspect(x=slice(20,60), y=slice(20,60), z=int(grid.Nz/2))
         # Inspect with handles
-        fig, ax = solver.H.inspect(plane='XY', cmap='bwr', handles=True)
+        _, _ = solver.H.inspect(plane='XY', cmap='bwr', handles=True)
         
     def test_plot1D(self):
         global solver

@@ -379,6 +379,7 @@ class Field:
         
         if show:
             plt.show()
+            return None
 
     def inspect3D(self, field='all', backend='pyista', grid=None,
                   xmax=None, ymax=None, zmax=None, 
