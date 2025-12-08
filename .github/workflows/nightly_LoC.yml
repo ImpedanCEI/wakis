@@ -37,12 +37,29 @@ jobs:
       uses: actions/checkout@v4
       with:
         path: wakis
-    - name: Make Code Badge
+    - name: Lines of Code Badge
+      # You may pin to the exact commit or the version.
+      # uses: shadowmoose/GHA-LoC-Badge@8c8191e02ebe2e4b4764f4711228bddcaeb88f19
       uses: shadowmoose/GHA-LoC-Badge@1.0.0
-      id: badge
       with:
-        debug: true
-        directory: ./
-        badge: ./docs/img/LoC-badge.svg
-        patterns: '*.js'  # Patterns in the format of a '.gitignore' file, separated by pipes.
-        ignore: 'node_modules'
+        # The directory to scan.
+        directory: ./ # optional, default is ./
+        # The output path to save the badge svg - including extension!
+        badge: ./badge.svg # optional, default is ./badge.svg
+        # The file patterns to search for, separated by pipes ("|").
+        #patterns: # optional, default is **
+        # The file patterns to ignore, even if they matched "patterns", separated by pipes ("|").
+        #ignore: # optional, default is node_modules
+        # The label to use for the badge.
+        #badge_label: # optional, default is Lines of Code
+        # The color to use for the badge.
+        #badge_color: # optional, default is blue
+        # The body style to use for the badge. ('flat' or 'classic')
+        #badge_style: # optional, default is classic
+        # The scale to resize this badge
+        #badge_scale: # optional, default is 1
+        # The color to use for this badge label.
+        #badge_labelcolor: # optional, default is 555
+        # Enable debug logging
+        debug: true # optional, default is false
+          
