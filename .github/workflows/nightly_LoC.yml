@@ -43,11 +43,11 @@ jobs:
       uses: shadowmoose/GHA-LoC-Badge@1.0.0
       with:
         # The directory to scan.
-        directory: ./ # optional, default is ./
+        directory: wakis/ # optional, default is ./
         # The output path to save the badge svg - including extension!
         badge: ./badge.svg # optional, default is ./badge.svg
         # The file patterns to search for, separated by pipes ("|").
-        #patterns: # optional, default is **
+        patterns: '*.png | *.svg' # optional, default is **
         # The file patterns to ignore, even if they matched "patterns", separated by pipes ("|").
         #ignore: # optional, default is node_modules
         # The label to use for the badge.
@@ -62,4 +62,17 @@ jobs:
         #badge_labelcolor: # optional, default is 555
         # Enable debug logging
         debug: true # optional, default is false
-          
+    - name: Upload badge to gh-pages branch
+      if: github.ref == 'refs/heads/main'
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git fetch origin gh-pages || git checkout --orphan gh-pages
+        git checkout gh-pages || git checkout --orphan gh-pages
+        cp ./badge.svg ./badge.svg
+        git add badge.svg
+        git commit -m "Update LoC badge [skip ci]" || echo "No changes to commit"
+        git push origin gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #  ![Lines of Code](https://raw.githubusercontent.com/ImpedanCEI/wakis/gh-pages/badge.svg)        
