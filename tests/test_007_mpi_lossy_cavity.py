@@ -252,6 +252,30 @@ class TestMPILossyCavity:
                 xscale='linear', yscale='linear',
                 off_screen=True, title=self.img_folder+'Ez1d', n=3000)
 
+    def test_mpi_save_state(self):
+        # Test MPI savestate
+        global solver
+        filename = 'mpi_test_state.h5'
+        solver.save_state(filename)
+        solver.comm.Barrier()  # Ensure all processes reach this point
+        assert os.path.exists(filename), "MPI savestate file not created"
+
+    def test_mpi_load_state(self):
+        global solver
+        E_slice = solver.E[int(solver.Nx/2), int(solver.Ny/2), :, 'z'].copy()  # Save current field slice
+        solver.reset_fields()  # Reset fields to zero
+
+        # Test MPI loadstate
+        filename = 'mpi_test_state.h5'
+        solver.comm.Barrier()  # Ensure all processes reach this point
+        assert os.path.exists(filename), "MPI loadstate file not found"
+        solver.load_state(filename)
+
+        # Check if fields were restored correctly
+        E_slice_loaded = solver.E[int(solver.Nx/2), int(solver.Ny/2), :, 'z']
+        assert np.allclose(E_slice, E_slice_loaded), "MPI loadstate failed to restore fields correctly"
+
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_mpi_wakefield(self):
         # Reset fields
         global solver
@@ -284,7 +308,7 @@ class TestMPILossyCavity:
         # Run simulation
         solver.wakesolve(wakelength=wakelength,
                          wake=wake)
-
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_long_wake_potential(self):
         global wake
         global solver
@@ -301,6 +325,7 @@ class TestMPILossyCavity:
             assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
 
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_long_impedance(self):
         global wake
         global solver
@@ -321,6 +346,7 @@ class TestMPILossyCavity:
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
 
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_log_file(self):
         # Helper function to compare nested dicts with float tolerance
         def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):

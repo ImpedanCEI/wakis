@@ -37,6 +37,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False,
                  use_gpu=False, use_mpi=False, dtype=np.float64,
+                 #use_sibc=True, fmax=None,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver
@@ -201,6 +202,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.eps_bg)
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.mu_bg)
         self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
+        #self.use_sibc = use_sibc # surface impedance boundary condition
+        #self.fmax = fmax
 
         if self.use_stl:
             self._apply_stl_materials()
@@ -1022,13 +1025,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             H = self.mpi_gather_asField('H')
             E = self.mpi_gather_asField('E')
             J = self.mpi_gather_asField('J')
-
+            state = None
             if self.rank == 0:
                     state = h5py.File(filename, "w")
-                    state.create_dataset("H", data=H)
-                    state.create_dataset("E", data=E)
-                    state.create_dataset("J", data=J)
-            # TODO: check for MPI-GPU
+                    state.create_dataset("H", data=H.toarray())
+                    state.create_dataset("E", data=E.toarray())
+                    state.create_dataset("J", data=J.toarray())
+        # TODO: check for MPI-GPU
 
         elif self.use_gpu: # GPU savestate
             state = h5py.File(filename, "w")
@@ -1042,7 +1045,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             state.create_dataset("E", data=self.E.toarray())
             state.create_dataset("J", data=self.J.toarray())
 
-        if close:
+        if close and state is not None:
             state.close()
         else:
             return state  # Caller must close this manually
@@ -1056,40 +1059,46 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         Parameters:
         -----------
         filename : str, optional
-            The name of the HDF5 file to load the solver state from. Default is "solver_state.h5".
+            The name of the HDF5 file to load the solver state from.
+            Default is "solver_state.h5".
 
         Returns:
         --------
         None
         """
-        state = h5py.File(filename, "r")
 
-        self.E.fromarray(state["E"][:])
-        self.H.fromarray(state["H"][:])
-        self.J.fromarray(state["J"][:])
+        if self.use_mpi: #TODO: test
+            if self.rank == 0:
+                with h5py.File(filename, "r") as f:
+                    state = {
+                        "E": f["E"][:],
+                        "H": f["H"][:],
+                        "J": f["J"][:]
+                    }
+                zz = np.s_[:self.Nz]
+            elif self.rank == self.size - 1:
+                state = None
+                zz = np.s_[(self.NZ-self.Nz):]
+            else:
+                state = None
+                zlo = (self.NZ//self.size+1) +\
+                    + (self.NZ//self.size+2) * (self.rank-1)
+                zz = np.s_[zlo:zlo+self.Nz]
 
-        # TODO: support MPI loadstate
+            state = self.comm.bcast(state, root=0)
 
-        state.close()
+            for d in [0, 1, 2]: # x,y,z
+                self.E[:, :, :, d] = state["E"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
+                self.H[:, :, :, d] = state["H"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
+                self.J[:, :, :, d] = state["J"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
 
-    def read_state(self, filename="solver_state.h5"):
-        """Open an HDF5 file for reading without loading its contents.
+        else: # CPU/GPU loadstate
+            state = h5py.File(filename, "r")
+            self.E.fromarray(state["E"][:])
+            self.H.fromarray(state["H"][:])
+            self.J.fromarray(state["J"][:])
 
-        This function returns an open `h5py.File` object, allowing the caller
-        to manually inspect or extract data as needed. The file must be closed
-        by the caller after use.
-
-        Parameters:
-        -----------
-        filename : str, optional
-            The name of the HDF5 file to open. Default is "solver_state.h5".
-
-        Returns:
-        --------
-        h5py.File
-            An open HDF5 file object in read mode.
-        """
-        return h5py.File(filename, "r")
+            state.close()
 
     def reset_fields(self):
         """
