@@ -649,7 +649,7 @@ class GridFIT3D:
             try:
                 pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
             except Exception:
-                if self.verbose > 1:
+                if self.verbose > 2:
                     print(f'[!] Could not add logo widget: {e}')
 
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
