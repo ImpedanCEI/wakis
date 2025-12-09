@@ -1,4 +1,3 @@
-import sys
 import pyvista as pv
 from scipy.constants import c
 

@@ -384,12 +384,13 @@ class Field:
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        if None not in (x, y, z): #custom slice
+        if None not in (x, y, z):  # custom slice
             transpose = False
             extent = None
             xax, yax = "No. of cells", "No. of cells"
-            
+
         elif plane == "XY":
+            key = [slice(0, self.Nx), slice(0, self.Ny), int(self.Nz // 2)]
             x, y, z = key[0], key[1], key[2]
             extent = (0, self.Nx, 0, self.Ny)
             xax, yax = "nx", "ny"
