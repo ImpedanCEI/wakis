@@ -37,7 +37,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False,
                  use_gpu=False, use_mpi=False, dtype=np.float64,
-                 #use_sibc=True, fmax=None,
+                 use_sibc=True, fmax=None,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver
@@ -202,8 +202,12 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.eps_bg)
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.mu_bg)
         self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
-        #self.use_sibc = use_sibc # surface impedance boundary condition
-        #self.fmax = fmax
+        self.use_sibc = use_sibc # surface impedance boundary condition
+        self.fmax = fmax         # maximum frequency for SIBC
+        if wake is not None and fmax is None:
+            self.fmax = self.wake.fmax
+        if verbose > 1:
+            print(f'* Maximum frequency for simulation fmax={self.fmax/1e9} GHz')
 
         if self.use_stl:
             self._apply_stl_materials()
@@ -231,7 +235,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.update_logger(['dt'])
 
         if self.use_conductivity: # relaxation time criterion tau
-
+            # TODO: can be avoided by using a Crank-Nicolson scheme for the current update
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
                                 self.ieps.toarray()!=0)  #for PEC eps=inf
 
@@ -293,28 +297,42 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         for key in self.stl_solids.keys():
 
             # TODO: adapt for subpixel smoothing
-            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
 
+            # Retrieve mask and materials from grid
+            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
             eps = self.stl_materials[key][0]*eps_0
             mu = self.stl_materials[key][1]*mu_0
 
-            # Setting to zero
-            self.ieps += self.ieps * (-1.0*mask)
-            self.imu += self.imu * (-1.0*mask)
-
-            # Adding new values
-            self.ieps += mask * 1./eps
-            self.imu += mask * 1./mu
-
             # Conductivity
+            # Max conductivity that can be resolved without SIBC
+            dn = np.sqrt(2)*np.min([self.dx, self.dy, self.dz])
+            sigma_max = 10/(np.pi * self.fmax * mu * dn**2)
+            if self.verbose > 1:
+                print(f'* Max resolved conductivity without SIBC: {sigma_max} S/m')
+
             if len(self.stl_materials[key]) == 3:
+
                 sigma = self.stl_materials[key][2]
+
+                # Mark surface cells for SIBC if conductivity is high
+                if self.use_sibc and self.stl_materials[key][2] > sigma_max:
+                    if self.verbose > 1:
+                        print(f'* Applying SIBC for solid "{key}" with sigma={sigma} S/m')
+                    self.grid._mark_cells_in_surface(key)
+                    imp = np.sqrt(np.pi*self.fmax*mu/sigma)
+                    sigma = 1/imp  # SIBC surface conductivity [S]
+                    eps = 1/imp
+
+                # Update sigma tensor
                 self.sigma += self.sigma * (-1.0*mask)
                 self.sigma += mask * sigma
                 self.use_conductivity = True
 
-            elif self.sigma_bg > 0.0: # assumed sigma = 0
-                self.sigma += self.sigma * (-1.0*mask)
+            # Update ieps and imu tensors
+            self.ieps += self.ieps * (-1.0*mask)
+            self.imu += self.imu * (-1.0*mask)
+            self.ieps += mask * 1./eps
+            self.imu += mask * 1./mu
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after
