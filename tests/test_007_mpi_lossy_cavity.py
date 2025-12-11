@@ -257,7 +257,9 @@ class TestMPILossyCavity:
         global solver
         filename = 'mpi_test_state.h5'
         solver.save_state(filename)
-        solver.comm.Barrier()  # Ensure all processes reach this point
+
+        if use_mpi:
+            solver.comm.Barrier()  # Ensure all processes reach this point
         assert os.path.exists(filename), "MPI savestate file not created"
 
     def test_mpi_load_state(self):
@@ -267,7 +269,8 @@ class TestMPILossyCavity:
 
         # Test MPI loadstate
         filename = 'mpi_test_state.h5'
-        solver.comm.Barrier()  # Ensure all processes reach this point
+        if use_mpi:
+            solver.comm.Barrier()  # Ensure all processes reach this point
         assert os.path.exists(filename), "MPI loadstate file not found"
         solver.load_state(filename)
 
