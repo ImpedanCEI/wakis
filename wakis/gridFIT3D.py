@@ -79,7 +79,6 @@ class GridFIT3D:
                 Nx=None, Ny=None, Nz=None,
                 x=None, y=None, z=None,
                 use_mpi=False,
-                use_SIBC=True,
                 use_mesh_refinement=False, refinement_method='insert', refinement_tol=1e-8,
                 snap_points=None, snap_tol=1e-5, snap_solids=None,
                 stl_solids=None, stl_materials=None,
@@ -141,7 +140,6 @@ class GridFIT3D:
         self.update_logger(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
         # stl info
-        self.use_SIBC = use_SIBC
         self.stl_solids = stl_solids
         self.stl_materials = stl_materials
         self.stl_rotate = stl_rotate
@@ -204,8 +202,6 @@ class GridFIT3D:
         self.stl_tol = stl_tol
         if stl_solids is not None:
             self._mark_cells_in_stl()
-            if use_SIBC:
-                self._mark_cells_in_surface()
 
         if verbose:
             print(f'Total grid initialization time: {time.time() - t0} s')
@@ -411,15 +407,21 @@ class GridFIT3D:
             if self.verbose > 1:
                 print(f' * STL solid {key}: {np.sum(self.grid[key])} cells marked inside the solid.')
 
-    def _mark_cells_in_surface(self):
+    def _mark_cells_in_surface(self, key):
         # Modify the STL mask to account only for the surface
         # Needed for the SIBC boundary condition when conductivity > 1e3 S/m
-        for key in self.stl_solids.keys():
-            if len(self.stl_materials[key]) == 3 and self.stl_materials[key][2] > 1e3:
-                grad = np.array(self.grid.compute_derivative(scalars=key, gradient='gradient')['gradient'])
-                grad = np.sqrt(grad[:, 0]**2 + grad[:, 1]**2 + grad[:, 2]**2)
-                #TODO: adapt for subpixel smoothing
-                self.grid[key] = grad.astype(bool)
+        grad = np.array(self.grid.compute_derivative(scalars=key, gradient='gradient')['gradient'])
+
+        # Compute normals and transverse cell size dn
+        # grad_mag = np.linalg.norm(grad, axis=1)
+        # n = grad / (grad_mag[:, None] + 1e-14)
+        # dn = np.sqrt((n[mask,0]*self.dx)**2 + (n[mask,1]*self.dy)**2 + (n[mask,2]*self.dz)**2)
+
+        # Get boundary cells via gradient magnitude
+        grad = np.sqrt(grad[:, 0]**2 + grad[:, 1]**2 + grad[:, 2]**2)
+        mask = grad.astype(bool) #TODO: subpixel smoothing
+
+        self.grid[key] = mask
 
     def read_stl(self, key):
         # import stl
