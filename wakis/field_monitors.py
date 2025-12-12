@@ -7,11 +7,15 @@
 import numpy as np
 from typing import Sequence
 from wakis.field import Field
+import importlib.util
 
-try:
+if importlib.util.find_spec("cupy") is not None:
     import cupy as xp_gpu
+
     imported_cupy = True
-except ImportError:
+
+else:
+    xp_gpu = None
     imported_cupy = False
 
 
@@ -27,12 +31,13 @@ class FieldMonitor:
         shape (tuple): Shape of the field (Nx, Ny, Nz).
         xp (module): Backend array library (NumPy or CuPy).
     """
+
     def __init__(self, frequencies: Sequence[float]):
         """
-       Args:
-           frequencies (Sequence[float]): Frequencies at which to monitor the field (in Hz).
-           should be pre-computed.
-       """
+        Args:
+            frequencies (Sequence[float]): Frequencies at which to monitor the field (in Hz).
+            should be pre-computed.
+        """
         self.frequencies = np.array(frequencies)
         self.time_index = 0
         self.dt = None
@@ -41,7 +46,6 @@ class FieldMonitor:
         self.Ez_acc = None
         self.shape = None
         self.xp = None
-
 
     def update(self, E: Field, dt: float):
         """
@@ -65,9 +69,9 @@ class FieldMonitor:
 
         t = self.time_index * self.dt
 
-        Ex = E.to_matrix('x') #E.array[0:E.N]
-        Ey = E.to_matrix('y')
-        Ez = E.to_matrix('z')
+        Ex = E.to_matrix("x")  # E.array[0:E.N]
+        Ey = E.to_matrix("y")
+        Ez = E.to_matrix("z")
 
         for i, f in enumerate(self.frequencies):
             phase = self.xp.exp(-2j * self.xp.pi * f * t)
@@ -81,8 +85,4 @@ class FieldMonitor:
         """
         Returns the accumulated frequency-domain field components.
         """
-        return {
-            'Ex': self.Ex_acc,
-            'Ey': self.Ey_acc,
-            'Ez': self.Ez_acc
-        }
+        return {"Ex": self.Ex_acc, "Ey": self.Ey_acc, "Ez": self.Ez_acc}

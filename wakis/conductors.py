@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
 
+
 class OutRect:
     def __init__(self, Lx, Ly, x_cent, y_cent):
         self.Lx = Lx
@@ -14,7 +15,8 @@ class OutRect:
     def out_conductor(self, x, y):
         # [xx, yy] = np.dot(self.mR, np.array([x, y]))
         return (-0.5 * self.Lx + self.x_cent < x < 0.5 * self.Lx + self.x_cent) and (
-                -0.5 * self.Ly + self.y_cent < y < 0.5 * self.Ly + self.y_cent)
+            -0.5 * self.Ly + self.y_cent < y < 0.5 * self.Ly + self.y_cent
+        )
 
     def in_conductor(self, x, y):
         return not self.out_conductor(x, y)
@@ -43,6 +45,7 @@ class OutRect:
         # [_, yyy] = np.dot(self.R, np.array([xx, inters]))
         # return yyy
 
+
 class ImpFunc:
     def __init__(self, func):
         self.func = func
@@ -54,15 +57,18 @@ class ImpFunc:
         return self.func(x, y) > 0
 
     def intersec_x(self, x, y):
-        func_x = lambda t : self.func(t, y)
+        def func_x(t):
+            return self.func(t, y)
 
         return scipy.optimize.newton_krylov(func_x, x)
 
     def intersec_y(self, x, y):
-        func_y = lambda t : self.func(x, t)
+        def func_y(t):
+            return self.func(x, t)
 
         return scipy.optimize.newton_krylov(func_y, y)
-        
+
+
 class Plane:
     def __init__(self, m_plane, q_plane, tol=0, sign=1):
         self.tol = tol  # 1e-16
@@ -76,7 +82,7 @@ class Plane:
         elif self.sign == -1:
             return y - self.m_plane * x - self.q_plane <= self.tol
         else:
-            print('sign must be + or - 1')
+            print("sign must be + or - 1")
 
     def out_conductor(self, x, y):
         return not self.in_conductor(x, y)
@@ -95,15 +101,23 @@ class InCircle:
         self.y_cent = y_cent
 
     def in_conductor(self, x, y):
-        return np.square(x - self.x_cent) + np.square(y - self.y_cent) <= np.square(self.radius)
+        return np.square(x - self.x_cent) + np.square(y - self.y_cent) <= np.square(
+            self.radius
+        )
 
     def out_conductor(self, x, y):
         return not self.in_conductor(x, y)
 
     def intersec_x(self, x, y):
         if abs(y - self.y_cent) <= self.radius:
-            inters_1 = np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.y_cent
-            inters_2 = -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.y_cent
+            inters_1 = (
+                np.sqrt(np.square(self.radius) - np.square(y - self.y_cent))
+                + self.y_cent
+            )
+            inters_2 = (
+                -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent))
+                + self.y_cent
+            )
             if abs(x - inters_1) < abs(x - inters_2):
                 return inters_1
             else:
@@ -113,8 +127,14 @@ class InCircle:
 
     def intersec_y(self, x, y):
         if abs(x - self.x_cent) <= self.radius:
-            inters_1 = np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.x_cent
-            inters_2 = -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.x_cent
+            inters_1 = (
+                np.sqrt(np.square(self.radius) - np.square(x - self.x_cent))
+                + self.x_cent
+            )
+            inters_2 = (
+                -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent))
+                + self.x_cent
+            )
             if abs(y - inters_1) < abs(y - inters_2):
                 return inters_1
             else:
@@ -130,15 +150,21 @@ class OutCircle:
         self.y_cent = y_cent
 
     def in_conductor(self, x, y):
-        return np.square(x - self.x_cent) + np.square(y - self.y_cent) >= np.square(self.radius)
+        return np.square(x - self.x_cent) + np.square(y - self.y_cent) >= np.square(
+            self.radius
+        )
 
     def out_conductor(self, x, y):
         return not self.in_conductor(x, y)
 
     def intersec_x(self, x, y):
         # if abs(y - self.y_cent) > self.radius:
-        inters_1 = np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
-        inters_2 = -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
+        inters_1 = (
+            np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
+        )
+        inters_2 = (
+            -np.sqrt(np.square(self.radius) - np.square(y - self.y_cent)) + self.x_cent
+        )
         if abs(x - inters_1) < abs(x - inters_2):
             return inters_1
         else:
@@ -148,8 +174,12 @@ class OutCircle:
 
     def intersec_y(self, x, y):
         # if abs(x - self.x_cent) > self.radius:
-        inters_1 = np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
-        inters_2 = -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
+        inters_1 = (
+            np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
+        )
+        inters_2 = (
+            -np.sqrt(np.square(self.radius) - np.square(x - self.x_cent)) + self.y_cent
+        )
         if abs(y - inters_1) < abs(y - inters_2):
             return inters_1
         else:
@@ -201,4 +231,3 @@ class noConductor:
 
     def intersec_y(self, x, y):
         return 1000
-

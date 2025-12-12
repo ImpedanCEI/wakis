@@ -3,6 +3,28 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 
+
+__all__ = [
+    # submodules
+    "field",
+    "gridFIT3D",
+    "solverFIT3D",
+    "sources",
+    "materials",
+    "wakeSolver",
+    "geometry",
+    "logger",
+    "field_monitors",
+    "FieldMonitor",
+    "Field",
+    "GridFIT3D",
+    "SolverFIT3D",
+    "WakeSolver",
+    "Logger",
+    "__version__",
+]
+
+
 from . import field
 from . import gridFIT3D
 from . import solverFIT3D
