@@ -974,5 +974,5 @@ class PlotMixin:
             try:
                 pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
             except Exception:
-                if self.verbose > 1:
+                if self.verbose > 2:
                     print(f'[!] Could not add logo widget: {e}')

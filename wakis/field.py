@@ -22,7 +22,7 @@ class Field:
     n = 1 + (i-1) + (j-1)*Nx + (k-1)*Nx*Ny
     len(n) = Nx*Ny*Nz
     '''
-    def __init__(self, Nx, Ny, Nz, dtype=float, 
+    def __init__(self, Nx, Ny, Nz, dtype=float,
                  use_ones=False, use_gpu=False):
 
         self.Nx = Nx
@@ -39,7 +39,7 @@ class Field:
                 print('*** cupy could not be imported, please CUDA check installation')
         else:
             self.xp = xp
-            
+
         if use_ones:
             self.array = self.xp.ones(self.N*3, dtype=self.dtype, order='F')
         else:
@@ -52,7 +52,7 @@ class Field:
     @property
     def field_y(self):
         return self.array[self.N: 2*self.N]
-    
+
     @property
     def field_z(self):
         return self.array[2*self.N:3*self.N]
@@ -101,7 +101,7 @@ class Field:
             self.array[2*self.N:3*self.N] = self.xp.reshape(mat, self.N, order='F')
         else:
             raise IndexError('Component id not valid')
-    
+
     def to_gpu(self):
         if imported_cupy:
             self.xp = xp_gpu
@@ -159,7 +159,7 @@ class Field:
                     return self.array[key]
             else:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
-            
+
         elif type(key) is slice:
             if self.on_gpu:
                 return self.array[key].get()
@@ -187,9 +187,9 @@ class Field:
                 self.array[key] = value
             else:
                 raise IndexError('Lexico-graphic index cannot be higher than product of dimensions')
-            
+
         elif type(key) is slice:
-                self.array[key] = value   
+                self.array[key] = value
         else:
             raise IndexError('key must be a 3-tuple or an integer')
 
@@ -203,13 +203,13 @@ class Field:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             mulField.array = self.array * other
 
-        # other is matrix 
+        # other is matrix
         elif len(other.shape) > 1:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
                 mulField.from_matrix(self.to_matrix(d) * other, d)
 
-        # other is 1d array 
+        # other is 1d array
         else:
             mulField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             mulField.array = self.array * other
@@ -232,7 +232,7 @@ class Field:
             for d in ['x', 'y', 'z']:
                 divField.from_matrix(self.to_matrix(d) / other, d)
 
-        # other is constant or 1d array 
+        # other is constant or 1d array
         else:
             divField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             divField.array = self.array / other
@@ -243,21 +243,21 @@ class Field:
 
         if dtype is None:
             dtype = self.dtype
-        
+
         if type(other) is Field:
-            
+
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             addField.field_x = self.field_x + other.field_x
             addField.field_y = self.field_y + other.field_y
-            addField.field_z = self.field_z + other.field_z  
-            
-        # other is matrix 
+            addField.field_z = self.field_z + other.field_z
+
+        # other is matrix
         elif len(other.shape) > 1:
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             for d in ['x', 'y', 'z']:
                 addField.from_matrix(self.to_matrix(d) + other, d)
 
-        # other is constant or 1d array 
+        # other is constant or 1d array
         else:
             addField = Field(self.Nx, self.Ny, self.Nz, dtype=dtype)
             addField.array = self.array + other
@@ -273,9 +273,8 @@ class Field:
         return 'x:\n' + self.field_x.__str__() + '\n'+  \
                 'y:\n' + self.field_y.__str__() + '\n'+ \
                 'z:\n' + self.field_z.__str__()
-    
+
     def copy(self):
-        import copy
         obj = type(self).__new__(self.__class__)  # Create empty instance
 
         for key, value in self.__dict__.items():
@@ -304,12 +303,12 @@ class Field:
         '''
         if as_matrix:
             if self.on_gpu:
-                return xp.sqrt(self.to_matrix('x')**2 + 
-                            self.to_matrix('y')**2 + 
+                return xp.sqrt(self.to_matrix('x')**2 +
+                            self.to_matrix('y')**2 +
                             self.to_matrix('z')**2 ).get()
             else:
-                return xp.sqrt(self.to_matrix('x')**2 + 
-                            self.to_matrix('y')**2 + 
+                return xp.sqrt(self.to_matrix('x')**2 +
+                            self.to_matrix('y')**2 +
                             self.to_matrix('z')**2 )
 
         else: # 1d array
@@ -358,7 +357,7 @@ class Field:
 
         for d in [0,1,2]:
             field = self.to_matrix(d)
-            
+
             if self.on_gpu and hasattr(field, 'get'):
                 field = field.get()
 
@@ -376,13 +375,13 @@ class Field:
 
         if handles:
             return fig, axs
-        
+
         if show:
             plt.show()
             return None
 
     def inspect3D(self, field='all', backend='pyista', grid=None,
-                  xmax=None, ymax=None, zmax=None, 
+                  xmax=None, ymax=None, zmax=None,
                   bounding_box=True, show_grid=True,
                   cmap='viridis', dpi=100, show=True, handles=False):
         """
@@ -390,15 +389,15 @@ class Field:
         (voxel rendering) or PyVista (interactive clipping and slicing).
 
         This method provides two complementary visualization backends:
-        - **Matplotlib**: static voxel plots of the field components (x, y, z) 
+        - **Matplotlib**: static voxel plots of the field components (x, y, z)
           or all combined, useful for quick inspection, but memory intensive.
-        - **PyVista**: interactive 3D visualization with sliders to dynamically 
+        - **PyVista**: interactive 3D visualization with sliders to dynamically
           clip the volume along X, Y, and Z, and optional wireframe slices.
 
         Parameters
         ----------
         field : {'x', 'y', 'z', 'all'}, default 'all'
-            Which field component(s) to visualize. 
+            Which field component(s) to visualize.
             - 'x', 'y', 'z': single component
             - 'all': shows all three components
         backend : {'matplotlib', 'pyvista'}, default 'pyvista'
@@ -406,16 +405,16 @@ class Field:
             - 'matplotlib': static voxel rendering
             - 'pyvista': interactive 3D rendering with clipping sliders
         grid : GridFIT3D or pyvista.StructuredGrid, optional
-            Structured grid object to use for visualization. If None, 
+            Structured grid object to use for visualization. If None,
             a grid is constructed from the solver's internal dimensions.
         xmax, ymax, zmax : int or float, optional
-            Maximum extents in each direction for visualization. Defaults 
+            Maximum extents in each direction for visualization. Defaults
             to the full grid dimensions if not specified.
         bounding_box : bool, default True
-            If True, draw a wireframe bounding box of the simulation domain 
+            If True, draw a wireframe bounding box of the simulation domain
             (only used in PyVista backend).
         show_grid : bool, default True
-            If True, show wireframe slice planes of the grid during 
+            If True, show wireframe slice planes of the grid during
             interactive visualization (PyVista backend).
         cmap : str, default 'viridis'
             Colormap to apply to the scalar field.
@@ -425,7 +424,7 @@ class Field:
             Whether to display the figure/plot immediately.
             - If False in PyVista, exports to `field.html` instead.
         handles : bool, default False
-            If True, return figure/axes (Matplotlib) or the Plotter object 
+            If True, return figure/axes (Matplotlib) or the Plotter object
             (PyVista) for further customization instead of showing directly.
 
         Returns
@@ -437,10 +436,10 @@ class Field:
 
         Notes
         -----
-        - The PyVista backend provides interactive sliders to clip the 
-          volume along each axis independently and inspect internal 
+        - The PyVista backend provides interactive sliders to clip the
+          volume along each axis independently and inspect internal
           structures of the 3D field.
-        - The Matplotlib backend provides a quick static voxel rendering 
+        - The Matplotlib backend provides a quick static voxel rendering
           but is limited in interactivity and scalability.
 
         """
@@ -451,7 +450,6 @@ class Field:
         if backend.lower() == 'matplotlib':
             import matplotlib.pyplot as plt
             import matplotlib as mpl
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
 
             fig = plt.figure(tight_layout=True, dpi=dpi, figsize=[12,6])
 
@@ -462,13 +460,19 @@ class Field:
                 plot_y = True
                 plot_z = True
 
-            elif field.lower() == 'x': plot_x = True
-            elif field.lower() == 'y': plot_y = True
-            elif field.lower() == 'z': plot_z = True
+            elif field.lower() == 'x':
+                plot_x = True
+            elif field.lower() == 'y':
+                plot_y = True
+            elif field.lower() == 'z':
+                plot_z = True
 
-            if xmax is None: xmax = self.Nx
-            if ymax is None: ymax = self.Ny
-            if zmax is None: zmax = self.Nz
+            if xmax is None:
+                xmax = self.Nx
+            if ymax is None:
+                ymax = self.Ny
+            if zmax is None:
+                zmax = self.Nz
 
             x,y,z = self.xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
             axs = []
@@ -480,16 +484,16 @@ class Field:
                     ax = fig.add_subplot(1, 3, 1, projection='3d')
                 else:
                     ax = fig.add_subplot(1, 1, 1, projection='3d')
-                
+
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-                
+                _ = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field x')
+                ax.set_title('Field x')
                 axs.append(ax)
 
             # field y
@@ -499,16 +503,16 @@ class Field:
                     ax = fig.add_subplot(1, 3, 2, projection='3d')
                 else:
                     ax = fig.add_subplot(1, 1, 1, projection='3d')
-                
+
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-                
+                _ = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field y')
+                ax.set_title('Field y')
                 axs.append(ax)
 
             # field z
@@ -522,15 +526,14 @@ class Field:
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
-                
+                _ = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field z')
+                ax.set_title('Field z')
                 axs.append(ax)
 
-            dims = {0:'x', 1:'y', 2:'z'}
             for i, ax in enumerate(axs):
                 ax.set_xlabel('Nx')
                 ax.set_ylabel('Ny')
@@ -544,12 +547,12 @@ class Field:
 
             if handles:
                 return fig, axs
-            
+
             if show:
                 plt.show()
 
         # ----------- pyvista backend ---------------
-        else: 
+        else:
             import pyvista as pv
 
             if grid is not None and hasattr(grid, 'grid'):
@@ -568,9 +571,12 @@ class Field:
                     scalars = 'Field '+'Abs'
                     grid[scalars] = xp.reshape(self.get_abs(), self.N)
 
-                if xmax is None: xmax = xhi
-                if ymax is None: ymax = yhi
-                if zmax is None: zmax = zhi
+                if xmax is None:
+                    xmax = xhi
+                if ymax is None:
+                    ymax = yhi
+                if zmax is None:
+                    zmax = zhi
 
             else:
                 print('[!] `grid` is not passed or is not a GridFIT3D object -> Using #N cells instead ')
@@ -578,9 +584,12 @@ class Field:
                 y = xp.linspace(0, self.Ny, self.Ny+1)
                 z = xp.linspace(0, self.Nz, self.Nz+1)
                 xlo, xhi, ylo, yhi, zlo, zhi = x.min(), x.max(), y.min(), y.max(), z.min(), z.max()
-                if xmax is None: xmax = self.Nx
-                if ymax is None: ymax = self.Ny
-                if zmax is None: zmax = self.Nz
+                if xmax is None:
+                    xmax = self.Nx
+                if ymax is None:
+                    ymax = self.Ny
+                if zmax is None:
+                    zmax = self.Nz
                 X, Y, Z = xp.meshgrid(x, y, z, indexing='ij')
                 grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -655,8 +664,7 @@ class Field:
             pl.camera.azimuth += 30
             pl.camera.elevation += 30
             pl.set_background('mistyrose', top='white')
-            try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
-            except: pass
+            self._add_logo_widget(pl)
             pl.add_axes()
             pl.enable_3_lights()
             pl.enable_anti_aliasing()
@@ -669,6 +677,22 @@ class Field:
                 return pl
 
             if not show:
-                pl.export_html(f'field.html')
+                pl.export_html('field.html')
             else:
                 pl.show()
+
+    def _add_logo_widget(self, pl):
+        """Add packaged logo via importlib.resources (Python 3.9+)."""
+        try:
+            from importlib import resources
+            # resource inside the installed package (use current package)
+            logo_res = resources.files(__package__).joinpath('static', 'img', 'wakis-logo-pink.png')
+            with resources.as_file(logo_res) as logo_path:
+                pl.add_logo_widget(str(logo_path))
+                return
+        except Exception:
+            # fallback to the legacy relative path for dev installs
+            try:
+                pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except Exception:
+                pass
