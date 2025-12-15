@@ -90,21 +90,20 @@ class TestSmartMesh:
 
         zdiff=np.abs(np.diff(grid.dz))
         for cell in range(len(grid.dz)-1):
-            assert zdiff[cell]<=0.2*grid.dz[cell], "Mesh variance in z is too big"
+            assert zdiff[cell]<=0.1*grid.dz[cell], "Mesh variance in z is too big"
 
         ydiff=np.abs(np.diff(grid.dy))
         for cell in range(len(grid.dy)-1):
-            assert ydiff[cell]<=0.2*grid.dy[cell], "Mesh variance in y is too big"
+            assert ydiff[cell]<=0.1*grid.dy[cell], "Mesh variance in y is too big"
 
         xdiff=np.abs(np.diff(grid.dx))
         for cell in range(len(grid.dx)-1):
-            assert xdiff[cell]<=0.2*grid.dx[cell], "Mesh variance in x is too big"
+            assert xdiff[cell]<=0.1*grid.dx[cell], "Mesh variance in x is too big"
 
-        assert np.min(grid.dz) > 0.25 * (grid.zmax-grid.zmin)/grid.Nz, "Smallest z difference is too small"
-        assert np.min(grid.dy) > 0.25 * (grid.ymax-grid.ymin)/grid.Ny, "Smallest y difference is too small"
-        assert np.min(grid.dx) > 0.25 * (grid.xmax-grid.xmin)/grid.Nx, "Smallest x difference is too small"
+        assert np.min(grid.dz) > 0.5 * (grid.zmax-grid.zmin)/grid.Nz, "Smallest z difference is too small"
+        assert np.min(grid.dy) > 0.5 * (grid.ymax-grid.ymin)/grid.Ny, "Smallest y difference is too small"
+        assert np.min(grid.dx) > 0.5 * (grid.xmax-grid.xmin)/grid.Nx, "Smallest x difference is too small"
 
     def test_nonuniform_simulation(self):
         global wake
         assert np.abs(wake.Z[0]) < 0.01 * np.abs(np.max(wake.Z)), "Charge Accumulation - DC component"
-        # TODO: Test that checks the continuity equation
