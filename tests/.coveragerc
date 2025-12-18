@@ -1,0 +1,8 @@
+[run]
+omit =
+    wakis/grid2D.py
+    wakis/grid3D.py
+    wakis/pml*.py
+    wakis/solver2D.py
+    wakis/solver3D.py
+    wakis/conductors*.py

@@ -68,8 +68,16 @@ def extract_materials_from_stp(stp_file):
 
     return stl_materials
 
-def extract_solids_from_stp(stp_file, path=''):
-    if path and not path.endswith('/'):
+def extract_solids_from_stp(stp_file, path=None):
+    '''
+    Extracts a mapping from solid names to STL file names from a STEP (.stp) file.  
+    Args:
+        stp_file (str): Path to the STEP file.
+        path (str) (optional): default: None, path to save the STL (.stl) files
+    Returns:
+        dict[str, str]: A dictionary mapping solid names to STL file names.
+    '''    
+    if path is not None and not path.endswith('/'):
         path += '/'
     solids, materials = extract_names_from_stp(stp_file)
     stl_solids = {}
@@ -85,7 +93,10 @@ def extract_solids_from_stp(stp_file, path=''):
         solid_re = re.sub(r'[^a-zA-Z0-9_-]', '-', solid)
         mat_re = re.sub(r'[^a-zA-Z0-9_-]', '-', mat)
         name = f'{str(i).zfill(3)}_{solid_re}_{mat_re}'
-        stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = path + name + '.stl'
+        if path is not None:
+            stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = path + name + '.stl'
+        else:
+            stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = name + '.stl'
 
     return stl_solids
 
@@ -195,7 +206,7 @@ def get_stp_unit_scale(stp_file):
 
         return 1.0
 
-def generate_stl_solids_from_stp(stp_file, results_path=''):
+def generate_stl_solids_from_stp(stp_file, results_path=None):
     """
     Extracts solid objects from a STEP (.stp) file and exports them as STL files.
 
@@ -238,16 +249,13 @@ def generate_stl_solids_from_stp(stp_file, results_path=''):
         scaled_solids = [solid.scale(scale_factor) for solid in stp.objects[0]]
         stp.objects = [scaled_solids]
 
-    solid_dict = extract_solids_from_stp(stp_file)
-
-    if not results_path.endswith('/'):
-        results_path += '/'
+    solid_dict = extract_solids_from_stp(stp_file, results_path)
 
     print(f"Generating stl from file: {stp_file}... ")
     for i, obj in enumerate(stp.objects[0]):
         name = solid_dict[list(solid_dict.keys())[i]]
         print(name)
-        obj.exportStl(results_path+name)
+        obj.exportStl(name)
 
     return solid_dict
 
