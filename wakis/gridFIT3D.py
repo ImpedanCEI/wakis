@@ -575,7 +575,8 @@ class GridFIT3D:
         self.dy = np.diff(self.y)
         self.dz = np.diff(self.z)
 
-        print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
+        if self.verbose > 1:
+            print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
 
     def _assign_colors(self):
         '''Classify colors assigned to each solid
