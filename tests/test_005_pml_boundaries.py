@@ -130,7 +130,10 @@ class TestPML:
         
         # Simulation time is extended by a factor eps_r 
         # to ensure the wave is fully absorbed in the PML
-        Nt = int(eps_r*2.0*(zmax-zmin-solver.n_pml*solver.dz)/c/solver.dt)
+        z_pml = 0
+        for k in range(solver.n_pml):
+            z_pml += solver.dz[Nz - 1 - k]
+        Nt = int(eps_r*2.0*(zmax-zmin-z_pml)/c/solver.dt)
 
         for n in tqdm(range(Nt)):
             planeWave.update(solver, n*solver.dt)
@@ -202,7 +205,10 @@ class TestPML:
         
         # Simulation time is extended by a factor eps_r 
         # to ensure the wave is fully absorbed in the PML
-        Nt = int(eps_r*2.0*(zmax-zmin-solver.n_pml*solver.dz)/c/solver.dt)
+        z_pml = 0
+        for k in range(solver.n_pml):
+            z_pml += solver.dz[Nz - 1 - k]
+        Nt = int(eps_r*2.0*(zmax-zmin-z_pml)/c/solver.dt)
 
         for n in tqdm(range(Nt)):
             planeWave.update(solver, n*solver.dt)
