@@ -216,12 +216,9 @@ class GridFIT3D:
         self.L.field_z = Z[1:, 1:, 1:] - Z[:-1, :-1, :-1]
 
         self.iA = Field(self.Nx, self.Ny, self.Nz)
-        aux = self.L.field_y * self.L.field_z
-        self.iA.field_x = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
-        aux = self.L.field_x * self.L.field_z
-        self.iA.field_y = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
-        aux = self.L.field_x * self.L.field_y
-        self.iA.field_z = np.divide(1.0, aux , out=np.zeros_like(aux), where=aux!=0)
+        self.iA.field_x = np.divide(1.0, self.L.field_y * self.L.field_z)
+        self.iA.field_y = np.divide(1.0, self.L.field_x * self.L.field_z)
+        self.iA.field_z = np.divide(1.0, self.L.field_x * self.L.field_y)
 
         # tilde grid ~G
         self.tx = (self.x[1:]+self.x[:-1])/2
