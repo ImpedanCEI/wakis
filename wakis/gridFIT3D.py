@@ -423,9 +423,6 @@ class GridFIT3D:
 
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
         print(edges)
-        print("min abs(Y):", np.min(np.abs(edges.points[:,1])))
-        print("min abs(X):", np.min(np.abs(edges.points[:,0])))
-        print("min abs(Z):", np.min(np.abs(edges.points[:,2])))
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
         xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
