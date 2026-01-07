@@ -527,14 +527,6 @@ class WakeSolver():
         self.log('-'*24)
         self.log(f'* No. transverse cells = {self.n_transverse_cells}')
 
-        # # Obtain dx, dy, ds
-        # if 'dx' in kwargs.keys() and 'dy' in kwargs.keys(): 
-        #     dx = kwargs['dx']
-        #     dy = kwargs['dy']
-        # else:
-        #     dx=self.xf[2]-self.xf[1]
-        #     dy=self.yf[2]-self.yf[1]
-
         ds = self.s[2]-self.s[1]
         i0, j0 = self.n_transverse_cells, self.n_transverse_cells
 
