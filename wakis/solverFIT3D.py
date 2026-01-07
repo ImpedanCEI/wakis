@@ -178,9 +178,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                             hstack([self.Pz, sparse_mat((N,N)), -self.Px]),
                             hstack([-self.Py, self.Px, sparse_mat((N,N))])
                         ], dtype=np.int8)
-        
-        self.S = hstack([self.Px, self.Py, self.Pz])
-        print(self.S*self.C)
 
         # Boundaries
         if verbose:
