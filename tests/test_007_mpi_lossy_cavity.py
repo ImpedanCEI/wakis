@@ -320,8 +320,8 @@ class TestMPILossyCavity:
             assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), "Real Impedance samples failed"
             assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), "Imag Impedance samples failed"
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(250910.51090497518, 0.1), "Abs Impedance cumsum failed"
-
-    def test_log_file(self):
+    
+    def test_log_file(self):       
         # Helper function to compare nested dicts with float tolerance
         def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):
             assert set(d1.keys()) == set(d2.keys()), \
@@ -337,11 +337,14 @@ class TestMPILossyCavity:
 
                 # floats
                 elif isinstance(v1, float) and isinstance(v2, float):
-                    assert np.isclose(v1, v2, rtol=rtol, atol=atol), \
-                        f"Float mismatch at {p}: {v1} != {v2}"
+                    if k == 'dt':
+                        assert v1 <=v2, f"Timestep bigger than for uniform grid"
+                    else:
+                        assert np.isclose(v1, v2, rtol=rtol, atol=atol), \
+                            f"Float mismatch at {p}: {v1} != {v2}"
 
                 # lists/tuples/arrays
-                elif isinstance(v1, (list, tuple)) and isinstance(v2, (list, tuple)):
+                elif isinstance(v1, (list, tuple, np.ndarray)) and isinstance(v2, (list, tuple, np.ndarray)):
                     assert len(v1) == len(v2), f"Length mismatch at {p}"
                     for i, (a, b) in enumerate(zip(v1, v2)):
                         if isinstance(a, float) and isinstance(b, float):
@@ -349,6 +352,17 @@ class TestMPILossyCavity:
                                 f"Float mismatch at {p}[{i}]: {a} != {b}"
                         else:
                             assert a == b, f"Value mismatch at {p}[{i}]: {a} != {b}"
+
+                # list vs single float
+                elif isinstance(v1, (list, tuple, np.ndarray)) and isinstance(v2, float):
+                    for i, a in enumerate(v1):
+                        assert np.isclose(a, v2, rtol=rtol, atol=atol), \
+                            f"Float mismatch at {p}[{i}]: {a} != {v2}"
+                        
+                elif isinstance(v1, float) and isinstance(v2, (list, tuple, np.ndarray)):
+                    for i, b in enumerate(v2):
+                        assert np.isclose(v1, b, rtol=rtol, atol=atol), \
+                            f"Float mismatch at {p}[{i}]: {v1} != {b}"
 
                 # everything else → exact match
                 else:

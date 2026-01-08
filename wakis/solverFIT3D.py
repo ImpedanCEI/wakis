@@ -223,7 +223,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             print('Calculating maximal stable timestep...')
         self.cfln = cfln
         if dt is None:
-            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
+            self.dt = cfln / (c_light * np.sqrt(1 / np.min(self.grid.dx) ** 2 + 1 / np.min(self.grid.dy) ** 2 + 1 / np.min(self.grid.dz) ** 2))
         else:
             self.dt = dt
         self.dt = dtype(self.dt)
@@ -247,8 +247,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
 
         if imported_mkl and not self.use_gpu: # MKL backend for CPU
             if verbose:
@@ -271,6 +271,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if verbose:
             print(f'Total solver initialization time: {time.time() - t0} s')
+
+        self.solverInitializationTime = time.time() - t0
+        self.update_logger(['solverInitializationTime'])
 
         self.solverInitializationTime = time.time() - t0
         self.update_logger(['solverInitializationTime'])
@@ -303,8 +306,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if self.verbose:
             print('Re-Pre-computing ...')
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
         self.step_0 = False
 
     def _one_step(self):
@@ -325,7 +328,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         #include current computation
         if self.use_conductivity:
-            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray()
+                             )
 
     def one_step_mkl(self):
         if self.step_0:
