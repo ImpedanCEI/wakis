@@ -16,53 +16,60 @@ class PlotMixin:
                clip_box=False, clip_bounds=None,
                off_screen=False, zoom=0.5, camera_position=None,
                nan_opacity=1.0, n=None):
-        '''
-        Built-in 3D plotting using PyVista
+        """Built-in 3D plotting using PyVista.
 
-        Parameters:
-        -----------
-        field: str, default 'E'
-            3D field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            3D field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        clim: list, optional
-            Colorbar limits for the field plot [min, max]
-        hide_solids: bool, optional
-            Mask the values inside solid to np.nan. NaNs will be shown in gray,
-            since there is a bug with the nan_opacity parameter
-        show_solids: bool, optional
-            Mask the values outside solid to np.nan.
-        add_stl: str or list, optional
-            List or str of stl solids to add to the plot by `pv.add_mesh`
-        stl_opacity: float, default 0.1
-            Opacity of the stl surfaces (0 - Transparent, 1 - Opaque)
-        stl_colors: str or list of str, default 'white'
-            Color of the stl surfaces
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        clip_interactive: bool, default False
-            Enable an interactive widget to clip out part of the domain, plane normal is defined by
-            `clip_normal` parameter
-        clip_normal: str, default '-y'
-            Normal direction of the clip_volume interactive plane
-        clip_box: bool, default False
-            Enable a static box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
-        clip_bounds: Default None
-            List of bounds [xmin, xmax, ymin, ymax, zmin, zmax] of the box to clip if clip_box is active.
-        field_on_stl : bool, default False
-            Samples the field on the stl file specified in `add_stl`.
-        field_opacity : optional, default 1.0
-            Sets de opacity of the `field_on_stl` plot
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation.
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        '''
+        Displays a cell-centered field (E, H or J) on the structured grid using
+        PyVista. Optionally overlays STL solids, clipping widgets or a static
+        clip box. When rendered off-screen the plot can be saved to a PNG file
+        for later composition into animations.
+
+        Parameters
+        ----------
+        field : str, optional
+            3D field magnitude to plot: 'E', 'H', or 'J'. A two-letter value
+            (e.g., 'Ex') is accepted to plot a single component; in that case
+            ``component`` is overridden. Default 'E'.
+        component : str, optional
+            Component of the field to plot: 'x', 'y', 'z', or 'Abs'. Default
+            'z'. Overridden when ``field`` contains a component.
+        clim : sequence, optional
+            Colorbar limits for the field plot as ``[min, max]``.
+        hide_solids : str, list, or None, optional
+            If provided, mask values inside the named STL solids to ``np.nan``.
+            NaNs are shown in grey due to a known PyVista opacity limitation.
+        show_solids : str, list, or None, optional
+            If provided, mask values outside the named STL solids to ``np.nan``.
+        add_stl : str or list, optional
+            STL solid key or list of keys to add to the scene via ``pv.add_mesh``.
+        stl_opacity : float, optional
+            Opacity for STL surfaces (0 transparent, 1 opaque). Default 0.1.
+        stl_colors : str or list, optional
+            Color or list of colors for STL surfaces (default 'white').
+        title : str, optional
+            Basename used to save screenshots when ``off_screen=True``.
+        cmap : str, optional
+            Colormap name for the field display (default 'jet').
+        clip_interactive : bool, optional
+            Enable an interactive clipping plane widget (default False).
+        clip_normal : str, optional
+            Normal direction for the interactive clip plane (default '-y').
+        clip_box : bool, optional
+            Enable a static box clipping of the domain (default False).
+        clip_bounds : sequence, optional
+            Box bounds as ``[xmin,xmax,ymin,ymax,zmin,zmax]`` when ``clip_box``
+            is active.
+        field_on_stl : bool, optional
+            Sample the plotted field on the STL surfaces named in ``add_stl``.
+        field_opacity : float, optional
+            Opacity used when plotting sampled fields on STL surfaces.
+        off_screen : bool, optional
+            Render off-screen and save screenshots instead of opening an
+            interactive window (default False).
+        n : int, optional
+            Timestep index appended to saved screenshot filenames.
+        nan_opacity : float, optional
+            Opacity for NaN values produced by masking (default 1.0).
+        """
         if self.use_mpi:
             print('[!] plot3D is not supported when `use_mpi=True`')
             return
@@ -207,59 +214,60 @@ class PlotMixin:
                     clip_box=False, clip_bounds=None,
                     title=None, off_screen=False, n=None,
                     zoom=0.5, camera_position=None, **kwargs):
-        '''
-        Built-in 3D plotting using PyVista
+        """Built-in 3D plotting sampling fields onto STL surfaces.
 
-        Parameters:
-        -----------
-        field: str, default 'E'
-            3D field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            3D field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        clim: list, optional
-            Colorbar limits for the field plot [min, max]
-        cmap: str or cmap obj, default 'jet'
-            Colormap to use for the field plot
-        log_scale: bool, default False
-            Turns on logarithmic scale colorbar
-        stl_with_field : list or str
-            STL str name or list of names to samples the selected field on
-        field_opacity : optional, default 1.0
-            Sets de opacity of the `field_on_stl` plot
-        tolerance : float, default None
-            Tolerance to apply to PyVista's sampling algorithm
-        stl_transparent: list or str, default None
-            STL name or list of names to add to the scene with the selected transparency and color
-        stl_opacity: float, default 0.1
-            Opacity of the STL solids without field
-        stl_colors: list or str, default 'white'
-            str or list of colors to use for each STL solid
-        clip_interactive: bool, default False
-            Enable an interactive widget to clip out part of the domain, plane normal is defined by
-            `clip_normal` parameter
-        clip_plane: bool, default False
-            Clip stl_with_field surface with a plane and show field on such plane
-        clip_normal: str, default '-y'
-            Normal direction of the clip_volume interactive plane and the clip_plane
-        clip_origin: list, default [0,0,0]
-            Origin of the clipping plane for the clip_plane option
-        clip_box: bool, default False
-            Enable a static box clipping of the domain. The box bounds are defined by `clip_bounds` parameter
-        clip_bounds: Default None
-            List of bounds [xmin, xmax, ymin, ymax, zmin, zmax] of the box to clip if clip_box is active.
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation.
-            Plot will not be rendered if set to True.
-        title: str
-            Name to use in the .png savefile with off_screen is True
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        **kwargs: optional
-            PyVista's add_mesh optional arguments:
-            https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
-        '''
+        Samples a cell-centered field onto STL surfaces and visualizes the
+        sampled field. Supports clipping with a plane or a static box and
+        rendering the STL surfaces with or without sampled field data.
+
+        Parameters
+        ----------
+        field : str, optional
+            Field to sample and plot: 'E', 'H', or 'J'. Two-letter values like
+            'Ex' are accepted and override ``component``. Default 'E'.
+        component : str, optional
+            Component to plot ('x', 'y', 'z', 'Abs'). Default 'z'.
+        clim : sequence, optional
+            Color limits for the plotted field.
+        cmap : str or Colormap, optional
+            Colormap for field rendering (default 'jet').
+        log_scale : bool, optional
+            Use logarithmic color scaling when True (default False).
+        stl_with_field : str or list, optional
+            STL key or list of keys whose surfaces will be sampled with the
+            selected field.
+        field_opacity : float, optional
+            Opacity for the sampled field rendering on STL surfaces.
+        tolerance : float, optional
+            Sampling tolerance passed to ``pyvista.PolyData.sample``.
+        stl_transparent : str or list, optional
+            STL solids to add to the scene with transparent rendering.
+        stl_opacity : float, optional
+            Opacity for non-sampled STL solids (default 0.1).
+        stl_colors : str or list, optional
+            Colors used for STL solids (default 'white').
+        clip_interactive : bool, optional
+            Enable an interactive clipping plane for sampled surfaces.
+        clip_plane : bool, optional
+            Clip the STL surface with a plane and show the field on the plane.
+        clip_normal : str, optional
+            Normal direction for clipping operations (default '-x').
+        clip_origin : sequence, optional
+            Origin for planar clipping when ``clip_plane`` is True.
+        clip_box : bool, optional
+            Clip sampled surfaces using a static box (default False).
+        clip_bounds : sequence, optional
+            Bounds for the static clip box as
+            ``[xmin,xmax,ymin,ymax,zmin,zmax]``.
+        title : str, optional
+            Basename used to save screenshots when ``off_screen=True``.
+        off_screen : bool, optional
+            Render off-screen and save screenshots when True.
+        n : int, optional
+            Timestep index appended to saved filenames.
+        **kwargs : dict
+            Extra keyword arguments forwarded to ``pyvista.Plotter.add_mesh``.
+        """
         if self.use_mpi:
             print('[!] plot3D is not supported when `use_mpi=True`')
             return
@@ -410,50 +418,44 @@ class PlotMixin:
                vmin=None, vmax=None, figsize=[8,4], cmap='jet', patch_alpha=0.1,
                patch_reverse=False, add_patch=False, title=None, off_screen=False,
                n=None, interpolation='antialiased', dpi=100, return_handles=False):
-        '''
-        Built-in 2D plotting of a field slice using matplotlib
+        """Built-in 2D plotting of a field slice using matplotlib.
 
-        Parameters:
+        Renders a 2D cut through the structured grid and displays the selected
+        field component using ``matplotlib.pyplot.imshow``. Optionally adds a
+        patch showing STL masks as overlays.
+
+        Parameters
         ----------
-        field: str, default 'E'
-            Field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        plane: arr or str, default 'XZ'
-            Plane where to plot the 2d field cut: array of 2 slices() and 1 int [x,y,z]
-            or a str 'XY', 'ZY' or 'ZX'
-        pos: float, default 0.5
-            Position of the cutting plane, as a franction of the plane's normal dimension
-            e.g. plane 'XZ' wil be sitting at y=pos*(ymax-ymin)
-        norm: str, default None
-            Plotting scale to pass to matplotlib imshow: 'linear', 'log', 'symlog'
-            ** Only for matplotlib version >= 3.8
-        vmin: list, optional
-            Colorbar min limit for the field plot
-        vmax: list, optional
-            Colorbar max limit for the field plot
-        figsize: list, default [8,4]
-            Figure size to pass to the plot initialization
-        add_patch: str or list, optional
-            List or str of stl solids to add to the plot by `pv.add_mesh`
-        patch_alpha: float, default 0.1
-            Value for the transparency of the patch if `add_patch = True`
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True.
-            If n is provided, 'str(n).zfill(6)' will be added to the title.
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation.
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        interpolation: str, default 'antialiased'
-            Interpolation method to pass to matplotlib imshow e.g., 'none',
-            'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36',
-        '''
+        field : str, optional
+            Field to plot: 'E', 'H', or 'J'. Two-letter values (e.g. 'Ex') are
+            accepted and override ``component``. Default 'E'.
+        component : str, optional
+            Component to plot ('x','y','z','Abs'). Default 'z'.
+        plane : str or sequence, optional
+            Cut plane specified as 'XY', 'ZY', 'ZX' or a sequence of slices
+            and an integer index ``[x,y,z]``. Default 'XZ'.
+        pos : float, optional
+            Relative position in the normal direction for the cut (0-1).
+            Default 0.5 (center).
+        norm : str or None, optional
+            Color normalization for ``imshow`` ('linear','log','symlog').
+        vmin, vmax : scalar, optional
+            Color limits for the plot.
+        figsize : sequence, optional
+            Figure size for the matplotlib figure (default [8,4]).
+        add_patch : str or list, optional
+            STL key or list of keys to overlay as a mask patch on the plot.
+        patch_alpha : float, optional
+            Alpha value for STL mask overlays (default 0.1).
+        interpolation : str, optional
+            Interpolation method for ``imshow`` (default 'antialiased').
+        off_screen : bool, optional
+            If True save the figure to disk instead of showing it interactively.
+        n : int, optional
+            Timestep index appended to saved filenames.
+        return_handles : bool, optional
+            If True return the ``(fig, ax)`` handles instead of showing.
+        """
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
         Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
@@ -606,45 +608,37 @@ class PlotMixin:
                xscale='linear', yscale='linear', xlim=None, ylim=None,
                figsize=[8,4], title=None, off_screen=False, n=None,
                colors=None, **kwargs):
-        '''
-        Built-in 1D plotting of a field line using matplotlib
+        """Built-in 1D plotting of a field line using matplotlib.
 
-        Parameters:
+        Plots 1D cuts along a grid line (x, y or z) for the selected field
+        component. Supports plotting multiple positions and MPI gathering when
+        running in parallel.
+
+        Parameters
         ----------
-        field: str, default 'E'
-            Field magnitude ('E', 'H', or 'J') to plot
-            To plot a component 'Ex', 'Hy' is also accepted
-        component: str, default 'z'
-            Field compoonent ('x', 'y', 'z', 'Abs') to plot. It will be overriden
-            if a component is defined in field
-        line: str or list, default 'z'
-            line of indexes to plot. E.g. line=[0, slice(10,Ny-10), 0]
-        pos: float or list, default 0.5
-            Float or list of floats betwwen 0-1 indicating the cut position.
-            Only used if line is str.
-        xlim, ylim: tupple
-            limits for x and y axis (see matplotlib.ax.set_xlim for more)
-        xscale, yscale: str
-            scale to use in x and y axes (see matplotlib.ax.set_xscale for more)
-        figsize: list, default [8,4]
-            Figure size to pass to the plot initialization
-        title: str, optional
-            Title used to save the screenshot of the 3D plot (Path+Name) if off_screen=True.
-            If n is provided, 'str(n).zfill(6)' will be added to the title.
-        cmap: str, default 'jet'
-            Colormap name to use in the field display
-        off_screen: bool, default False
-            Enable plot rendering off screen, for gif frames generation.
-            Plot will not be rendered if set to True.
-        n: int, optional
-            Timestep number to be added to the plot title and figsave title.
-        colors: list, optional
-            List of matplotlib-compatible colors. len(colors) >= len(pos)
-        **kwargs:
-            Keyword arguments to be passed to the `matplotlib.plot` function.
-            Default kwargs used:
-                kwargs = {'color':'g', 'lw':1.2, 'ls':'-'}
-        '''
+        field : str, optional
+            Field to plot: 'E', 'H', or 'J'. Two-letter values (e.g. 'Ex') are
+            accepted and override ``component``. Default 'E'.
+        component : str, optional
+            Component to plot ('x','y','z','Abs'). Default 'z'.
+        line : str or sequence, optional
+            Line specification as 'x','y','z' or a sequence of three indices
+            or slices (e.g. [0, slice(10,Ny-10), 0]). Default 'z'.
+        pos : float or sequence, optional
+            Relative position(s) (0-1) used when ``line`` is a single-axis
+            specifier. Default 0.5.
+        xscale, yscale : str, optional
+            Axis scaling passed to matplotlib (default 'linear').
+        xlim, ylim : sequence, optional
+            Axis limits for the plot.
+        figsize : sequence, optional
+            Figure size for the matplotlib figure (default [8,4]).
+        colors : sequence, optional
+            Colors used for each plotted line when multiple positions are
+            requested.
+        **kwargs : dict
+            Extra keyword arguments forwarded to ``matplotlib.axes.Axes.plot``.
+        """
         Nx, Ny, Nz = self.Nx, self.Ny, self.Nz
         xmin, xmax = self.grid.xmin, self.grid.xmax
         ymin, ymax = self.grid.ymin, self.grid.ymax

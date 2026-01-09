@@ -39,59 +39,61 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  use_gpu=False, use_mpi=False, dtype=np.float64,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
-        Class holding the 3D time-domain electromagnetic solver
-        algorithm based on the Finite Integration Technique (FIT)
+        3D time-domain electromagnetic solver based on the Finite Integration
+        Technique (FIT).
 
-        Parameters:
-        -----------
-        grid: GridFIT3D object
-            Instance of GridFIT3D class containing the simulation
-            mesh and the imported geometry
-        wake: WakeSolver object, optional
-            Instance of WakeSolver class containing the beam parameters.
-            Needed to run a wakefield simulation to compute
-            wake potential and impedance
-        cfln: float, default 0.5
-            Convergence condition by Courant–Friedrichs–Lewy, used to compute the
-            simulation timestep
-        dt: float, optional
-            Simulation timestep. If not None, it overrides the cfln-based timestep
-        bc_low: list, default ['Periodic', 'Periodic', 'Periodic']
-            Domain box boundary conditions for X-, Y-, Z-
-        bc_high: list, default ['Periodic', 'Periodic', 'Periodic']
-            Domain box boundary conditions for X+, Y+, Z+
-        use_conductors: bool, default False
-            If true, enables geometry import based on elements from `conductors.py`
-        use_stl: bool, default False
-            If true, activates all the solids and materials passed to the `grid` object
-        use_gpu: bool, default False,
-            Using cupyx, enables GPU accelerated computation of every timestep
-        n_pml: int, default 10,
-            Number of PML cells at the boundaries of the simulation box
-        bg: list, default [1.0, 1.0]
-            Background material for the simulation box [eps_r, mu_r, sigma]. Default is vacuum.
-            It supports any material from the material library in `materials.py`, of a
-            custom list of floats. If conductivity (sigma) is passed,
-            it enables flag: use_conductivity
-        verbose: int or bool, default True
-            Enable verbose ouput on the terminal if 1 or True
+        Handles mesh and geometry, material assignment, boundary conditions and
+        time-stepping. Supports CPU, optional GPU acceleration (cupyx) and MPI
+        domain decomposition. Provides utilities for importing conductors and
+        STL solids, applying PML/ABC boundaries, and saving/restoring solver
+        state.
+
+        Parameters
+        ----------
+        grid : GridFIT3D
+            Instance providing mesh, coordinate arrays and geometry flags.
+        wake : WakeSolver, optional
+            Wakefield object with beam parameters used for wake computations.
+        cfln : float, optional
+            CFL number used to compute a stable timestep when ``dt`` is None.
+        dt : float, optional
+            Explicit timestep. If provided, it overrides the CFL-based value.
+        bc_low, bc_high : list of str, optional
+            Boundary conditions for low/high faces in (x, y, z) order.
+        use_stl : bool, optional
+            If True, apply solids and materials provided in the ``grid`` object.
+        use_conductors : bool, optional
+            If True, import conductor geometry from ``conductors.py`` masks.
+        use_gpu : bool, optional
+            Enable GPU acceleration via ``cupyx`` (if available).
+        use_mpi : bool, optional
+            Enable MPI execution for a subdivided grid.
+        dtype : numpy dtype, optional
+            Numeric dtype for solver arrays (default ``np.float64``).
+        n_pml : int, optional
+            Number of PML cells for PML boundary regions.
+        bg : sequence or str, optional
+            Background material [eps_r, mu_r, sigma] or a material key from
+            the library. If a sigma value is provided conductivity handling is
+            enabled.
+        verbose : int or bool, optional
+            Verbosity flag for initialization messages.
 
         Attributes
         ----------
-        E: Field object
-            Object to access the Electric field data in [V/m].
-            E.g.: solver.E[:,:,n,'z'] gives a 2D numpy.ndarray fieldmap of Ez component, located at the n-th cell in z
-        H: Field object
-            Object to access the Magnetic field data in [A/m].
-            E.g.: solver.H[i,j,k,'x'] gives a point value of Hx component, located at the i,j,k cell
-        J: Field object
-            Object to access the Current density field data in [A/m^2].
-        ieps: Field object
-            Object to access the ε^-1 tensor containing 1/permittivity values in the 3 dimensions.
-        imu: Field object
-            Object to access the μ^-1 tensor containing 1/permeability values in the 3 dimensions.
-        sigma: Field object
-            Object to access the condutcity σ tensor in the 3 dimensions.
+        E, H, J : wakis.Field
+            Electric field, magnetic field and current density containers.
+            Access components via labels 'x','y','z'. Example:
+            ``solver.E[:, :, n, 'z']`` gives Ez at z-index n.
+        ieps, imu, sigma : wakis.Field
+            Material tensors (inverse permittivity, inverse permeability and
+            conductivity) stored per field component.
+        grid : GridFIT3D
+            Reference to the input grid object.
+        dt : float
+            Time-step used for time integration.
+        cfln : float
+            CFL number used when computing dt from grid spacing.
         '''
 
         self.verbose = verbose
@@ -279,16 +281,20 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.update_logger(['solverInitializationTime'])
 
     def update_tensors(self, tensor='all'):
-        '''Update tensor matrices after
-        Field ieps, imu or sigma have been modified
-        and pre-compute the time-stepping matrices
+        '''
+        Update tensor matrices after material Field changes and precompute
+        combined operators used for time-stepping.
 
-        Parameters:
-        -----------
-        tensor : str, default 'all'
-            Name of the tensor to update: 'ieps', 'imu', 'sigma'
-            for permitivity, permeability and conductivity, respectively.
-            If left to default 'all', all thre tensors will be recomputed.
+        When ``ieps``, ``imu`` or ``sigma`` are modified this routine
+        reconstructs the corresponding sparse diagonal matrices and the
+        composite operator products used in the update equations. Use the
+        ``tensor`` argument to restrict work to a single tensor for efficiency.
+
+        Parameters
+        ----------
+        tensor : {'ieps','imu','sigma','all'}, optional
+            Which tensor to update. Default is 'all' which recomputes every
+            tensor and refreshes the precomputed time-stepping matrices.
         '''
         if self.verbose:
             print(f'Re-computing tensor "{tensor}"...')
@@ -408,56 +414,27 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def mpi_gather(self, field, x=None, y=None, z=None, component=None):
         '''
-        Gather a specific component or slice of a distributed field from all MPI ranks.
+        Gather a component or slice of a distributed Field from all MPI ranks.
 
-        This function collects a selected component of a field (E, H, J, or custom)
-        from all MPI processes along the z-axis and reconstructs the global field data
-        on the root rank (rank 0). The user can specify slices or single indices
-        along x, y, and z to control the subset of data gathered.
+        Assumes the field is split along the z-axis among ranks. The function
+        collects local buffers, removes ghost cells and concatenates rank
+        contributions to build a global NumPy array on the root rank (rank 0).
 
         Parameters
         ----------
-        field : str or Field obj
-            The field to gather. If a string, it must begin with one of:
-            - `'E'`, `'H'`, or `'J'` followed optionally by a component label
-            (e.g., `'Ex'`, `'Hz'`, `'JAbs'`).
-            If no component is specified, defaults to `'z'`.
-
-        x : int or slice, optional
-            Range of x-indices to gather. If None, defaults to the full x-range.
-
-        y : int or slice, optional
-            Range of y-indices to gather. If None, defaults to the full y-range.
-
-        z : int or slice, optional
-            Range of z-indices to gather. If None, defaults to the full z-range.
-
-        component : str or slice, optional
-            Component of the field to gather ('x', 'y', 'z', or a slice).
-            If None and not inferred from `field`, defaults to `'z'`.
+        field : str or wakis.Field
+            Field identifier ('E','H','J') optionally with a component suffix
+            (e.g. 'Ex'), or a ``wakis.Field`` object. If no component is given
+            the 'z' component is used by default.
+        x, y, z : int or slice, optional
+            Index or slice for each axis to gather. Defaults to the full range.
+        component : {'x','y','z'} or slice, optional
+            Component to gather when ``field`` is a Field object.
 
         Returns
         -------
         numpy.ndarray or None
-            The gathered field values assembled on rank 0 with shape depending on
-            the selected slices along (x, y, z). Returns `None` on non-root ranks.
-
-        Notes
-        -----
-        - Assumes field data is distributed along the z-dimension.
-        - Automatically handles removal of ghost cells in reconstruction.
-        - Field components are inferred from the input `field` string or the
-        `component` argument.
-        - This method supports full 3D subvolume extraction or 1D/2D slices
-        for performance diagnostics and visualization.
-
-        Examples
-        --------
-        >>> # Gather Ex component on full domain on rank 0
-        >>> global_Ex = solver.mpi_gather('Ex')
-
-        >>> # Gather a 2D yz-slice at x=10 of the J field
-        >>> yz_J = solver.mpi_gather('J', x=10)
+            Assembled global array on rank 0; returns ``None`` on non-root ranks.
         '''
 
         if x is None:
@@ -554,34 +531,22 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def mpi_gather_asField(self, field):
         '''
-        Gather distributed field data from all MPI ranks and return a global Field object.
+        Gather distributed field data from MPI ranks and return a global Field.
 
-        This method collects the specified electromagnetic field data (E, H, or J)
-        from all MPI processes and assembles it into a single global `Field` object
-        on the root rank (rank 0). The field data can be specified as a string
-        ('E', 'H', or 'J') or as a `wakis.Field` object.
+        Collects the full 3-component field (E, H or J) from each rank and
+        reconstructs a single ``wakis.Field`` on the root rank. Ghost cells are
+        removed when reassembling the per-rank buffers.
 
         Parameters
         ----------
-        field : str or Field obj
-            The field to gather. If a string, it must be one of:
-            - `'E'` for the electric field
-            - `'H'` for the magnetic field
-            - `'J'` for the current density
-
-            Passing a `wakis.Field` is also supported (e.g. ieps, imu, sigma)
+        field : str or wakis.Field
+            Identifier ('E','H','J') or a Field-like object to gather.
 
         Returns
         -------
-        Field
-            A `wakis.Field` object containing the gathered global field data
-            with shape (Nx, Ny, NZ, 3). Only returned on rank 0. On other
-            ranks, the returned value is undefined and should not be used.
-
-        Notes
-        -----
-        - This method assumes the field is distributed along the `z`-axis.
-        - Ghost cells are removed appropriately when reassembling the global field.
+        wakis.Field or None
+            Global Field object assembled on rank 0. Returns ``None`` on other
+            ranks.
         '''
 
         _field = Field(self.Nx, self.Ny, self.NZ)
@@ -613,8 +578,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def apply_bc_to_C(self):
         '''
-        Modifies rows or columns of C and tDs and itDa matrices
-        according to bc_low and bc_high
+        Apply boundary conditions by modifying curl and metric matrices.
+
+        Adjusts rows/columns of the curl operator ``C`` and the metric-diagonal
+        matrices (``tDs``, ``itDa``) according to the low/high boundary
+        condition lists ``bc_low`` and ``bc_high``. Handles periodic, PEC/PMC,
+        ABC and PML options and also configures MPI-internal faces when the
+        grid is subdivided.
         '''
         xlo, ylo, zlo = 1., 1., 1.
         xhi, yhi, zhi = 1., 1., 1.
@@ -754,10 +724,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def fill_pml_sigmas(self):
         '''
-        Routine to calculate pml sigmas and apply them
-        to the conductivity tensor sigma
+        Compute and apply PML sigma profiles to the solver conductivity tensor.
 
-        [IN-PROGRESS]
+        Uses configured PML settings (number of layers, profile function and
+        scaling) to set per-component conductivity in the PML regions. This is
+        used to absorb outgoing waves and reduce reflections at domain edges.
         '''
 
         # Initialize
@@ -854,7 +825,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def get_abc(self):
         '''
-        Save the n-2 timestep to apply ABC
+        Save boundary field snapshots needed by the Absorbing Boundary
+        Condition (ABC) update.
+
+        Extracts the necessary boundary layers for electric and magnetic
+        fields for those faces configured with ABC and returns two
+        dictionaries holding the saved arrays. Those dictionaries are later
+        consumed by ``update_abc`` to restore boundary values.
         '''
         E_abc, H_abc = {}, {}
 
@@ -904,8 +881,15 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def update_abc(self, E_abc, H_abc):
         '''
-        Apply ABC algo to the selected BC,
-        to be applied after each timestep
+        Apply the Absorbing Boundary Condition (ABC) using previously saved
+        snapshots.
+
+        Parameters
+        ----------
+        E_abc, H_abc : dict
+            Dictionaries produced by ``get_abc`` that contain boundary-layer
+            field arrays. Each dictionary maps face indices to arrays used to
+            overwrite the exterior cell values after a timestep.
         '''
 
         if self.bc_low[0].lower() == 'abc':
@@ -940,8 +924,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def set_ghosts_to_0(self):
         '''
-        Cleanup for initial conditions if they are
-        accidentally applied to the ghost cells
+        Zero-out ghost-cell field values used for MPI and boundary exchange.
+
+        Clears any initial condition values that were accidentally placed in
+        ghost cells so that subsequent MPI sends/receives and boundary updates
+        behave correctly.
         '''
         # Set H ghost quantities to 0
         for d in ['x', 'y', 'z']: #tangential to zero
@@ -959,7 +946,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def apply_conductors(self):
         '''
-        Set the 1/epsilon values inside the PEC conductors to zero
+        Apply PEC conductor masking by zeroing inverse-permittivity inside
+        conductor volumes.
+
+        This enforces tangential electric field cancellation inside conductor
+        regions by setting the local 1/epsilon to zero.
         '''
         self.flag_in_conductors = self.grid.flag_int_cell_yz[:-1,:,:]  \
                         + self.grid.flag_int_cell_zx[:,:-1,:] \
@@ -969,8 +960,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def set_field_in_conductors_to_0(self):
         '''
-        Cleanup for initial conditions if they are
-        accidentally applied to the conductors
+        Zero dynamic fields inside conductor masks.
+
+        Ensures that any initial E/H fields mapped into conductor regions are
+        removed before time-stepping, avoiding non-physical behaviour.
         '''
         self.flag_cleanup = self.grid.flag_int_cell_yz[:-1,:,:]  \
                         + self.grid.flag_int_cell_zx[:,:-1,:]    \
@@ -981,12 +974,18 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def apply_stl(self):
         '''
-        Mask the cells inside the stl and assing the material
-        defined by the user
+        Mask STL solids in the grid and assign user-defined materials.
 
-        * Note: stl material should contain **relative** epsilon and mu
-        ** Note 2: when assigning the stl material, the default values
-                   1./eps_0 and 1./mu_0 are substracted
+        Iterates over STL solids imported in the grid and updates ``ieps``,
+        ``imu`` and ``sigma`` according to the material provided for each
+        solid. Materials may be referenced by a library key (string) or given
+        as explicit tuples (eps_r, mu_r[, sigma]). Inverse permittivity and
+        inverse permeability values are stored in the corresponding Fields.
+
+        Notes
+        -----
+        - STL material values must be relative (eps_r, mu_r).
+        - Supply conductivity explicitly to enable conductive behaviour.
         '''
         grid = self.grid.grid
         self.stl_solids = self.grid.stl_solids
@@ -1058,24 +1057,24 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         del self.C
 
     def save_state(self, filename="solver_state.h5", close=True):
-        """Save the solver state to an HDF5 file.
+        """
+        Save dynamic solver state (H, E, J) to an HDF5 file.
 
-        This function saves only the key state variables (`H`, `E`, `J`) that are updated
-        in `one_step()`, storing them as datasets in an HDF5 file.
+        Writes the core dynamic fields to ``filename``. When running under MPI
+        the distributed fields are gathered to the root rank before saving.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         filename : str, optional
-            The name of the HDF5 file where the state will be stored. Default is "solver_state.h5".
-        close : bool, optional (default=True)
-            - If True, the HDF5 file is closed after saving, and the function returns nothing.
-            - If False, the function returns an open HDF5 file object, which must be closed manually.
+            Output HDF5 filename. Default is "solver_state.h5".
+        close : bool, optional
+            If True (default) the file is closed before returning. If False an
+            open ``h5py.File`` is returned for caller-managed operations.
 
-        Returns:
-        --------
+        Returns
+        -------
         h5py.File or None
-            - If `close=True`, nothing is returned.
-            - If `close=False`, returns an open `h5py.File` object for further manipulation.
+            Open file object when ``close`` is False, otherwise None.
         """
 
         if self.use_mpi: # MPI savestate
@@ -1108,19 +1107,18 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             return state  # Caller must close this manually
 
     def load_state(self, filename="solver_state.h5"):
-        """Load the solver state from an HDF5 file.
+        """
+        Load dynamic solver state (H, E, J) from an HDF5 file and restore them.
 
-        Reads the saved state variables (`H`, `E`, `J`) from the specified HDF5 file
-        and restores them to the solver.
-
-        Parameters:
-        -----------
+        Parameters
+        ----------
         filename : str, optional
-            The name of the HDF5 file to load the solver state from. Default is "solver_state.h5".
+            Input HDF5 filename. Default is "solver_state.h5".
 
-        Returns:
-        --------
-        None
+        Notes
+        -----
+        Currently performs a simple load from a single-file state. MPI-aware
+        redistribution of loaded arrays to worker ranks is TODO.
         """
         state = h5py.File(filename, "r")
 
@@ -1133,36 +1131,31 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         state.close()
 
     def read_state(self, filename="solver_state.h5"):
-        """Open an HDF5 file for reading without loading its contents.
+        """
+        Open an HDF5 file for read-only access without loading its contents.
 
-        This function returns an open `h5py.File` object, allowing the caller
-        to manually inspect or extract data as needed. The file must be closed
-        by the caller after use.
+        Returns an open ``h5py.File`` object that the caller must close when
+        finished. This is useful for inspecting saved state without restoring
+        it into the solver.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         filename : str, optional
-            The name of the HDF5 file to open. Default is "solver_state.h5".
+            Input HDF5 filename. Default is "solver_state.h5".
 
-        Returns:
-        --------
+        Returns
+        -------
         h5py.File
-            An open HDF5 file object in read mode.
+            Open HDF5 file object in read mode.
         """
         return h5py.File(filename, "r")
 
     def reset_fields(self):
         """
-        Resets the electromagnetic field components to zero.
+        Reset dynamic field arrays (E, H, J) to zero across the simulation.
 
-        This function clears the electric field (E), magnetic field (H), and
-        current density (J) by setting all their components to zero in the
-        simulation domain. It ensures a clean restart for a new simulation.
-
-        Notes
-        -----
-        - This method is useful when reusing an existing simulation object
-        without reinitializing all attributes.
+        Useful when reusing a ``SolverFIT3D`` instance for a new run without
+        reconstructing the entire object.
         """
         for d in ['x', 'y', 'z']:
             self.E[:, :, :, d] = 0.0
@@ -1171,7 +1164,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def update_logger(self, attrs):
         """
-        Assigns the parameters handed via attrs to the logger
+        Copy selected solver attributes into the internal ``Logger`` object.
+
+        Parameters
+        ----------
+        attrs : iterable of str
+            Names of attributes to copy to ``self.logger.solver``. Special case
+            'grid' copies the grid logger reference instead of a value.
         """
         for atr in attrs:
             if atr == 'grid':

@@ -18,15 +18,46 @@ from scipy.sparse import diags, hstack, vstack
 
 
 class Logger():
+    """Simple structured logger for grid, solver and wakeSolver metadata.
+
+    The Logger stores small metadata dictionaries for different components
+    of a simulation (``grid``, ``solver``, ``wakeSolver``) and can persist
+    them into a human-readable log file inside a results folder.
+
+    Attributes
+    ----------
+    grid : dict
+        Arbitrary metadata about the generated grid (sizes, bounds, files).
+    solver : dict
+        Metadata produced by the numerical solver (tolerances, timings).
+    wakeSolver : dict
+        Metadata produced by the wake solver and global simulation settings.
+    """
 
     def __init__(self):
+        """Create a fresh empty logger with separate sections.
+
+        The three dictionaries are empty on construction and intended to be
+        populated by the application before calling :meth:`save_logs`.
+        """
         self.grid = {}
         self.solver = {}
         self.wakeSolver = {}
 
     def save_logs(self, results_folder=None):
-        """
-        Save all logs (grid, solver, wakeSolver) into log-file inside the results folder.
+        """Persist logger sections into a JSON-like log file.
+
+        The method writes the contents of ``wakeSolver``, ``solver`` and
+        ``grid`` into a UTF-8 text file named ``wakis.log`` inside the
+        provided ``results_folder``. Non-serializable objects are converted
+        to strings to ensure the file remains readable.
+
+        Parameters
+        ----------
+        results_folder : str, optional
+            Output folder where ``wakis.log`` will be created. If provided
+            it is stored into ``self.wakeSolver['results_folder']``. The
+            folder is created if it does not exist.
         """
         if results_folder is not None:
             self.wakeSolver["results_folder"] = results_folder

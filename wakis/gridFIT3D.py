@@ -546,9 +546,21 @@ class GridFIT3D:
         return result.x*(xmax-xmin)+xmin
 
     def _refine_xyz_axis(self, method='insert', tol=1e-6):
-        '''Refine the grid in the x, y, z axis
-        using the snap points extracted from the stl solids.
-        The snap points are used to refine the grid '''
+        '''Refine grid axes using snap points extracted from STL solids.
+
+        Uses the stored snap points (``self.x_snaps``, ``self.y_snaps``,
+        ``self.z_snaps``) to refine the axis arrays ``self.x``, ``self.y``,
+        ``self.z``. The refinement method and convergence tolerance control
+        how new grid nodes are inserted.
+
+        Parameters
+        ----------
+        method : {'insert','optimize',...}, optional
+            Refinement algorithm to use when inserting snap points. Default is
+            'insert'. Implementation-specific alternatives may be supported.
+        tol : float, optional
+            Convergence tolerance passed to the refinement routine.
+        '''
 
         if self.verbose > 1:
             print(f' * Refining x axis with {len(self.x_snaps)} snaps...')
@@ -576,9 +588,12 @@ class GridFIT3D:
             print(f"Refined grid: Nx = {self.Nx}, Ny ={self.Ny}, Nz = {self.Nz}")
 
     def _assign_colors(self):
-        '''Classify colors assigned to each solid
-        based on the categories in `material_colors` dict
-        inside `materials.py`
+        '''Classify colors for each STL solid based on material categories.
+
+        Maps entries in ``self.stl_materials`` to color names using the
+        ``material_colors`` lookup. Supports string keys referencing the
+        material library or explicit material tuples (eps_r, mu_r[, sigma]).
+        The resulting mapping is stored in ``self.stl_colors``.
         '''
         self.stl_colors = {}
 
@@ -600,7 +615,12 @@ class GridFIT3D:
                 self.stl_colors[key] = material_colors['other']
 
     def _add_logo_widget(self, pl):
-        """Add packaged logo via importlib.resources (Python 3.9+)."""
+        """Add packaged logo to a PyVista plotter via importlib.resources.
+
+        Attempts to load a packaged logo image from the installed package
+        resources. Falls back to a local development path when resources are
+        not available (typical in editable/dev installs).
+        """
         try:
             from importlib import resources
             # resource inside the installed package (use current package)
@@ -619,38 +639,33 @@ class GridFIT3D:
     def plot_solids(self, bounding_box=False, show_grid=False, anti_aliasing=None,
                     opacity=1.0, specular=0.5, smooth_shading=False,
                     off_screen=False, **kwargs):
-        """
-        Generates a 3D visualization of the imported STL geometries using PyVista.
+        """Generate a 3D visualization of imported STL geometries using PyVista.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         bounding_box : bool, optional
-            If True, adds a bounding box around the plotted geometry (default: False).
-
+            If True, adds a bounding box around the plotted geometry (default
+            False).
         show_grid : bool, optional
-            If True, adds the grid's mesh wireframe to the display (default: False).
-
+            If True, overlays the grid wireframe on the scene (default False).
         anti_aliasing : str or None, optional
-            Enables anti-aliasing if provided. Valid values depend on PyVista settings (default: None).
-
+            Anti-aliasing mode passed to PyVista (default: None).
         opacity : float, optional
-            Controls the transparency of the plotted solids. A value of 1.0 is fully opaque,
-            while 0.0 is fully transparent (default: 1.0).
-
+            Opacity for solids (1.0 opaque, 0.0 transparent). Default 1.0.
         specular : float, optional
-            Adjusts the specular lighting effect on the surface. Higher values increase shininess (default: 0.5).
-
+            Specular lighting strength, higher is shinier (default 0.5).
+        smooth_shading : bool, optional
+            Enable smooth shading for surface rendering (default False).
+        off_screen : bool, optional
+            If True, export to HTML instead of opening an interactive window.
         **kwargs : dict
-            Additional keyword arguments passed to `pyvista.add_mesh()`, allowing customization of the mesh rendering.
+            Additional keyword args forwarded to ``pyvista.add_mesh``.
 
-        Notes:
-        ------
-        - Colors are determined by the `GridFIT3D.stl_colors` attribute dictionary if not None
-        - Solids labeled as 'vacuum' are rendered with a default opacity of 0.3 for visibility.e.
-        - The camera is positioned at an angle to provide better depth perception.
-        - If `bounding_box=True`, a bounding box is drawn around the model.
-        - If `anti_aliasing` is specified, it is enabled to improve rendering quality.
-
+        Notes
+        -----
+        - Colors come from ``self.stl_colors`` when available.
+        - Solids labeled 'vacuum' are rendered with reduced opacity by
+          default for visibility.
         """
 
         pl = pv.Plotter()
@@ -858,20 +873,26 @@ class GridFIT3D:
 
     def inspect(self, add_stl=None, stl_opacity=0.5, stl_colors=None,
                 anti_aliasing='ssaa', smooth_shading=True, off_screen=False):
-
-        '''3D plot using pyvista to visualize
-        the structured grid and
-        the imported stl geometries
+        """Interactive 3D inspector showing grid and STL geometries.
 
         Parameters
-        ---
-        add_stl: str or list, optional
-            List or str of stl solids to add to the plot by `pv.add_mesh`
-        stl_opacity: float, default 0.1
-            Opacity of the stl surfaces (0 - Transparent, 1 - Opaque)
-        stl_colors: str or list of str, default 'white'
-            Color of the stl surfaces
-        '''
+        ----------
+        add_stl : str or list, optional
+            Key or list of keys of STL solids to include. If None, all solids
+            are shown.
+        stl_opacity : float, optional
+            Opacity for STL surfaces (0 transparent, 1 opaque). Default 0.5.
+        stl_colors : str, list, or dict, optional
+            Color specification for STL surfaces; defaults to
+            ``self.stl_colors``.
+        anti_aliasing : str or None, optional
+            Anti-aliasing mode to enable in the plotter (default 'ssaa').
+        smooth_shading : bool, optional
+            Enable smooth shading for surfaces (default True).
+        off_screen : bool, optional
+            If True, return the off-screen plotter object instead of showing
+            an interactive window.
+        """
         if stl_colors is None:
             stl_colors = self.stl_colors
 
@@ -939,16 +960,16 @@ class GridFIT3D:
             return None
 
     def save_to_h5(self, filename='grid.h5'):
-        '''Save generated grid to HDF5 file
+        """Save the generated grid and STL metadata to an HDF5 file.
 
-        Stored data:
-        ------------
-        * STL solid masks imported available to fill grid.cell_data
-        * x, y, z: grid axis arrays
-        * All `stl_` related variables:
-            stl_solids, stl_materials, stl_colors,
-            stl_scale, stl_rotate, stl_translate
-        '''
+        The file contains axis arrays, STL masks suitable for ``grid.cell_data``,
+        and all ``stl_`` related variables (materials, colors, transforms).
+
+        Parameters
+        ----------
+        filename : str, optional
+            Output filename for the HDF5 file. Default 'grid.h5'.
+        """
 
         if not filename.endswith('.h5'):
             filename += '.h5'
@@ -978,16 +999,17 @@ class GridFIT3D:
                 hf.create_dataset('grid_'+key, data=np.array(self.grid[key]))
 
     def load_from_h5(self, filename):
-        '''Load grid from HDF5 file
+        """Load grid axis arrays and STL metadata from an HDF5 file.
 
-        Stored data:
-        ------------
-        * STL solid masks imported available to fill grid.cell_data
-        * x, y, z: grid axis arrays
-        * All `stl_` related variables:
-            stl_solids, stl_materials, stl_colors,
-            stl_scale, stl_rotate, stl_translate
-        '''
+        The function restores axis arrays, recomputes grid metrics and fills
+        ``self.grid`` cell_data with imported STL masks saved previously by
+        ``save_to_h5``.
+
+        Parameters
+        ----------
+        filename : str
+            HDF5 filename to read. The '.h5' suffix is appended if missing.
+        """
         if not filename.endswith('.h5'):
             filename += '.h5'
 
@@ -1058,8 +1080,12 @@ class GridFIT3D:
             self.update_logger(['stl_scale'])
 
     def update_logger(self, attrs):
-        """
-        Assigns the parameters handed via attrs to the logger
+        """Copy selected Grid attributes into the internal ``Logger``.
+
+        Parameters
+        ----------
+        attrs : iterable of str
+            Names of attributes to copy into ``self.logger.grid``.
         """
         for atr in attrs:
             self.logger.grid[atr] = getattr(self, atr)
