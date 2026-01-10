@@ -97,8 +97,9 @@ class RoutinesMixin:
                     hfs[field] = h5py.File(field + ".h5", "w")
 
             for hf in hfs:
-                hf["x"], hf["y"], hf["z"] = self.x, self.y, self.z
-                hf["t"] = np.arange(0, Nt * self.dt, save_every * self.dt)
+                hf['x'], hf['y'], hf['z'] = self.x, self.y, self.z
+                hf['dx'], hf['dy'], hf['dz'] = self.grid.dx, self.grid.dy, self.grid.dz
+                hf['t'] = np.arange(0, Nt*self.dt, save_every*self.dt)
 
             if subdomain is not None:
                 xx, yy, zz = subdomain
@@ -295,8 +296,9 @@ class RoutinesMixin:
         self.wake.wakelength = wakelength
         self.ti = self.wake.ti
         self.v = self.wake.v
-        if self.use_mpi:  # E- should it be zmin, zmax instead?
-            z = self.Z  # use global coords
+        if self.use_mpi:  #E- should it be zmin, zmax instead?
+            z = self.Z # use global coords
+            dz = np.diff(self.Z)
             zz = slice(0, self.NZ)
         else:
             z = self.z
@@ -319,24 +321,28 @@ class RoutinesMixin:
         self.Ez_file = self.wake.Ez_file
         hf = None  # needed for MPI
         if self.use_mpi:
-            if self.rank == 0:
-                hf = h5py.File(self.Ez_file, "w")
-                hf["x"], hf["y"], hf["z"] = self.x[xx], self.y[yy], z[zz]
-                hf["t"] = np.arange(0, Nt * self.dt, self.dt)
+            if self.rank==0:
+                hf = h5py.File(self.Ez_file, 'w')
+                hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
+                hf['dx'], hf['dy'], hf['dz'] = self.grid.dx, self.grid.dy, dz
+                hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
                 if save_J:
-                    hfJ = h5py.File("Jz.h5", "w")
-                    hfJ["x"], hfJ["y"], hfJ["z"] = self.x[xx], self.y[yy], z[zz]
-                    hfJ["t"] = np.arange(0, Nt * self.dt, self.dt)
+                    hfJ = h5py.File('Jz.h5', 'w')
+                    hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
+                    hfJ['dx'], hfJ['dy'], hfJ['dz'] = self.grid.dx, self.grid.dy, dz
+                    hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
         else:
-            hf = h5py.File(self.Ez_file, "w")
-            hf["x"], hf["y"], hf["z"] = self.x[xx], self.y[yy], z[zz]
-            hf["t"] = np.arange(0, Nt * self.dt, self.dt)
+            hf = h5py.File(self.Ez_file, 'w')
+            hf['x'], hf['y'], hf['z'] = self.x[xx], self.y[yy], z[zz]
+            hf['dx'], hf['dy'], hf['dz'] = self.grid.dx, self.grid.dy, self.grid.dz
+            hf['t'] = np.arange(0, Nt*self.dt, self.dt)
 
             if save_J:
-                hfJ = h5py.File("Jz.h5", "w")
-                hfJ["x"], hfJ["y"], hfJ["z"] = self.x[xx], self.y[yy], z[zz]
-                hfJ["t"] = np.arange(0, Nt * self.dt, self.dt)
+                hfJ = h5py.File('Jz.h5', 'w')
+                hfJ['x'], hfJ['y'], hfJ['z'] = self.x[xx], self.y[yy], z[zz]
+                hfJ['dx'], hfJ['dy'], hfJ['dz'] = self.grid.dx, self.grid.dy, self.grid.dz
+                hfJ['t'] = np.arange(0, Nt*self.dt, self.dt)
 
         def save_to_h5(self, hf, field, x, y, z, comp, n):
             if self.use_mpi:

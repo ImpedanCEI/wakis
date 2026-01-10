@@ -59,24 +59,19 @@ class Beam:
                 np.abs(solver.y - self.ysource).argmin(),
             )
             self.is_first_update = False
-            if hasattr(solver, "ZMIN"):  # support for MPI
-                self.zmin = solver.ZMIN + solver.dz / 2
+            if hasattr(solver, 'ZMIN'): # support for MPI
+                zminIdx = np.abs(solver.z-solver.ZMIN).argmin()
+                self.zmin = solver.ZMIN + solver.dz[zminIdx]/2
             else:
                 self.zmin = solver.z.min()
         # reference shift
         s0 = self.zmin - self.v * self.ti
         s = solver.z - self.v * t
         # gaussian
-        profile = (
-            1
-            / np.sqrt(2 * np.pi * self.sigmaz**2)
-            * np.exp(-((s - s0) ** 2) / (2 * self.sigmaz**2))
-        )
-        # update
-        solver.J[self.ixs, self.iys, :, "z"] = (
-            self.q * self.v * profile / solver.dx / solver.dy
-        )
-
+        profile = 1/np.sqrt(2*np.pi*self.sigmaz**2)*np.exp(-(s-s0)**2/(2*self.sigmaz**2))
+        # update 
+        solver.J[self.ixs,self.iys,:,'z'] = self.q*self.v*profile/solver.dx[self.ixs]/solver.dy[self.iys]
+    
     def plot(self, t):
         # reference shift
         s0 = -self.v * self.ti
@@ -264,10 +259,10 @@ class WavePacket:
                 self.xs = slice(0, solver.Nx)
             if self.ys is None:
                 self.ys = slice(0, solver.Ny)
-            if self.sigmaz is None:
-                self.sigmaz = 10 * solver.dz
-            if self.sigmaxy is None:
-                self.sigmaxy = 5 * solver.dx
+            if self.sigmaz is None: 
+                self.sigmaz = 10*np.mean(solver.dz) #only feasible for not to ununiform grids
+            if self.sigmaxy is None: 
+                self.sigmaxy = 5*np.mean([np.mean(solver.dx), np.mean(solver.dy)])
             if self.tinj is None:
                 self.tinj = 6 * self.sigmaz
 
