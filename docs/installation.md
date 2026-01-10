@@ -2,7 +2,7 @@
 
 This section covers how to install `wakis` package for developers and users. 
 
-The installation guide is writen for Linux, but `wakis` code and dependencies are 100% python so it can run in other operating systems. For developers using Windows, we recommend checking the [WSL setup guide](https://learn.microsoft.com/en-us/windows/wsl/install) to install and setup the Windows subsystem for linux.
+The installation guide is written for Linux, but `wakis` code and dependencies are 100% python, so it can run in other operating systems. For developers using Windows, we recommend checking the [WSL setup guide](https://learn.microsoft.com/en-us/windows/wsl/install) to install and set up the Windows subsystem for linux.
 
 ```{contents} 
 :depth: 3
@@ -29,19 +29,34 @@ git clone git@github.com:ImpedanCEI/wakis.git
 git clone https://github.com/ImpedanCEI/wakis.git
 ```
 
-On a previously created conda environment, one can proceed installing the dependencies. On  `wakis` main directory do:
+On a previously created conda environment, one can proceed installing the dependencies. On `wakis` main directory do:
 ```
-pip install -r requirements.txt
+pip install .[full] 
 ```
 
-You can also pip install wakis on editable mode [RECOMMENDED]:
+You may also want to install the GPU dependencies, see [GPU setup](#gpu-setup):
+
+
+```
+pip install .[full-gpu] 
+```
+
+
+
+
+You can also pip install wakis in editable mode [RECOMMENDED]:
 ```
 git clone git@github.com:ImpedanCEI/wakis.git
 cd wakis
-pip install -e .
+pip install -e .[full]
 ```
 
-If you would like to improve and push changes to `wakis`, we encorage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
+To use the GPU setup run:
+```
+pip install -e .[full-gpu]
+```
+
+If you would like to improve and push changes to `wakis`, we encourage to create a [fork](https://github.com/ImpedanCEI/wakis/fork) from wakis' `main` branch: https://github.com/ImpedanCEI/wakis on your personal GitHub. 
 
 To contribute, first fork the repository, create a new branch, and submit a pull request. Step-by-step:
 
@@ -55,7 +70,7 @@ To contribute, first fork the repository, create a new branch, and submit a pull
 
 ## Dependencies
 
-`wakis` is a 100% pyhton code that relies only on a few renowed python packages:
+`wakis` is a 100% pyhton code that relies only on a few renowned python packages:
 
 * `numpy`: Used for numerical operations, especially for matrix operations.
 * `scipy`: Provides additional functionality for sparse matrices and other scientific computations.
@@ -64,15 +79,15 @@ To contribute, first fork the repository, create a new branch, and submit a pull
 * `tqdm`: This package is used for displaying progress bars in loops.
 * `pyvista`: For handling and visualizing 3D CAD geometries and vtk-based 3D plotting.
 
-To install only the dependencies in a conda python environment, simply run:
+To install wakis and the dependencies in a conda python environment, simply run:
 
 ```
-pip install -r requirements.txt
+pip install -e .[]
 ```
 
 ## Python installation
 
-If a python installation has not been setup yet, we recommend using [miniforge](https://conda-forge.org/download/) (free of license) or [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. 
+If a python installation has not been setup yet, we recommend using [miniforge](https://conda-forge.org/download/) (free of licence) or [miniconda](https://docs.anaconda.com/free/miniconda/index.html) [^2]. 
 
 Miniforge executable can be obtained from the website (Windows/Linux) [https://conda-forge.org/download/](https://conda-forge.org/download/), or from the terminal (Linux):
 

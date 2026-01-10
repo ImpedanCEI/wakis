@@ -1,20 +1,34 @@
-#!/bin/bash
-set -euo pipefail; IFS=$'\n\t'
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
-NAME=$( python setup.py --name )
-VER=$( python setup.py --version )
+# Extract project metadata from pyproject.toml (PEP 621)
+NAME="wakis"
+VER=$(python -c "from wakis._version import __version__; print(__version__)")
+
 
 echo "========================================================================"
 echo "Tagging $NAME v$VER"
 echo "========================================================================"
 
-git tag -a v$VER
-git push origin v$VER
+git tag -a "v$VER" -m "Release $VER"
+git push origin "v$VER"
 
 echo "========================================================================"
-echo "Releasing $NAME v$VER on PyPI"
+echo "Building $NAME v$VER"
 echo "========================================================================"
 
-python setup.py sdist
+# Clean old artifacts
+rm -rf dist build *.egg-info
+
+# Build wheel + sdist (PEP 517)
+python -m build
+
+echo "========================================================================"
+echo "Uploading $NAME v$VER to PyPI"
+echo "========================================================================"
+
 twine upload dist/*
-rm -r dist/ *.egg-info
+
+
+rm -r dist/ *.egg-info/ build/

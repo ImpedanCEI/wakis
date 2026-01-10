@@ -4,7 +4,4 @@ include pyproject.toml
 include *.md
 
 # Include the license file
-include LICENSE.txt
-
-# Include requirements
-include requirements.txt
+include LICENSE

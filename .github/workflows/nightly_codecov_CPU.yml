@@ -24,16 +24,16 @@ jobs:
       with:
         miniforge-version: latest
         python-version: "3.10"
-    - name: pip install
-      run:  |
-        pip install wakis['notebook']
-        pip install pytest pytest-cov
     - name: Print versions
       run: conda list
     - name: Checkout wakis
       uses: actions/checkout@v4
       with:
         path: wakis
+    - name: pip install
+      run:  |
+        cd wakis
+        pip install .[notebook,tests]
     - name: Run pytest
       run:  |
         cd wakis

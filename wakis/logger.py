@@ -3,22 +3,14 @@
 # Copyright (c) CERN, 2025.                   #
 # ########################################### #
 
-from tqdm import tqdm
 
-import numpy as np
-import time
-import h5py
 import os
 import json
 
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-from scipy.sparse import csc_matrix as sparse_mat
-from scipy.sparse import diags, hstack, vstack
+from scipy.constants import mu_0 as mu_0
 
 
-
-class Logger():
-
+class Logger:
     def __init__(self):
         self.grid = {}
         self.solver = {}
@@ -30,13 +22,13 @@ class Logger():
         """
         if results_folder is not None:
             self.wakeSolver["results_folder"] = results_folder
-            
+
         logfile = os.path.join(self.wakeSolver["results_folder"], "wakis.log")
 
         # Write sections
-        if not os.path.exists(self.wakeSolver["results_folder"]): 
+        if not os.path.exists(self.wakeSolver["results_folder"]):
             os.mkdir(self.wakeSolver["results_folder"])
-        
+
         with open(logfile, "w", encoding="utf-8") as fh:
             fh.write("Simulation Parameters\n")
             fh.write("""=====================\n\n""")
