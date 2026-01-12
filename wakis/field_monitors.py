@@ -8,6 +8,7 @@ import numpy as np
 from typing import Sequence
 from wakis.field import Field
 
+
 class FieldMonitor:
     """Accumulate time-domain fields into frequency-domain components.
 
@@ -33,6 +34,7 @@ class FieldMonitor:
     xp : module or None
         Array library used for storage and computation (``numpy`` or ``cupy``).
     """
+
     def __init__(self, frequencies: Sequence[float]):
         """Create a new FieldMonitor.
 
@@ -51,7 +53,6 @@ class FieldMonitor:
         self.Ez_acc = None
         self.shape = None
         self.xp = None
-
 
     def update(self, E: Field, dt: float):
         """Accumulate a time-domain ``Field`` snapshot into the monitors.
@@ -86,9 +87,9 @@ class FieldMonitor:
 
         t = self.time_index * self.dt
 
-        Ex = E.to_matrix('x') #E.array[0:E.N]
-        Ey = E.to_matrix('y')
-        Ez = E.to_matrix('z')
+        Ex = E.to_matrix("x")  # E.array[0:E.N]
+        Ey = E.to_matrix("y")
+        Ez = E.to_matrix("z")
 
         for i, f in enumerate(self.frequencies):
             phase = self.xp.exp(-2j * self.xp.pi * f * t)
@@ -110,8 +111,4 @@ class FieldMonitor:
             (complex128).
         """
 
-        return {
-            'Ex': self.Ex_acc,
-            'Ey': self.Ey_acc,
-            'Ez': self.Ez_acc
-        }
+        return {"Ex": self.Ex_acc, "Ey": self.Ey_acc, "Ez": self.Ez_acc}

@@ -10,8 +10,7 @@ import json
 from scipy.constants import mu_0 as mu_0
 
 
-
-class Logger():
+class Logger:
     """Simple structured logger for grid, solver and wakeSolver metadata.
 
     The Logger stores small metadata dictionaries for different components
@@ -55,13 +54,13 @@ class Logger():
         """
         if results_folder is not None:
             self.wakeSolver["results_folder"] = results_folder
-            
+
         logfile = os.path.join(self.wakeSolver["results_folder"], "wakis.log")
 
         # Write sections
-        if not os.path.exists(self.wakeSolver["results_folder"]): 
+        if not os.path.exists(self.wakeSolver["results_folder"]):
             os.mkdir(self.wakeSolver["results_folder"])
-        
+
         with open(logfile, "w", encoding="utf-8") as fh:
             fh.write("Simulation Parameters\n")
             fh.write("""=====================\n\n""")

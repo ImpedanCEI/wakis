@@ -5,6 +5,7 @@
 
 import re
 
+
 def extract_colors_from_stp(stp_file):
     """
     Extracts a mapping from solid names to RGB color values from a STEP (.stp) file.
@@ -23,7 +24,7 @@ def extract_colors_from_stp(stp_file):
     color_pattern = re.compile(r"#\d+=COLOUR_RGB\('?',([\d.]+),([\d.]+),([\d.]+)\);")
 
     # Extract colors
-    with open(stp_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(stp_file, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             color_match = color_pattern.search(line)
             if color_match:
@@ -35,10 +36,11 @@ def extract_colors_from_stp(stp_file):
     # Map solids to colors by order of appearance (colors >=solids)
     for i in range(len(list(solids.keys()))):
         solid = solids[list(solids.keys())[i]]
-        solid_re = re.sub(r'[^a-zA-Z0-9_-]', '-', solid)
-        stl_colors[f'{str(i).zfill(3)}_{solid_re}'] = colors[i]
+        solid_re = re.sub(r"[^a-zA-Z0-9_-]", "-", solid)
+        stl_colors[f"{str(i).zfill(3)}_{solid_re}"] = colors[i]
 
     return stl_colors
+
 
 def extract_materials_from_stp(stp_file):
     """
@@ -58,27 +60,28 @@ def extract_materials_from_stp(stp_file):
         try:
             mat = materials[list(solids.keys())[i]].lower()
         except KeyError:
-            print(f'Solid #{list(solids.keys())[i]} has no assigned material')
-            mat = 'None'
+            print(f"Solid #{list(solids.keys())[i]} has no assigned material")
+            mat = "None"
 
         # Remove problematic characters
-        solid_re = re.sub(r'[^a-zA-Z0-9_-]', '-', solid)
-        mat_re = re.sub(r'[^a-zA-Z0-9_-]', '-', mat)
-        stl_materials[f'{str(i).zfill(3)}_{solid_re}'] = mat_re
+        solid_re = re.sub(r"[^a-zA-Z0-9_-]", "-", solid)
+        mat_re = re.sub(r"[^a-zA-Z0-9_-]", "-", mat)
+        stl_materials[f"{str(i).zfill(3)}_{solid_re}"] = mat_re
 
     return stl_materials
 
+
 def extract_solids_from_stp(stp_file, path=None):
-    '''
-    Extracts a mapping from solid names to STL file names from a STEP (.stp) file.  
+    """
+    Extracts a mapping from solid names to STL file names from a STEP (.stp) file.
     Args:
         stp_file (str): Path to the STEP file.
         path (str) (optional): default: None, path to save the STL (.stl) files
     Returns:
         dict[str, str]: A dictionary mapping solid names to STL file names.
-    '''    
-    if path is not None and not path.endswith('/'):
-        path += '/'
+    """
+    if path is not None and not path.endswith("/"):
+        path += "/"
     solids, materials = extract_names_from_stp(stp_file)
     stl_solids = {}
     for i in range(len(list(solids.keys()))):
@@ -86,19 +89,20 @@ def extract_solids_from_stp(stp_file, path=None):
         try:
             mat = materials[list(solids.keys())[i]]
         except KeyError:
-            print(f'Solid #{list(solids.keys())[i]} has no assigned material')
-            mat = 'None'
+            print(f"Solid #{list(solids.keys())[i]} has no assigned material")
+            mat = "None"
 
         # Remove problematic characters
-        solid_re = re.sub(r'[^a-zA-Z0-9_-]', '-', solid)
-        mat_re = re.sub(r'[^a-zA-Z0-9_-]', '-', mat)
-        name = f'{str(i).zfill(3)}_{solid_re}_{mat_re}'
+        solid_re = re.sub(r"[^a-zA-Z0-9_-]", "-", solid)
+        mat_re = re.sub(r"[^a-zA-Z0-9_-]", "-", mat)
+        name = f"{str(i).zfill(3)}_{solid_re}_{mat_re}"
         if path is not None:
-            stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = path + name + '.stl'
+            stl_solids[f"{str(i).zfill(3)}_{solid_re}"] = path + name + ".stl"
         else:
-            stl_solids[f'{str(i).zfill(3)}_{solid_re}'] = name + '.stl'
+            stl_solids[f"{str(i).zfill(3)}_{solid_re}"] = name + ".stl"
 
     return stl_solids
+
 
 def extract_names_from_stp(stp_file):
     """
@@ -127,32 +131,41 @@ def extract_names_from_stp(stp_file):
     material_dict = {}
 
     # Compile regex patterns
-    #solid_pattern = re.compile(r"#(\d+)=MANIFOLD_SOLID_BREP\('([^']+)'.*;")
-    solid_pattern = re.compile(r"#(\d+)=ADVANCED_BREP_SHAPE_REPRESENTATION\('([^']*)',\(([^)]*)\),#\d+\);")
-    material_pattern = re.compile(r"#(\d+)=PRESENTATION_LAYER_ASSIGNMENT\('([^']+)','[^']+',\(#([\d#,]+)\)\);")
+    # solid_pattern = re.compile(r"#(\d+)=MANIFOLD_SOLID_BREP\('([^']+)'.*;")
+    solid_pattern = re.compile(
+        r"#(\d+)=ADVANCED_BREP_SHAPE_REPRESENTATION\('([^']*)',\(([^)]*)\),#\d+\);"
+    )
+    material_pattern = re.compile(
+        r"#(\d+)=PRESENTATION_LAYER_ASSIGNMENT\('([^']+)','[^']+',\(#([\d#,]+)\)\);"
+    )
 
     # First pass: extract solids
-    with open(stp_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(stp_file, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             solid_match = solid_pattern.search(line)
             if solid_match:
-                #solid_number = int(solid_match.group(1)) #if MANIFOLD
-                solid_number = int(solid_match.group(3).split(',')[0].strip().lstrip('#'))
+                # solid_number = int(solid_match.group(1)) #if MANIFOLD
+                solid_number = int(
+                    solid_match.group(3).split(",")[0].strip().lstrip("#")
+                )
                 solid_name = solid_match.group(2)
                 solid_dict[solid_number] = solid_name
 
     # Second pass: extract materials
-    with open(stp_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(stp_file, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             material_match = material_pattern.search(line)
             if material_match:
                 material_name = material_match.group(2)
-                solid_numbers = [int(num.strip("#")) for num in material_match.group(3).split(',')]
+                solid_numbers = [
+                    int(num.strip("#")) for num in material_match.group(3).split(",")
+                ]
                 for solid_number in solid_numbers:
                     if solid_number in solid_dict:
                         material_dict[solid_number] = material_name
 
     return solid_dict, material_dict
+
 
 def get_stp_unit_scale(stp_file):
     """
@@ -174,11 +187,11 @@ def get_stp_unit_scale(stp_file):
     """
 
     unit_map = {
-            ".MILLI.": 1e-3,
-            ".CENTI.": 1e-2,
-            ".DECI.": 1e-1,
-            ".KILO.": 1e3,
-            "$": 1.0,  # '$' indicates no prefix, i.e. plain meters
+        ".MILLI.": 1e-3,
+        ".CENTI.": 1e-2,
+        ".DECI.": 1e-1,
+        ".KILO.": 1e3,
+        "$": 1.0,  # '$' indicates no prefix, i.e. plain meters
     }
 
     try:
@@ -205,6 +218,7 @@ def get_stp_unit_scale(stp_file):
         print("Files remain in original unit.")
 
         return 1.0
+
 
 def generate_stl_solids_from_stp(stp_file, results_path=None):
     """
@@ -233,13 +247,13 @@ def generate_stl_solids_from_stp(stp_file, results_path=None):
     try:
         import cadquery as cq
     except ImportError:
-        raise Exception('''This function needs the open-source package `cadquery`
+        raise Exception("""This function needs the open-source package `cadquery`
                         To install it in a conda environment do:
 
                         `pip install cadquery`
 
                         [!] We recommend having a dedicated conda environment to avoid version issues
-                        ''')
+                        """)
 
     stp = cq.importers.importStep(stp_file)
 
@@ -258,4 +272,3 @@ def generate_stl_solids_from_stp(stp_file, results_path=None):
         obj.exportStl(name)
 
     return solid_dict
-
