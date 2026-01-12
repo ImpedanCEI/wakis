@@ -990,8 +990,8 @@ class WakeSolver:
 
         if parameterBounds is None or N_resonators is None:
             bounds = self.get_SmartBounds(
-                parameterBounds=parameterBounds,
-                N_resonators=N_resonators,
+                freq_data=None,
+                impedance_data=None,
                 minimum_peak_height=minimum_peak_height,
                 distance=distance,
                 inspect_bounds=inspect_bounds,
@@ -1255,7 +1255,7 @@ class WakeSolver:
         if tmax is not None:
             aux = np.arange(f.min(), f.max(), 1 / tmax)
             Z = np.interp(aux, f, Z)
-            df = np.mean(aux[1:] - aux[:-1])
+            #df = np.mean(aux[1:] - aux[:-1])
             del aux
         else:
             tmax = 1 / df
