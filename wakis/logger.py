@@ -3,17 +3,11 @@
 # Copyright (c) CERN, 2025.                   #
 # ########################################### #
 
-from tqdm import tqdm
 
-import numpy as np
-import time
-import h5py
 import os
 import json
 
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
-from scipy.sparse import csc_matrix as sparse_mat
-from scipy.sparse import diags, hstack, vstack
+from scipy.constants import mu_0 as mu_0
 
 
 

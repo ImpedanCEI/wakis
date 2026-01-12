@@ -15,12 +15,6 @@ def eq(a, b, tol=1e-8):
 def neq(a, b, tol=1e-8):
     return not eq(a, b, tol)
 
-    # Undo the normalization
-    S *= dx * dy
-    l_x *= dx
-    l_y *= dy
-    S_red[:] = S.copy()[:]
-
 class Grid3D:
     """
   Class holding the grid info and the routines for cell extensions.
@@ -85,14 +79,14 @@ class Grid3D:
         self.broken_yz = np.zeros_like(self.Syz, dtype=bool)
         self.broken_zx = np.zeros_like(self.Szx, dtype=bool)
 
-        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT') and (sol_type is not 'FIT'):
+        if (sol_type != 'FDTD') and (sol_type != 'DM') and (sol_type != 'ECT') and (sol_type != 'FIT'):
             raise ValueError("sol_type must be:\n" +
                              "\t'FDTD' for standard staircased FDTD\n" +
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
         self.compute_edges()
-        if sol_type is 'DM' or sol_type is 'FDTD': #or sol_type is 'FIT':
+        if sol_type == 'DM' or sol_type == 'FDTD': #or sol_type is 'FIT':
             self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
                                self.Sxy_red, self.Syz_red, self.Szx_red,
                                self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
@@ -101,7 +95,7 @@ class Grid3D:
                             self.Sxy_stab, self.Syz_stab, self.Szx_stab, self.flag_unst_cell_xy, self.flag_unst_cell_yz,
                             self.flag_unst_cell_zx, self.flag_bound_cell_xy, self.flag_bound_cell_yz, self.flag_bound_cell_zx,
                             self.flag_avail_cell_xy, self.flag_avail_cell_yz, self.flag_avail_cell_zx)
-        elif sol_type is 'ECT':
+        elif sol_type == 'ECT':
             self.compute_areas(self.l_x, self.l_y, self.l_z, self.Sxy, self.Syz, self.Szx,
                                self.Sxy_red, self.Syz_red, self.Szx_red,
                                self.nx, self.ny, self.nz, self.dx, self.dy, self.dz)
@@ -141,7 +135,7 @@ class Grid3D:
             self.compute_extensions()
         
         
-        elif sol_type is 'FIT':
+        elif sol_type == 'FIT':
 
             # primal Grid G
             self.x = np.linspace(self.xmin, self.xmax, self.nx+1)

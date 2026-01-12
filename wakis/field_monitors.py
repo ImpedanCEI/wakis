@@ -8,13 +8,6 @@ import numpy as np
 from typing import Sequence
 from wakis.field import Field
 
-try:
-    import cupy as xp_gpu
-    imported_cupy = True
-except ImportError:
-    imported_cupy = False
-
-
 class FieldMonitor:
     """Accumulate time-domain fields into frequency-domain components.
 

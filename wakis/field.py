@@ -275,7 +275,6 @@ class Field:
                 'z:\n' + self.field_z.__str__()
     
     def copy(self):
-        import copy
         obj = type(self).__new__(self.__class__)  # Create empty instance
 
         for key, value in self.__dict__.items():
@@ -451,7 +450,6 @@ class Field:
         if backend.lower() == 'matplotlib':
             import matplotlib.pyplot as plt
             import matplotlib as mpl
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
 
             fig = plt.figure(tight_layout=True, dpi=dpi, figsize=[12,6])
 
@@ -462,13 +460,19 @@ class Field:
                 plot_y = True
                 plot_z = True
 
-            elif field.lower() == 'x': plot_x = True
-            elif field.lower() == 'y': plot_y = True
-            elif field.lower() == 'z': plot_z = True
+            elif field.lower() == 'x': 
+                plot_x = True
+            elif field.lower() == 'y': 
+                plot_y = True
+            elif field.lower() == 'z': 
+                plot_z = True
 
-            if xmax is None: xmax = self.Nx
-            if ymax is None: ymax = self.Ny
-            if zmax is None: zmax = self.Nz
+            if xmax is None: 
+                xmax = self.Nx
+            if ymax is None: 
+                ymax = self.Ny
+            if zmax is None: 
+                zmax = self.Nz
 
             x,y,z = self.xp.mgrid[0:xmax+1,0:ymax+1,0:zmax+1]
             axs = []
@@ -484,12 +488,12 @@ class Field:
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
                 
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field x')
+                ax.set_title('Field x')
                 axs.append(ax)
 
             # field y
@@ -503,12 +507,12 @@ class Field:
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
                 
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field y')
+                ax.set_title('Field y')
                 axs.append(ax)
 
             # field z
@@ -522,15 +526,14 @@ class Field:
                 vmin, vmax = -self.xp.max(self.xp.abs(arr)), +self.xp.max(self.xp.abs(arr))
                 norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                 colors = mpl.colormaps[cmap](norm(arr))
-                vox = ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
+                ax.voxels(x, y, z, filled=self.xp.ones_like(arr), facecolors=colors)
                 
                 m = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
                 m.set_array([])
                 fig.colorbar(m, ax=ax, shrink=0.5, aspect=10)
-                ax.set_title(f'Field z')
+                ax.set_title('Field z')
                 axs.append(ax)
 
-            dims = {0:'x', 1:'y', 2:'z'}
             for i, ax in enumerate(axs):
                 ax.set_xlabel('Nx')
                 ax.set_ylabel('Ny')
@@ -568,9 +571,12 @@ class Field:
                     scalars = 'Field '+'Abs'
                     grid[scalars] = xp.reshape(self.get_abs(), self.N)
 
-                if xmax is None: xmax = xhi
-                if ymax is None: ymax = yhi
-                if zmax is None: zmax = zhi
+                if xmax is None: 
+                    xmax = xhi
+                if ymax is None: 
+                    ymax = yhi
+                if zmax is None: 
+                    zmax = zhi
 
             else:
                 print('[!] `grid` is not passed or is not a GridFIT3D object -> Using #N cells instead ')
@@ -578,9 +584,12 @@ class Field:
                 y = xp.linspace(0, self.Ny, self.Ny+1)
                 z = xp.linspace(0, self.Nz, self.Nz+1)
                 xlo, xhi, ylo, yhi, zlo, zhi = x.min(), x.max(), y.min(), y.max(), z.min(), z.max()
-                if xmax is None: xmax = self.Nx
-                if ymax is None: ymax = self.Ny
-                if zmax is None: zmax = self.Nz
+                if xmax is None: 
+                    xmax = self.Nx
+                if ymax is None: 
+                    ymax = self.Ny
+                if zmax is None: 
+                    zmax = self.Nz
                 X, Y, Z = xp.meshgrid(x, y, z, indexing='ij')
                 grid = pv.StructuredGrid(X.transpose(), Y.transpose(), Z.transpose())
 
@@ -655,8 +664,10 @@ class Field:
             pl.camera.azimuth += 30
             pl.camera.elevation += 30
             pl.set_background('mistyrose', top='white')
-            try: pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
-            except: pass
+            try: 
+                pl.add_logo_widget('../docs/img/wakis-logo-pink.png')
+            except Exception: 
+                pass
             pl.add_axes()
             pl.enable_3_lights()
             pl.enable_anti_aliasing()
@@ -669,6 +680,6 @@ class Field:
                 return pl
 
             if not show:
-                pl.export_html(f'field.html')
+                pl.export_html('Field.html')
             else:
                 pl.show()

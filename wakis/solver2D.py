@@ -49,31 +49,31 @@ class EMSolver2D:
         self.pml_lxry = None
         self.pml_rxry = None
 
-        if bc_low[0] is 'pml':
+        if bc_low[0] == 'pml':
             self.pml_lx = PmlBlock2D(self.N_pml_low[0], self.Ny, self.dt, self.dx, self.dy)
             self.blocks.append(self.pml_lx)
-            if bc_low[1] is 'pml':
+            if bc_low[1] == 'pml':
                 self.pml_lxly = PmlBlock2D(self.N_pml_low[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
                 self.blocks.append(self.pml_lxly)
-            if bc_high[1] is 'pml':
+            if bc_high[1] == 'pml':
                 self.pml_lxry = PmlBlock2D(self.N_pml_low[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
                 self.blocks.append(self.pml_lxry)
 
-        if bc_high[0] is 'pml':
+        if bc_high[0] == 'pml':
             self.pml_rx = PmlBlock2D(self.N_pml_high[0], self.Ny, self.dt, self.dx, self.dy)
             self.blocks.append(self.pml_rx)
-            if bc_low[1] is 'pml':
+            if bc_low[1] == 'pml':
                 self.pml_rxry = PmlBlock2D(self.N_pml_high[0], self.N_pml_high[1], self.dt, self.dx, self.dy)
                 self.blocks.append(self.pml_rxry)
-            if bc_high[1] is 'pml':
+            if bc_high[1] == 'pml':
                 self.pml_rxly = PmlBlock2D(self.N_pml_high[0], self.N_pml_low[1], self.dt, self.dx, self.dy)
                 self.blocks.append(self.pml_rxly)
 
-        if bc_low[1] is 'pml':
+        if bc_low[1] == 'pml':
             self.pml_ly = PmlBlock2D(self.Nx, self.N_pml_low[1], self.dt, self.dx, self.dy)
             self.blocks.append(self.pml_ly)
 
-        if bc_high[1] is 'pml':
+        if bc_high[1] == 'pml':
             self.pml_ry = PmlBlock2D(self.Nx, self.N_pml_high[1], self.dt, self.dx, self.dy)
             self.blocks.append(self.pml_ry)
 
@@ -98,27 +98,25 @@ class EMSolver2D:
 
         self.rho = np.zeros((self.Nx, self.Ny))
 
-        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+        if (sol_type != 'FDTD') and (sol_type != 'DM') and (sol_type != 'ECT'):
             raise ValueError("sol_type must be:\n" +
                              "\t'FDTD' for standard staircased FDTD\n" +
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        if sol_type is 'DM' or sol_type is 'ECT':
+        if sol_type == 'DM' or sol_type == 'ECT':
             self.Vxy = np.zeros((self.Nx, self.Ny))
-        if sol_type is 'ECT':
+        if sol_type == 'ECT':
             self.V_enl = np.zeros((self.Nx, self.Ny))
 
-        if sol_type is 'ECT' or sol_type is 'DM':
+        if sol_type == 'ECT' or sol_type == 'DM':
             self.C1 = self.dt / mu_0
             self.C4 = self.dt / (eps_0 * self.dy)
             self.C5 = self.dt / (eps_0 * self.dx)
             self.C3 = self.dt / eps_0
             self.C6 = self.dt / eps_0
 
-        if sol_type is 'FDTD':
-            Z_0 = np.sqrt(mu_0 / eps_0)
-
+        if sol_type == 'FDTD':
             self.C1 = self.dt / (self.dx * mu_0)
             self.C2 = self.dt / (self.dy * mu_0)
             self.C4 = self.dt / (self.dy * eps_0)
@@ -135,39 +133,39 @@ class EMSolver2D:
     def organize_pmls(self):
         if self.bc_low[0] == 'pml':
             self.pml_lx.rx_block = self
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 self.pml_lx.ly_block = self.pml_lxly
                 self.pml_lxly.ry_block = self.pml_lx
                 self.pml_lxly.rx_block = self.pml_ly
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 self.pml_lx.ry_block = self.pml_lxry
                 self.pml_lxry.ly_block = self.pml_lx
                 self.pml_lxry.rx_block = self.pml_ry
 
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             self.pml_rx.lx_block = self
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 self.pml_rx.ry_block = self.pml_rxry
                 self.pml_rxly.lx_block = self.pml_ly
                 self.pml_rxly.ry_block = self.pml_rx
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 self.pml_rx.ly_block = self.pml_rxly
                 self.pml_rxry.lx_block = self.pml_ry
                 self.pml_rxry.ly_block = self.pml_rx
 
 
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             self.pml_ly.ry_block = self
-            if self.bc_low[0] is 'pml':
+            if self.bc_low[0] == 'pml':
                 self.pml_ly.lx_block = self.pml_lxly
-            if self.bc_low[0] is 'pml':
+            if self.bc_low[0] == 'pml':
                 self.pml_ly.rx_block = self.pml_rxly
 
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             self.pml_ry.ly_block = self
-            if self.bc_low[0] is 'pml':
+            if self.bc_low[0] == 'pml':
                 self.pml_ry.lx_block = self.pml_lxry
-            if self.bc_high[0] is 'pml':
+            if self.bc_high[0] == 'pml':
                 self.pml_ry.rx_block = self.pml_rxry
 
     def assemble_conductivities_pmls(self):
@@ -175,33 +173,33 @@ class EMSolver2D:
         sigma_m_high_x = 0
         sigma_m_low_y = 0
         sigma_m_high_y = 0
-        if self.bc_low[0] is 'pml':
+        if self.bc_low[0] == 'pml':
             sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[0]-1)*self.dx) * np.log(self.R0_pml)
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[1]-1)*self.dy) * np.log(self.R0_pml)
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[0]-1)*self.dy) * np.log(self.R0_pml)
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[1]-1)*self.dy) * np.log(self.R0_pml)
 
-        if self.bc_low[0] is 'pml':
+        if self.bc_low[0] == 'pml':
             for n in range(self.N_pml_low[0]):
                 self.pml_lx.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 for n in range((self.N_pml_low[1])):
                     self.pml_lxly.sigma_y[:, -(n+1)] = sigma_m_low_y * (n / (self.N_pml_low[1])) ** self.alpha_pml
                 for n in range((self.N_pml_low[0])):
                     self.pml_lxly.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 for n in range(self.N_pml_high[1]):
                     self.pml_lxry.sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
                 for n in range(self.N_pml_low[0]):
                     self.pml_lxry.sigma_x[-(n+1), :] = sigma_m_low_x * (n / (self.N_pml_low[0])) ** self.alpha_pml
 
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             for n in range(self.N_pml_high[0]):
                 self.pml_rx.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 for n in range(self.N_pml_high[0]):
                     self.pml_rxry.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
                 for n in range(self.N_pml_high[1]):
@@ -212,11 +210,11 @@ class EMSolver2D:
                 for n in range(self.N_pml_high[0]):
                     self.pml_rxly.sigma_x[n, :] = sigma_m_high_x * (n / (self.N_pml_high[0])) ** self.alpha_pml
 
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             for n in range(self.N_pml_low[1]):
                 self.pml_ly.sigma_y[:, -(n+1)] = sigma_m_low_y * (n / (self.N_pml_low[1])) ** self.alpha_pml
 
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             for n in range(self.N_pml_high[1]):
                 self.pml_ry.sigma_y[:, n] = sigma_m_high_y * (n / (self.N_pml_high[1])) ** self.alpha_pml
 
@@ -246,24 +244,24 @@ class EMSolver2D:
             self.pml_rxly.sigma_star_y = self.pml_rxly.sigma_y * mu_0 / eps_0
 
     def assemble_coeffs_pmls(self):
-        if self.bc_low[0] is 'pml':
+        if self.bc_low[0] == 'pml':
             self.pml_lx.assemble_coeffs()
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 self.pml_lxly.assemble_coeffs()
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 self.pml_lxry.assemble_coeffs()
 
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             self.pml_rx.assemble_coeffs()
-            if self.bc_low[0] is 'pml':
+            if self.bc_low[0] == 'pml':
                 self.pml_rxry.assemble_coeffs()
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 self.pml_rxly.assemble_coeffs()
 
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             self.pml_ly.assemble_coeffs()
 
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             self.pml_ry.assemble_coeffs() 
 
     def update_e_boundary(self):
@@ -325,11 +323,6 @@ class EMSolver2D:
             self.one_step_dm()
 
     def one_step_fdtd(self):
-        Z_0 = np.sqrt(mu_0 / eps_0)
-        Ex = self.Ex
-        Ey = self.Ey
-        Hz = self.Hz
-
         self.advance_h_fdtd()
         for block in self.blocks:
             block.advance_h_fdtd()
@@ -371,7 +364,6 @@ class EMSolver2D:
                                   self.C2 * (Ex[ii, jj + 1]- Ex[ii, jj]))
 
     def advance_e_fdtd(self):
-        Z_0 = np.sqrt(mu_0 / eps_0)
         Ex = self.Ex
         Ey = self.Ey
         Hz = self.Hz

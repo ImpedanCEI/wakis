@@ -310,7 +310,8 @@ class WakeSolver():
         ti = self.ti
 
         # longitudinal variables
-        if self.zf is None: self.zf = self.z
+        if self.zf is None: 
+            self.zf = self.z
         zmax = np.max(self.zf) #should it be domain's edge instead?
         zmin = np.min(self.zf)
 
@@ -413,7 +414,8 @@ class WakeSolver():
         ti = self.ti
 
         # longitudinal varianles
-        if self.zf is None: self.zf = self.z
+        if self.zf is None: 
+            self.zf = self.z
         zmax = np.max(self.zf) 
         zmin = np.min(self.zf)              
 

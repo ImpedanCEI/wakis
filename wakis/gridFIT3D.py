@@ -9,7 +9,6 @@ import time
 import h5py
 
 from scipy.optimize import least_squares
-import time
 
 from .field import Field
 from .logger import Logger

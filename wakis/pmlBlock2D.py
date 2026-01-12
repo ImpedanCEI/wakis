@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
+from scipy.constants import epsilon_0 as eps_0, mu_0 as mu_0
 
 
 class PmlBlock2D:
@@ -71,10 +71,6 @@ class PmlBlock2D:
         self.Dz = 2 * self.dt / (2 * mu_0 + self.dt * self.sigma_star_z)
 
     def advance_h_fdtd(self):
-        Hz = self.Hz
-        Ex = self.Ex
-        Ey = self.Ey
-
         for ii in range(self.Nx):
             for jj in range(self.Ny):
                 self.Hzx[ii, jj] = self.Cx[ii, jj] * self.Hzx[ii, jj] - self.Dx[ii, jj] / self.dx * (self.Ey[ii + 1, jj]
@@ -85,10 +81,6 @@ class PmlBlock2D:
         self.Hz = self.Hzx + self.Hzy
 
     def advance_e_fdtd(self):
-        Hz = self.Hz
-        Ex = self.Ex
-        Ey = self.Ey
-
         for ii in range(self.Nx):
             for jj in range(1, self.Ny):
                 self.Exy[ii, jj] = self.Ay[ii, jj] * self.Exy[ii, jj] + self.By[ii, jj] / self.dy * (

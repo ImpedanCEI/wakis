@@ -1,6 +1,5 @@
 import numpy as np
 from numba import jit
-import numba
 
 def seg_length(x_1, y_1, x_2, y_2):
     return np.linalg.norm(np.array([x_1 - x_2, y_1 - y_2]))
@@ -12,7 +11,6 @@ def eq(a, b):
 
 @jit('b1(f8, f8)', nopython=True)
 def neq(a, b):
-    tol = 1e-8
     return not eq(a, b)
 
 
@@ -53,13 +51,13 @@ class Grid2D:
         self.flag_intr_cell = np.zeros((nx, ny), dtype=bool)
         self.broken = np.zeros((self.nx, self.ny), dtype=bool)
 
-        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+        if (sol_type != 'FDTD') and (sol_type != 'DM') and (sol_type != 'ECT'):
             raise ValueError("sol_type must be:\n" +
                              "\t'FDTD' for standard staircased FDTD\n" +
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        if sol_type is 'DM' or sol_type is 'FDTD':
+        if sol_type == 'DM' or sol_type == 'FDTD':
             self.compute_edges(in_conductor=self.conductors.in_conductor,
                                intersec_x=self.conductors.intersec_x,
                                intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,
@@ -72,7 +70,7 @@ class Grid2D:
                             S_stab=self.S_stab, flag_unst_cell=self.flag_unst_cell,
                             flag_bound_cell=self.flag_bound_cell,
                             flag_avail_cell=self.flag_avail_cell)
-        elif sol_type is 'ECT':
+        elif sol_type == 'ECT':
             self.compute_edges(in_conductor=self.conductors.in_conductor,
                                intersec_x=self.conductors.intersec_x,
                                intersec_y=self.conductors.intersec_y, l_x=self.l_x, l_y=self.l_y,

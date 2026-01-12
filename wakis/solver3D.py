@@ -88,17 +88,17 @@ class EMSolver3D:
         self.rho_yz = np.zeros((self.Nx + 1, self.Ny, self.Nz))
         self.rho_zx = np.zeros((self.Nx, self.Ny + 1, self.Nz))
 
-        if (sol_type is not 'FDTD') and (sol_type is not 'DM') and (sol_type is not 'ECT'):
+        if (sol_type != 'FDTD') and (sol_type != 'DM') and (sol_type != 'ECT'):
             raise ValueError("sol_type must be:\n" +
                              "\t'FDTD' for standard staircased FDTD\n" +
                              "\t'DM' for Dey-Mittra conformal FDTD\n" +
                              "\t'ECT' for Enlarged Cell Technique conformal FDTD")
 
-        if sol_type is 'DM' or sol_type is 'ECT':
+        if sol_type == 'DM' or sol_type == 'ECT':
             self.Vxy = np.zeros((self.Nx, self.Ny, self.Nz + 1))
             self.Vyz = np.zeros((self.Nx + 1, self.Ny, self.Nz))
             self.Vzx = np.zeros((self.Nx, self.Ny + 1, self.Nz))
-        if sol_type is 'ECT':
+        if sol_type == 'ECT':
             self.Vxy_enl = np.zeros((self.Nx, self.Ny, self.Nz + 1))
             self.Vyz_enl = np.zeros((self.Nx + 1, self.Ny, self.Nz))
             self.Vzx_enl = np.zeros((self.Nx, self.Ny + 1, self.Nz))
@@ -124,7 +124,7 @@ class EMSolver3D:
     def connect_pmls(self):
         bc_low = self.bc_low
         bc_high = self.bc_high
-        if bc_low[0] is 'pml':
+        if bc_low[0] == 'pml':
             i_block = 0
             j_block = 1
             k_block = 1
@@ -132,7 +132,7 @@ class EMSolver3D:
                                                                     self.dx,
                                                                     self.dy, self.dz, i_block, j_block, k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[1] is 'pml':
+            if bc_low[1] == 'pml':
                 i_block = 0
                 j_block = 0
                 k_block = 1
@@ -140,7 +140,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2] is 'pml':
+                if bc_low[2] == 'pml':
                     i_block = 0
                     j_block = 0
                     k_block = 0
@@ -149,7 +149,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2] is 'pml':
+                if bc_high[2] == 'pml':
                     i_block = 0
                     j_block = 0
                     k_block = 2
@@ -158,7 +158,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[1] is 'pml':
+            if bc_high[1] == 'pml':
                 i_block = 0
                 j_block = 2
                 k_block = 1
@@ -166,7 +166,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2] is 'pml':
+                if bc_low[2] == 'pml':
                     i_block = 0
                     j_block = 2
                     k_block = 0
@@ -175,7 +175,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2] is 'pml':
+                if bc_high[2] == 'pml':
                     i_block = 0
                     j_block = 2
                     k_block = 2
@@ -184,7 +184,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[2] is 'pml':
+            if bc_low[2] == 'pml':
                 i_block = 0
                 j_block = 1
                 k_block = 0
@@ -192,7 +192,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[2] is 'pml':
+            if bc_high[2] == 'pml':
                 i_block = 0
                 j_block = 1
                 k_block = 2
@@ -201,7 +201,7 @@ class EMSolver3D:
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
-        if bc_high[0] is 'pml':
+        if bc_high[0] == 'pml':
             i_block = 2
             j_block = 1
             k_block = 1
@@ -209,7 +209,7 @@ class EMSolver3D:
                                                                     self.dx, self.dy, self.dz, i_block, j_block,
                                                                     k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[1] is 'pml':
+            if bc_low[1] == 'pml':
                 i_block = 2
                 j_block = 0
                 k_block = 1
@@ -217,7 +217,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2] is 'pml':
+                if bc_low[2] == 'pml':
                     i_block = 2
                     j_block = 0
                     k_block = 0
@@ -226,7 +226,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2] is 'pml':
+                if bc_high[2] == 'pml':
                     i_block = 2
                     j_block = 0
                     k_block = 2
@@ -235,7 +235,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[1] is 'pml':
+            if bc_high[1] == 'pml':
                 i_block = 2
                 j_block = 2
                 k_block = 1
@@ -243,7 +243,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_low[2] is 'pml':
+                if bc_low[2] == 'pml':
                     i_block = 2
                     j_block = 2
                     k_block = 0
@@ -252,7 +252,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-                if bc_high[2] is 'pml':
+                if bc_high[2] == 'pml':
                     i_block = 2
                     j_block = 2
                     k_block = 2
@@ -261,7 +261,7 @@ class EMSolver3D:
                                                                             self.dy,
                                                                             self.dz, i_block, j_block, k_block)
                     self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[2] is 'pml':
+            if bc_low[2] == 'pml':
                 i_block = 2
                 j_block = 1
                 k_block = 0
@@ -269,7 +269,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[2] is 'pml':
+            if bc_high[2] == 'pml':
                 i_block = 2
                 j_block = 1
                 k_block = 2
@@ -278,7 +278,7 @@ class EMSolver3D:
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
-        if bc_low[1] is 'pml':
+        if bc_low[1] == 'pml':
             i_block = 1
             j_block = 0
             k_block = 1
@@ -286,7 +286,7 @@ class EMSolver3D:
                                                                     self.dx,
                                                                     self.dy, self.dz, i_block, j_block, k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[2] is 'pml':
+            if bc_low[2] == 'pml':
                 i_block = 1
                 j_block = 0
                 k_block = 0
@@ -294,7 +294,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[2] is 'pml':
+            if bc_high[2] == 'pml':
                 i_block = 1
                 j_block = 0
                 k_block = 2
@@ -303,7 +303,7 @@ class EMSolver3D:
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
-        if bc_high[1] is 'pml':
+        if bc_high[1] == 'pml':
             i_block = 1
             j_block = 2
             k_block = 1
@@ -311,7 +311,7 @@ class EMSolver3D:
                                                                     self.dx, self.dy, self.dz, i_block, j_block,
                                                                     k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_low[2] is 'pml':
+            if bc_low[2] == 'pml':
                 i_block = 1
                 j_block = 2
                 k_block = 0
@@ -319,7 +319,7 @@ class EMSolver3D:
                                                                         self.dt, self.dx, self.dy, self.dz, i_block,
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
-            if bc_high[2] is 'pml':
+            if bc_high[2] == 'pml':
                 i_block = 1
                 j_block = 2
                 k_block = 2
@@ -328,7 +328,7 @@ class EMSolver3D:
                                                                         j_block, k_block)
                 self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
-        if bc_low[2] is 'pml':
+        if bc_low[2] == 'pml':
             i_block = 1
             j_block = 1
             k_block = 0
@@ -337,7 +337,7 @@ class EMSolver3D:
                                                                     self.dy, self.dz, i_block, j_block, k_block)
             self.blocks.append(self.blocks_mat[i_block, j_block, k_block])
 
-        if bc_high[2] is 'pml':
+        if bc_high[2] == 'pml':
             i_block = 1
             j_block = 1
             k_block = 2
@@ -358,28 +358,28 @@ class EMSolver3D:
         sigma_m_high_z = 0
         Z_0_2 = mu_0 / eps_0
 
-        if self.bc_low[0] is 'pml':
+        if self.bc_low[0] == 'pml':
             sigma_m_low_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[0] - 1) * self.dx) * np.log(self.R0_pml)
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             sigma_m_low_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[1] - 1) * self.dy) * np.log(self.R0_pml)
-        if self.bc_low[2] is 'pml':
+        if self.bc_low[2] == 'pml':
             sigma_m_low_z = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_low[2] - 1) * self.dy) * np.log(self.R0_pml)
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             sigma_m_high_x = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[0] - 1) * self.dy) * np.log(self.R0_pml)
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             sigma_m_high_y = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[1] - 1) * self.dy) * np.log(self.R0_pml)
-        if self.bc_high[2] is 'pml':
+        if self.bc_high[2] == 'pml':
             sigma_m_high_z = -(self.alpha_pml + 1) * eps_0 * c_light / (2 * (self.N_pml_high[2] - 1) * self.dy) * np.log(self.R0_pml)
 
 
-        if self.bc_low[0] is 'pml':
+        if self.bc_low[0] == 'pml':
             (i_block, j_block, k_block) = (0, 1, 1)
             for n in range(self.N_pml_low[0]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
                         n / (self.N_pml_low[0])) ** self.alpha_pml
                 self.blocks_mat[i_block, j_block, k_block].sigma_star_x[-(n + 1), :, :] = sigma_m_low_x * (
                         n / (self.N_pml_low[0])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 (i_block, j_block, k_block) = (0, 0, 1)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -391,7 +391,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[1])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (0, 0, 0)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -408,7 +408,7 @@ class EMSolver3D:
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (0, 0, 2)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -425,7 +425,7 @@ class EMSolver3D:
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 (i_block, j_block, k_block) = (0, 2, 1)
                 for n in range(self.N_pml_low[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -438,7 +438,7 @@ class EMSolver3D:
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
 
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (0, 2, 0)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -455,7 +455,7 @@ class EMSolver3D:
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (0, 2, 2)
                     for n in range((self.N_pml_low[0])):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -472,7 +472,7 @@ class EMSolver3D:
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[2] is 'pml':
+            if self.bc_low[2] == 'pml':
                 (i_block, j_block, k_block) = (0, 1, 0)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -484,7 +484,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[2])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[2] is 'pml':
+            if self.bc_high[2] == 'pml':
                 (i_block, j_block, k_block) = (0, 1, 2)
                 for n in range((self.N_pml_low[0])):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[-(n + 1), :, :] = sigma_m_low_x * (
@@ -497,14 +497,14 @@ class EMSolver3D:
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
-        if self.bc_high[0] is 'pml':
+        if self.bc_high[0] == 'pml':
             (i_block, j_block, k_block) = (2, 1, 1)
             for n in range(self.N_pml_high[0]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
                         n / (self.N_pml_high[0])) ** self.alpha_pml
                 self.blocks_mat[i_block, j_block, k_block].sigma_star_x[n, :, :] = sigma_m_high_x * (
                         n / (self.N_pml_high[0])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[1] is 'pml':
+            if self.bc_low[1] == 'pml':
                 (i_block, j_block, k_block) = (2, 0, 1)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -516,7 +516,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[1])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
                             n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (2, 0, 0)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -533,7 +533,7 @@ class EMSolver3D:
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (2, 0, 2)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -550,7 +550,7 @@ class EMSolver3D:
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[1] is 'pml':
+            if self.bc_high[1] == 'pml':
                 (i_block, j_block, k_block) = (2, 2, 1)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -562,7 +562,7 @@ class EMSolver3D:
                             n / (self.N_pml_high[1])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
                             n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (2, 2, 0)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -579,7 +579,7 @@ class EMSolver3D:
                                 n / (self.N_pml_low[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                                 n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-                if self.bc_low[2] is 'pml':
+                if self.bc_low[2] == 'pml':
                     (i_block, j_block, k_block) = (2, 2, 2)
                     for n in range(self.N_pml_high[0]):
                         self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -596,7 +596,7 @@ class EMSolver3D:
                                 n / (self.N_pml_high[2])) ** self.alpha_pml
                         self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                                 n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[2] is 'pml':
+            if self.bc_low[2] == 'pml':
                 (i_block, j_block, k_block) = (2, 1, 0)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -608,7 +608,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[2])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[2] is 'pml':
+            if self.bc_high[2] == 'pml':
                 (i_block, j_block, k_block) = (2, 1, 2)
                 for n in range(self.N_pml_high[0]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_x[n, :, :] = sigma_m_high_x * (
@@ -621,14 +621,14 @@ class EMSolver3D:
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
-        if self.bc_low[1] is 'pml':
+        if self.bc_low[1] == 'pml':
             (i_block, j_block, k_block) = (1, 0, 1)
             for n in range(self.N_pml_low[1]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
                         n / (self.N_pml_low[1])) ** self.alpha_pml
                 self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, -(n + 1), :] = sigma_m_low_y * (
                         n / (self.N_pml_low[1])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[2] is 'pml':
+            if self.bc_low[2] == 'pml':
                 (i_block, j_block, k_block) = (1, 0, 0)
                 for n in range(self.N_pml_low[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
@@ -640,7 +640,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[2])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[2] is 'pml':
+            if self.bc_high[2] == 'pml':
                 (i_block, j_block, k_block) = (1, 0, 2)
                 for n in range(self.N_pml_low[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, -(n + 1), :] = sigma_m_low_y * (
@@ -653,14 +653,14 @@ class EMSolver3D:
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] = sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
-        if self.bc_high[1] is 'pml':
+        if self.bc_high[1] == 'pml':
             (i_block, j_block, k_block) = (1, 2, 1)
             for n in range(self.N_pml_high[1]):
                 self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
                         n / (self.N_pml_high[1])) ** self.alpha_pml
                 self.blocks_mat[i_block, j_block, k_block].sigma_star_y[:, n, :] = sigma_m_high_y * (
                         n / (self.N_pml_high[1])) ** self.alpha_pml*Z_0_2
-            if self.bc_low[2] is 'pml':
+            if self.bc_low[2] == 'pml':
                 (i_block, j_block, k_block) = (1, 2, 0)
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
@@ -672,7 +672,7 @@ class EMSolver3D:
                             n / (self.N_pml_low[2])) ** self.alpha_pml
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                             n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
-            if self.bc_high[2] is 'pml':
+            if self.bc_high[2] == 'pml':
                 (i_block, j_block, k_block) = (1, 2, 2)
                 for n in range(self.N_pml_high[1]):
                     self.blocks_mat[i_block, j_block, k_block].sigma_y[:, n, :] = sigma_m_high_y * (
@@ -685,7 +685,7 @@ class EMSolver3D:
                     self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, n] =  sigma_m_high_z * (
                             n / (self.N_pml_high[2])) ** self.alpha_pml*Z_0_2
 
-        if self.bc_low[2] is 'pml':
+        if self.bc_low[2] == 'pml':
             (i_block, j_block, k_block) = (1, 1, 0)
             for n in range((self.N_pml_low[2])):
                 self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, -(n + 1)] = sigma_m_low_z * (
@@ -693,7 +693,7 @@ class EMSolver3D:
                 self.blocks_mat[i_block, j_block, k_block].sigma_star_z[:, :, -(n + 1)] = sigma_m_low_z * (
                         n / (self.N_pml_low[2])) ** self.alpha_pml*Z_0_2
 
-        if self.bc_high[2] is 'pml':
+        if self.bc_high[2] == 'pml':
             (i_block, j_block, k_block) = (1, 1, 2)
             for n in range((self.N_pml_high[2])):
                 self.blocks_mat[i_block, j_block, k_block].sigma_z[:, :, n] = sigma_m_high_z * (
@@ -1087,7 +1087,8 @@ class EMSolver3D:
 
     def advance_e_dm(self, dt=None):
 
-        if dt==None: dt = self.dt
+        if dt is None: 
+            dt = self.dt
 
         Ex = self.Ex
         Ey = self.Ey
@@ -1095,11 +1096,6 @@ class EMSolver3D:
         Hx = self.Hx
         Hy = self.Hy
         Hz = self.Hz
-
-        C4 = dt / (self.dy * eps_0)
-        C5 = dt / (self.dx * eps_0)
-        C8 = dt / (self.dz * eps_0)
-        C3 = dt / eps_0
 
         for ii in range(self.Nx):
             for jj in range(1, self.Ny):

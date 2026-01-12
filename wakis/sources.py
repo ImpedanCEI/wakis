@@ -46,7 +46,8 @@ class Beam:
         self.v = c_light*beta
         if ti is not None: 
             self.ti = ti
-        else:  self.ti = 8.548921333333334*self.sigmaz/self.v 
+        else:  
+            self.ti = 8.548921333333334*self.sigmaz/self.v 
         self.is_first_update = True
 
     def update(self, solver, t):
@@ -382,7 +383,7 @@ class Pulse:
                 return (10 - 15*np.cos(2*np.pi/self.L*t) + 6*np.cos(4*np.pi/self.L*t) - np.cos(6*np.pi/self.L*t))/32 #L dividing (working)
             else:
                 return 0.
-        except: #support for time arrays
+        except Exception: #support for time arrays
             return (10 - 15*np.cos(2*np.pi/self.L*t) + 6*np.cos(4*np.pi/self.L*t) - np.cos(6*np.pi/self.L*t))/32 #L dividing (working)
 
     def gaussian_pulse(self, t):
