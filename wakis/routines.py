@@ -312,7 +312,7 @@ class RoutinesMixin:
         if wake is not None:
             self.wake = wake
         if self.wake is None:
-            raise ("Wake solver information not passed to the solver instantiation")
+            raise AttributeError("Wake solver information not passed to the solver instantiation")
 
         if add_space is not None:  # legacy support
             self.wake.skip_cells = add_space
