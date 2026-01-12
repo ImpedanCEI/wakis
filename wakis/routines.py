@@ -78,7 +78,7 @@ class RoutinesMixin:
                 "interpolation": "spline36",
             }
             ```
-            
+
             * Default kwargs used for 3D plotting:
             ```
             plotkw = {
@@ -312,7 +312,9 @@ class RoutinesMixin:
         if wake is not None:
             self.wake = wake
         if self.wake is None:
-            raise AttributeError("Wake solver information not passed to the solver instantiation")
+            raise AttributeError(
+                "Wake solver information not passed to the solver instantiation"
+            )
 
         if add_space is not None:  # legacy support
             self.wake.skip_cells = add_space

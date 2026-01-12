@@ -59,7 +59,6 @@ class GridFIT3D:
         load_from_h5=None,
         verbose=1,
     ):
-
         """
         Class holding the grid information and STL importing/handling using PyVista.
 
@@ -125,7 +124,7 @@ class GridFIT3D:
             STL solid file paths, materials, and colors.
         (...)
         """
-        
+
         t0 = time.time()
         self.logger = Logger()
         self.verbose = verbose
@@ -666,6 +665,7 @@ class GridFIT3D:
         x : ndarray
             Refined axis array.
         """
+
         # Loss function to minimize cell size spread
         def loss_function(x, x0, is_snap):
             # avoid moving snap points

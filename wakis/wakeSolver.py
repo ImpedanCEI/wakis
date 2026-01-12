@@ -16,8 +16,7 @@ from .logger import Logger
 
 
 class WakeSolver:
-    """Class for wake potential and impedance calculation from 3D time domain E fields
-    """
+    """Class for wake potential and impedance calculation from 3D time domain E fields"""
 
     def __init__(
         self,
@@ -44,7 +43,7 @@ class WakeSolver:
         Parameters
         ----------
         wakelength : float, optional
-            Wakelength to be simulated. 
+            Wakelength to be simulated.
             If not provided, it will be calculated from the Ez field data.
         q : float
             Beam total charge in [C]
@@ -251,7 +250,9 @@ class WakeSolver:
         """
         it = int(t / self.dt)
         if it == 0:
-            self.s = np.arange(-self.ti * self.v, self.wake.wakelength, self.dt * self.v)
+            self.s = np.arange(
+                -self.ti * self.v, self.wake.wakelength, self.dt * self.v
+            )
             self.WP = np.zeros_like(self.s, dtype=np.float64)
 
         Ez_curr = self.E[self.Nx // 2, self.Ny // 2, :, "z"]
@@ -260,7 +261,7 @@ class WakeSolver:
         # convert to fractional index in s-array
         idxf = (s_vals - self.s[0]) / (self.v * self.dt)
         mask = (idxf >= 0.0) & (idxf <= (len(self.s) - 1))
-        
+
         # count contributions that fall in the valid s range
         if np.any(mask):
             idxf_m = idxf[mask]
@@ -275,9 +276,10 @@ class WakeSolver:
                 i0, frac, Ez_m = i0[keep], frac[keep], Ez_m[keep]
 
             if i0.size:
-                self.WP += (
-                    np.bincount(i0, weights=Ez_m * (1.0 - frac) * self.dz, minlength=len(self.s))
-                    + np.bincount(i0 + 1, weights=Ez_m * frac * self.dz, minlength=len(self.s))
+                self.WP += np.bincount(
+                    i0, weights=Ez_m * (1.0 - frac) * self.dz, minlength=len(self.s)
+                ) + np.bincount(
+                    i0 + 1, weights=Ez_m * frac * self.dz, minlength=len(self.s)
                 )
 
         if it == self.Nt - 1:
@@ -1255,7 +1257,7 @@ class WakeSolver:
         if tmax is not None:
             aux = np.arange(f.min(), f.max(), 1 / tmax)
             Z = np.interp(aux, f, Z)
-            #df = np.mean(aux[1:] - aux[:-1])
+            # df = np.mean(aux[1:] - aux[:-1])
             del aux
         else:
             tmax = 1 / df

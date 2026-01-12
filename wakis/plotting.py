@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 class PlotMixin:
     """Plotting mixin providing 1D/2D/3D visualization helpers."""
+
     def plot3D(
         self,
         field="E",

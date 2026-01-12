@@ -122,7 +122,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.use_mpi = use_mpi
         self.activate_abc = False  # Will turn true if abc BCs are chosen
         self.activate_pml = False  # Will turn true if pml BCs are chosen
-        self.use_conductivity = False  # Will turn true with conductive material or pml 
+        self.use_conductivity = False  # Will turn true with conductive material or pml
         self.imported_mkl = imported_mkl  # Use MKL backend when available
         self.one_step = self._one_step
         if use_stl:
@@ -225,15 +225,20 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         else:
             self.eps_bg, self.mu_bg, self.sigma_bg = bg[0] * eps_0, bg[1] * mu_0, 0.0
 
-        self.ieps = Field(
-            self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype
-            ) * (1.0 / self.eps_bg)
-        self.imu = Field(
-            self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype
-            ) * (1.0 / self.mu_bg)
-        self.sigma = Field(
-            self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype
-            ) * self.sigma_bg
+        # fmt: off
+        self.ieps = (
+            Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)
+            * (1.0 / self.eps_bg)
+        )
+        self.imu = (
+            Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)
+            * (1.0 / self.mu_bg)
+        )
+        self.sigma = (
+            Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)
+            * self.sigma_bg
+        )
+        # fmt: on
 
         if self.use_stl:
             self.apply_stl()
