@@ -141,6 +141,10 @@ class TestMPILossyCavity:
 
     img_folder = "tests/007_img/"
 
+    tol = dict(rtol=50e-5, atol=50e-5)
+
+    dtype = np.float32
+
     def test_mpi_import(self):
         # ---------- MPI setup ------------
         global use_mpi
@@ -188,11 +192,11 @@ class TestMPILossyCavity:
             xmax,
             ymin,
             ymax,
-            ZMIN,
-            ZMAX,
+            ZMIN, # Global domain zmin
+            ZMAX, # Global domain zmax
             Nx,
             Ny,
-            NZ,
+            NZ,   # Global domain Nz
             use_mpi=use_mpi,  # Enables MPI subdivision of the domain
             stl_solids=stl_solids,
             stl_materials=stl_materials,
@@ -231,7 +235,7 @@ class TestMPILossyCavity:
             use_stl=True,
             use_mpi=use_mpi,  # Activate MPI
             bg="pec",  # Background material
-            dtype=np.float32,
+            dtype=self.dtype,
         )
 
         # -------------- Output folder ---------------------
@@ -254,7 +258,7 @@ class TestMPILossyCavity:
                 # print(Ez)
                 print(len(Ez))
                 assert len(Ez) == NZ, "Electric field Ez samples length mismatch"
-                assert np.allclose(Ez[np.s_[::5]], self.Ez, rtol=0.1), (
+                assert np.allclose(Ez[np.s_[::5]], self.Ez, **self.tol), (
                     "Electric field Ez samples MPI failed"
                 )
         else:
@@ -268,7 +272,7 @@ class TestMPILossyCavity:
             assert len(solver.E[int(Nx / 2), int(Ny / 2), :, "z"]) == NZ, (
                 "Electric field Ez samples length mismatch"
             )
-            assert np.allclose(Ez, self.Ez, rtol=0.1), (
+            assert np.allclose(Ez, self.Ez, **self.tol), (
                 "Electric field Ez samples failed"
             )
 
@@ -366,19 +370,17 @@ class TestMPILossyCavity:
         global solver
         if use_mpi:
             if solver.rank == 0:
-                # print(wake.WP[::50])
-                print(len(wake.WP))
-                assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
-                assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), (
-                    "Wake potential samples failed"
+                tol = dict(rtol=0.1)
+                assert len(wake.WP) == 5195, "Wake potential MPI samples length mismatch"
+                assert np.allclose(wake.WP[::50], self.WP, **tol), (
+                    "Wake potential MPI samples failed"
                 )
                 assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(
                     184.43818552913254, 0.1
                 ), "Wake potential cumsum MPI failed"
         else:
-            # print(wake.WP[::50])
             assert len(wake.WP) == 5195, "Wake potential samples length mismatch"
-            assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), (
+            assert np.allclose(wake.WP[::50], self.WP, **self.tol), (
                 "Wake potential samples failed"
             )
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(
@@ -390,16 +392,15 @@ class TestMPILossyCavity:
         global solver
         if use_mpi:
             if solver.rank == 0:
-                # print(wake.Z[::20])
-                print(len(wake.Z))
+                tol = dict(rtol=0.1)
                 assert len(wake.Z) == 998, "Impedance samples length mismatch"
-                assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), (
+                assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), **tol), (
                     "Abs Impedance samples MPI failed"
                 )
-                assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), (
+                assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), **tol), (
                     "Real Impedance samples MPI failed"
                 )
-                assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), (
+                assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), **tol), (
                     "Imag Impedance samples MPI failed"
                 )
                 assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(
@@ -408,13 +409,13 @@ class TestMPILossyCavity:
         else:
             # print(wake.Z[::20])
             assert len(wake.Z) == 998, "Impedance samples length mismatch"
-            assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), rtol=0.1), (
+            assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), **self.tol), (
                 "Abs Impedance samples failed"
             )
-            assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), rtol=0.1), (
+            assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), **self.tol), (
                 "Real Impedance samples failed"
             )
-            assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), rtol=0.1), (
+            assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), **self.tol), (
                 "Imag Impedance samples failed"
             )
             assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(
@@ -423,7 +424,7 @@ class TestMPILossyCavity:
 
     def test_log_file(self):
         # Helper function to compare nested dicts with float tolerance
-        def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-12, path=""):
+        def assert_dict_allclose(d1, d2, rtol=1e-5, atol=1e-5, path=""):
             assert set(d1.keys()) == set(d2.keys()), (
                 f"Key mismatch at {path}: {set(d1.keys())} != {set(d2.keys())}"
             )

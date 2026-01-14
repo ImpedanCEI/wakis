@@ -23,7 +23,7 @@ class PlotMixin:
         stl_colors="white",
         title=None,
         cmap="jet",
-        clip_interactive=False,
+        clip_interactive=True,
         clip_normal="-y",
         clip_box=False,
         clip_bounds=None,
@@ -268,7 +268,10 @@ class PlotMixin:
             title += "_" + str(n).zfill(6)
         if off_screen:
             pl.screenshot(title + ".png")
-            pl.remove_actor(ac1)
+            try:
+                pl.remove_actor(ac1)
+            except Exception:
+                pass
             self.pl = pl
         else:
             pl.show(full_screen=False)
@@ -447,9 +450,9 @@ class PlotMixin:
                     try:
                         surf = surf.clip_closed_surface(
                             normal=clip_normal, origin=clip_origin
-                        ).subdivide_adaptive(max_edge_len=3 * self.dz)
-                    except Exception:
-                        print("[!] Surface non-manifold, clip with plane skipped")
+                        ).subdivide_adaptive(max_edge_len=3 * np.min(self.dz))
+                    except Exception as e:
+                        print(f"[!] Surface non-manifold, clip with plane skipped: {e}")
 
                 fieldonsurf = surf.sample(points, tolerance=tolerance)
 

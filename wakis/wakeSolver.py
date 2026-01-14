@@ -924,6 +924,7 @@ class WakeSolver:
         Rs_bounds=[0.8, 10],
         Q_bounds=[0.5, 5],
         fres_bounds=[-0.01e9, +0.01e9],
+        verbose=False,
     ):
         """
         Fit the impedance using Differential Evolution or CMA-ES.
@@ -1034,6 +1035,7 @@ class WakeSolver:
                 maxiter=int(maxiter),
                 popsize=popsize,
                 sigma=cmaes_sigma,
+                verbose=verbose,
             )
 
         if use_minimization:
@@ -1426,6 +1428,9 @@ class WakeSolver:
             7.50                   0.94
             10.00                  -0.54
         """
+        if f_name.endswith(".txt"):
+            f_name = f_name[:-4]
+            
         if x_data is not None and y_data is not None:
             np.savetxt(
                 f_name + ".txt",

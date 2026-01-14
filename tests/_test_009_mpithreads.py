@@ -26,7 +26,7 @@ try:
     from sparse_dot_mkl import csr_matrix, dot_product_mkl
 except Exception as e:
     print("sparse_dot_mkl not available:", e)
-    pass
+
 from threadpoolctl import threadpool_info
 import timeit
 
