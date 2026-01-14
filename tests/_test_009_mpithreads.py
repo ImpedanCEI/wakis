@@ -1,3 +1,5 @@
+# ruff: noqa: E402
+
 import subprocess
 sockets, cores = map(int, subprocess.check_output(
     "lscpu | awk -F: '/Socket\\(s\\)/{s=$2} /Core\\(s\\) per socket/{c=$2} END{print s,c}'",
@@ -16,8 +18,9 @@ import numpy as np
 from scipy.sparse import csc_matrix as sparse_mat, diags, vstack, hstack
 try:
     from sparse_dot_mkl import csr_matrix, dot_product_mkl
-except: pass
-from threadpoolctl import threadpool_limits
+except Exception as e: 
+    print('sparse_dot_mkl not available:', e)
+    pass
 from threadpoolctl import threadpool_info 
 import timeit
 
@@ -46,8 +49,8 @@ B = np.random.rand(3*N)
 try:
     print('Using MKL backend')
     A = csr_matrix(A)
-except:
-    print('Using Scipy backend')
+except Exception as e:
+    print('Using Scipy backend:', e)
     A = A.tocsr()  
 
 print(B.shape)
@@ -61,7 +64,8 @@ def test_matmul():
     
     try:
         C = dot_product_mkl(A,B)
-    except:
+    except Exception as e:
+        print('Falling back to Scipy dot:', e)
         C = A.dot(B)
     print(C.shape)
 

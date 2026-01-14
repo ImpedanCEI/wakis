@@ -1,7 +1,7 @@
 import os
 import sys
 import pyvista as pv
-import matplotlib.pyplot as plt
+import numpy as np
 from scipy.constants import c
 
 sys.path.append('../wakis')
@@ -64,7 +64,7 @@ class TestPlanewave:
 
         # simulation
         global solver
-        solver = SolverFIT3D(grid, use_stl=True, bc_low=bc_low, bc_high=bc_high)
+        solver = SolverFIT3D(grid, use_stl=True, bc_low=bc_low, bc_high=bc_high, dtype=np.float32)
 
         # source
         f = 15/((solver.z.max()-solver.z.min())/c)

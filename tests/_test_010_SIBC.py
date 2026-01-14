@@ -1,9 +1,7 @@
 import pyvista as pv
 import numpy as np
-import matplotlib.pyplot as plt 
 
 from wakis import GridFIT3D
-from wakis import SolverFIT3D
 
 # Read solid
 surf = pv.read('stl/007_lossymetal_shell.stl')

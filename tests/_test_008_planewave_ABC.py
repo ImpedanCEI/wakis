@@ -1,16 +1,13 @@
-import os, sys
-import numpy as np
+import sys
 import pyvista as pv
-import matplotlib.pyplot as plt
 from scipy.constants import c
 
 sys.path.append('../wakis')
                 
 from wakis import SolverFIT3D
 from wakis import GridFIT3D 
-from wakis.sources import PlaneWave, WavePacket
+from wakis.sources import WavePacket
 
-import pytest 
 
 print("\n---------- Initializing simulation ------------------")
 # Number of mesh cells

@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import numpy as np
 import pyvista as pv
 
@@ -111,7 +112,9 @@ class TestPecCubicCavity:
         # set Solver object
         solver = SolverFIT3D(grid, wake,
                             bc_low=bc_low, bc_high=bc_high,
-                            use_stl=True, bg='pec')
+                            use_stl=True, bg='pec',
+                            dtype=np.float32,
+                            )
 
         wakelength = 1. #[m]
         solver.wakesolve(wakelength=wakelength, save_J=False)

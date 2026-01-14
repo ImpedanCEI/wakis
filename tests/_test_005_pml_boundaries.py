@@ -1,6 +1,5 @@
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.constants import c
 from tqdm import tqdm
 

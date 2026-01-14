@@ -1,6 +1,7 @@
 import os
 import sys
 import pyvista as pv
+import numpy as np
 
 sys.path.append('../wakis')
 
@@ -88,7 +89,8 @@ class Test3Dplotting:
                             bc_high=bc_high,
                             use_stl=True,
                             use_mpi=False, # Activate MPI
-                            bg='pec' # Background material
+                            bg='pec', # Background material
+                            dtype=np.float32,
                             )
 
         # -------------- Output folder ---------------------

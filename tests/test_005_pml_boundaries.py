@@ -1,12 +1,12 @@
-import sys,os
+import sys
+import os
 import numpy as np
-from scipy.constants import c, mu_0, epsilon_0
+from scipy.constants import c, mu_0
 from tqdm import tqdm
 
 sys.path.append('../')
 import wakis
 
-import pytest
 
 flag_interactive = False # Set to true to run plot tests
 
@@ -66,9 +66,9 @@ class TestPML:
 
             if flag_interactive and n%int(Nt/100) == 0:
                 solver.plot1D('Hy', ylim=(-amplitude, amplitude), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Hy', n=n)
+                            off_screen=True, title='005_Hy', n=n)
                 solver.plot1D('Ex', ylim=(-amplitude*c*mu_0, amplitude*c*mu_0), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Ex', n=n)                
+                            off_screen=True, title='005_Ex', n=n)                
             
         reflectionH = solver.H.get_abs()[Nx//2,Ny//2,:].max()
         reflectionE = solver.E.get_abs()[Nx//2,Ny//2,:].max()/(mu_0*c)
@@ -76,18 +76,18 @@ class TestPML:
         assert reflectionE <= 10, f"PML E reflection >10% with eps_r={eps_r}, sigma={sigma}"
 
         if flag_interactive:
-            os.system(f'convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
-            os.system(f'convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
-            os.system(f'rm 005_Hy*.png')
-            os.system(f'rm 005_Ex*.png')
+            os.system('convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
+            os.system('convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
+            os.system('rm 005_Hy*.png')
+            os.system('rm 005_Ex*.png')
 
             solver.plot2D('Ex', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude*c*mu_0, vmax=amplitude*c*mu_0,
-                off_screen=True, title=f'005_Ex2d') 
+                off_screen=True, title='005_Ex2d') 
 
             solver.plot2D('Hy', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude, vmax=amplitude,
-                off_screen=True, title=f'005_Hy2d') 
+                off_screen=True, title='005_Hy2d') 
    
     
     def test_reflection_planewave_resistive_material(self):
@@ -115,6 +115,7 @@ class TestPML:
         solver = wakis.SolverFIT3D(grid, use_stl=False,
                                     bg=[eps_r, 1.0, sigma],
                                     bc_low=bc_low, bc_high=bc_high,
+                                    dtype=np.float32,
                                     n_pml=30)
 
         # Source
@@ -141,9 +142,9 @@ class TestPML:
 
             if flag_interactive and n%int(Nt/100) == 0:
                 solver.plot1D('Hy', ylim=(-amplitude, amplitude), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Hy', n=n)
+                            off_screen=True, title='005_Hy', n=n)
                 solver.plot1D('Ex', ylim=(-amplitude*c*mu_0, amplitude*c*mu_0), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Ex', n=n)                
+                            off_screen=True, title='005_Ex', n=n)                
             
         reflectionH = solver.H.get_abs()[Nx//2,Ny//2,:].max()
         reflectionE = solver.E.get_abs()[Nx//2,Ny//2,:].max()/(mu_0*c)
@@ -151,18 +152,18 @@ class TestPML:
         assert reflectionE <= 10, f"PML E reflection >10% with eps_r={eps_r}, sigma={sigma}"
 
         if flag_interactive:
-            os.system(f'convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
-            os.system(f'convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
-            os.system(f'rm 005_Hy*.png')
-            os.system(f'rm 005_Ex*.png')
+            #os.system(f'convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
+            #os.system(f'convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
+            #os.system(f'rm 005_Hy*.png')
+            #os.system(f'rm 005_Ex*.png')
 
             solver.plot2D('Ex', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude*c*mu_0, vmax=amplitude*c*mu_0,
-                off_screen=True, title=f'005_Ex2d') 
+                off_screen=True, title='005_Ex2d') 
 
             solver.plot2D('Hy', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude, vmax=amplitude,
-                off_screen=True, title=f'005_Hy2d') 
+                off_screen=True, title='005_Hy2d') 
 
 
     def test_reflection_planewave_high_resistivity_material(self):
@@ -190,6 +191,7 @@ class TestPML:
         solver = wakis.SolverFIT3D(grid, use_stl=False,
                                     bg=[eps_r, 1.0, sigma],
                                     bc_low=bc_low, bc_high=bc_high,
+                                    dtype=np.float32,
                                     n_pml=30)
 
         # Source
@@ -216,9 +218,9 @@ class TestPML:
 
             if flag_interactive and n%int(Nt/100) == 0:
                 solver.plot1D('Hy', ylim=(-amplitude, amplitude), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Hy', n=n)
+                            off_screen=True, title='005_Hy', n=n)
                 solver.plot1D('Ex', ylim=(-amplitude*c*mu_0, amplitude*c*mu_0), pos=[0.5, 0.35, 0.2, 0.1],
-                            off_screen=True, title=f'005_Ex', n=n)                
+                            off_screen=True, title='005_Ex', n=n)                
             
         reflectionH = solver.H.get_abs()[Nx//2,Ny//2,:].max()
         reflectionE = solver.E.get_abs()[Nx//2,Ny//2,:].max()/(mu_0*c)
@@ -226,18 +228,18 @@ class TestPML:
         assert reflectionE <= 10, f"PML E reflection >10% with eps_r={eps_r}, sigma={sigma}"
 
         if flag_interactive:
-            os.system(f'convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
-            os.system(f'convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
-            os.system(f'rm 005_Hy*.png')
-            os.system(f'rm 005_Ex*.png')
+            #os.system(f'convert -delay 10 -loop 0 005_Hy*.png 005_Hy_planewave.gif')
+            #os.system(f'convert -delay 10 -loop 0 005_Ex*.png 005_Ex_planewave.gif')
+            #os.system(f'rm 005_Hy*.png')
+            #os.system(f'rm 005_Ex*.png')
 
             solver.plot2D('Ex', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude*c*mu_0, vmax=amplitude*c*mu_0,
-                off_screen=True, title=f'005_Ex2d') 
+                off_screen=True, title='005_Ex2d') 
 
             solver.plot2D('Hy', plane='ZX', pos=0.5, cmap='bwr', 
                 interpolation='spline36', n=n, vmin=-amplitude, vmax=amplitude,
-                off_screen=True, title=f'005_Hy2d') 
+                off_screen=True, title='005_Hy2d') 
 
     def _pml_func():
 

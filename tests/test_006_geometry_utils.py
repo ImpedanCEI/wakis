@@ -3,7 +3,6 @@ sys.path.append('../wakis')
                 
 from wakis import geometry
 
-import pytest 
 
 
 class TestGeometryUtils:

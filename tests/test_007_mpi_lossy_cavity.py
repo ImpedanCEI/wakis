@@ -185,7 +185,8 @@ class TestMPILossyCavity:
                             bc_high=bc_high,
                             use_stl=True,
                             use_mpi=use_mpi, # Activate MPI
-                            bg='pec' # Background material
+                            bg='pec', # Background material
+                            dtype=np.float32,
                             )
 
         # -------------- Output folder ---------------------
@@ -338,7 +339,7 @@ class TestMPILossyCavity:
                 # floats
                 elif isinstance(v1, float) and isinstance(v2, float):
                     if k == 'dt':
-                        assert v1 <=v2, f"Timestep bigger than for uniform grid"
+                        assert v1 <=v2, "Timestep bigger than for uniform grid"
                     else:
                         assert np.isclose(v1, v2, rtol=rtol, atol=atol), \
                             f"Float mismatch at {p}: {v1} != {v2}"
