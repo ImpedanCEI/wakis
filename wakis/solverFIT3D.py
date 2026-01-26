@@ -729,10 +729,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.itA[:, :, -1, "y"] = self.iA[:, :, 0, "y"]
 
             self.tDs = diags(
-                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=float
+                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
             )
             self.itDa = diags(
-                self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=float
+                self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype
             )
 
         # Dirichlet PEC: tangential E field = 0 at boundary
@@ -831,10 +831,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.itA[:, :, -1, "y"] = self.iA[:, :, 0, "y"]
 
             self.tDs = diags(
-                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=float
+                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
             )
             self.itDa = diags(
-                self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=float
+                self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
             )
             self.activate_abc = True
 

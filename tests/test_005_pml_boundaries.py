@@ -44,6 +44,7 @@ class TestPML:
             bc_low=bc_low,
             bc_high=bc_high,
             n_pml=30,
+            dtype=np.float32,
         )
 
         # Source

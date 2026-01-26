@@ -363,6 +363,12 @@ class TestMPILossyCavity:
         # Run simulation
         solver.wakesolve(wakelength=wakelength, wake=wake)
 
+        import matplotlib.pyplot as plt
+        plt.plot(wake.s, wake.WP)
+        plt.show()
+        plt.plot(wake.f, np.abs(wake.Z))
+        plt.show()
+
     def test_long_wake_potential(self):
         global wake
         global solver
