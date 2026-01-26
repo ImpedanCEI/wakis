@@ -270,7 +270,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             )
         else:
             self.dt = dt
-        self.dt = dtype(self.dt)
+        self.dt = self.dtype(self.dt)
         self.update_logger(["dt"])
 
         if self.use_conductivity:  # relaxation time criterion tau

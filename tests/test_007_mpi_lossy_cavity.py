@@ -27,6 +27,8 @@ flag_plot_3D = False
 class TestMPILossyCavity:
     # Regression data
     # fmt: off
+    tol = dict(rtol=50e-5, atol=50e-5)
+    dtype = np.float32
 
     WP = np.array([-1.20513623e-18 ,-3.43161145e-14 ,-9.12255548e-11 ,-5.96997512e-08,
                     -1.14173019e-05 ,-6.67499094e-04 ,-1.20239747e-02 ,-6.53062215e-02,
@@ -119,7 +121,7 @@ class TestMPILossyCavity:
         "background": "pec",
         "bc_low": ["pec", "pec", "pec"],
         "bc_high": ["pec", "pec", "pec"],
-        "dt": 6.970326728398966e-12,
+        "dt": dtype(6.970326659611059e-12),
         "solverInitializationTime": 0,
     }
 
@@ -140,10 +142,6 @@ class TestMPILossyCavity:
     }
 
     img_folder = "tests/007_img/"
-
-    tol = dict(rtol=50e-5, atol=50e-5)
-
-    dtype = np.float32
 
     def test_mpi_import(self):
         # ---------- MPI setup ------------
@@ -424,7 +422,7 @@ class TestMPILossyCavity:
 
     def test_log_file(self):
         # Helper function to compare nested dicts with float tolerance
-        def assert_dict_allclose(d1, d2, rtol=1e-5, atol=1e-5, path=""):
+        def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-6, path=""):
             assert set(d1.keys()) == set(d2.keys()), (
                 f"Key mismatch at {path}: {set(d1.keys())} != {set(d2.keys())}"
             )
@@ -439,6 +437,15 @@ class TestMPILossyCavity:
 
                 # floats
                 elif isinstance(v1, float) and isinstance(v2, float):
+                    if k == "dt":
+                        assert v1 <= v2, "Timestep bigger than for uniform grid"
+                    else:
+                        assert np.isclose(v1, v2, rtol=rtol, atol=atol), (
+                            f"Float mismatch at {p}: {v1} != {v2}"
+                        )
+
+                # np.floats
+                elif isinstance(v1, np.floating) and isinstance(v2, np.floating):
                     if k == "dt":
                         assert v1 <= v2, "Timestep bigger than for uniform grid"
                     else:
