@@ -249,7 +249,7 @@ class TestMPILossyCavity:
             Nt = 3000
             for n in tqdm(range(Nt)):
                 beam.update(solver, n * solver.dt)
-                solver.mpi_one_step()
+                solver.one_step() # MPI handled internally
 
             Ez = solver.mpi_gather("Ez", x=int(Nx / 2), y=int(Ny / 2))
             if solver.rank == 0:
