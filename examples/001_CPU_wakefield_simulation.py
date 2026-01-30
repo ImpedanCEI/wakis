@@ -5,29 +5,31 @@
 
 # (!) If using MKL intel backend only
 import os
-os.environ["MKL_NUM_THREADS"] = "1" # change the number of threads to be used in the simualtion
+
+os.environ["MKL_NUM_THREADS"] = (
+    "1"  # change the number of threads to be used in the simualtion
+)
 
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
 
 from wakis import SolverFIT3D
-from wakis import GridFIT3D 
+from wakis import GridFIT3D
 from wakis import WakeSolver
 
 # ---------- Domain setup ---------
 
 # Geometry & Materials
-solid_1 = 'data/001_vacuum_cavity.stl'
-solid_2 = 'data/001_lossymetal_shell.stl'
+solid_1 = "data/001_vacuum_cavity.stl"
+solid_2 = "data/001_lossymetal_shell.stl"
 
-stl_solids = {'cavity': solid_1, 
-              'shell': solid_2
-              }
+stl_solids = {"cavity": solid_1, "shell": solid_2}
 
-stl_materials = {'cavity': 'vacuum', 
-                 'shell': [30, 1.0, 30] #[eps_r, mu_r, sigma[S/m]]
-                 }
+stl_materials = {
+    "cavity": "vacuum",
+    "shell": [30, 1.0, 30],  # [eps_r, mu_r, sigma[S/m]]
+}
 
 # BONUS: Visualize geometry - Uncomment for plotting!
 # pl = pv.Plotter()
@@ -46,72 +48,88 @@ Ny = 80
 Nz = 141
 
 # set grid and geometry
-grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, 
-                Nx, Ny, Nz, 
-                stl_solids=stl_solids, 
-                stl_materials=stl_materials,
-                stl_scale=1.0,
-                stl_rotate=[0,0,0],
-                stl_translate=[0,0,0],
-                verbose=1)
+grid = GridFIT3D(
+    *solids.bounds,
+    Nx,
+    Ny,
+    Nz,
+    stl_solids=stl_solids,
+    stl_materials=stl_materials,
+    stl_scale=1.0,
+    stl_rotate=[0, 0, 0],
+    stl_translate=[0, 0, 0],
+    verbose=1,
+)
 
 # BONUS: Visualize grid - Uncomment for plotting!
-grid.inspect(add_stl=['cavity', 'shell'], stl_opacity=1.0)
+grid.inspect(add_stl=["cavity", "shell"], stl_opacity=1.0)
 
 # BONUS: Visualize imported solids - Uncomment for plotting!
 grid.plot_solids(bounding_box=True, opacity=1.0, specular=0.5, anti_aliasing=None)
 
 # ------------ Beam source & Wake ----------------
 # Beam parameters
-sigmaz = 10e-2      #[m] -> 2 GHz
-q = 1e-9            #[C]
-beta = 1.0          # beam beta 
-xs = 0.             # x source position [m]
-ys = 0.             # y source position [m]
-xt = 0.             # x test position [m]
-yt = 0.             # y test position [m]
-# [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s] 
+sigmaz = 10e-2  # [m] -> 2 GHz
+q = 1e-9  # [C]
+beta = 1.0  # beam beta
+xs = 0.0  # x source position [m]
+ys = 0.0  # y source position [m]
+xt = 0.0  # x test position [m]
+yt = 0.0  # y test position [m]
+# [DEFAULT] tinj = 8.53*sigmaz/c_light  # injection time offset [s]
 
 # Simualtion
-wakelength = 10. # [m]
-add_space = 10   # no. cells to skip from boundaries - removes BC artifacts
+wakelength = 10.0  # [m]
+add_space = 10  # no. cells to skip from boundaries - removes BC artifacts
 
-results_folder = '001_results_float64/'
-wake = WakeSolver(q=q, 
-                  sigmaz=sigmaz, 
-                  beta=beta,
-                  xsource=xs, ysource=ys, 
-                  xtest=xt, ytest=yt,
-                  add_space=add_space, 
-                  results_folder=results_folder,
-                  Ez_file=results_folder+'001_Ez.h5')
+results_folder = "001_results_float64/"
+wake = WakeSolver(
+    q=q,
+    sigmaz=sigmaz,
+    beta=beta,
+    xsource=xs,
+    ysource=ys,
+    xtest=xt,
+    ytest=yt,
+    add_space=add_space,
+    results_folder=results_folder,
+    Ez_file=results_folder + "001_Ez.h5",
+)
 
 # ----------- Solver & Simulation ----------
 # boundary conditions``
-bc_low=['pec', 'pec', 'pec']
-bc_high=['pec', 'pec', 'pec']
+bc_low = ["pec", "pec", "pec"]
+bc_high = ["pec", "pec", "pec"]
 
 # on-the-fly plotting parameters
-if not os.path.exists('001_img/'): 
-    os.mkdir('001_img/')
+if not os.path.exists("001_img/"):
+    os.mkdir("001_img/")
 
-plotkw2D = {'title':'001_img/Ez', 
-            'add_patch':'cavity', 'patch_alpha':1.0,
-            'patch_reverse' : True,  # patch logical_not('cavity')
-            'vmin':-1e3, 'vmax':1e3, # colormap limits
-            'cmap': 'rainbow',
-            'plane': [int(Nx/2),                       # x
-                      slice(0, Ny),                    # y
-                      slice(add_space, -add_space)]}   # z
+plotkw2D = {
+    "title": "001_img/Ez",
+    "add_patch": "cavity",
+    "patch_alpha": 1.0,
+    "patch_reverse": True,  # patch logical_not('cavity')
+    "vmin": -1e3,
+    "vmax": 1e3,  # colormap limits
+    "cmap": "rainbow",
+    "plane": [
+        int(Nx / 2),  # x
+        slice(0, Ny),  # y
+        slice(add_space, -add_space),
+    ],
+}  # z
 
 # Solver setup
-solver = SolverFIT3D(grid, wake, 
-                     bc_low=bc_low, 
-                     bc_high=bc_high, 
-                     use_stl=True, 
-                     bg='pec', # Background material
-                     dtype=np.float64, # support for single-precision np.float32
-                     )
+solver = SolverFIT3D(
+    grid,
+    wake,
+    bc_low=bc_low,
+    bc_high=bc_high,
+    use_stl=True,
+    bg="pec",  # Background material
+    dtype=np.float64,  # support for single-precision np.float32
+)
 
 # BONUS: Inspect material tensors - Uncomment to show!
 # solver.ieps.inspect(plane='YZ', cmap='bwr', dpi=100)  # [1/eps] permittivity tensor ^-1
@@ -125,80 +143,103 @@ solver = SolverFIT3D(grid, wake,
 # solver.J[:,10,10, 'x'] = 10    # introduces a line perturbation in Jx component of 10 A/m2
 
 # Solver run
-solver.wakesolve(wakelength=wakelength, 
-                 add_space=add_space,
-                 plot=True, # turn False for speedup
-                 plot_every=30, plot_until=3000, **plotkw2D
-                 )
+solver.wakesolve(
+    wakelength=wakelength,
+    add_space=add_space,
+    plot=True,  # turn False for speedup
+    plot_every=30,
+    plot_until=3000,
+    **plotkw2D,
+)
 
 # ----------- 1d plot results --------------------
 # Plot longitudinal wake potential and impedance
-fig1, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WP, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Longitudinal wake potential [V/pC]', color='r')
+fig1, ax = plt.subplots(1, 2, figsize=[12, 4], dpi=150)
+ax[0].plot(wake.s * 1e2, wake.WP, c="r", lw=1.5, label="Wakis")
+ax[0].set_xlabel("s [cm]")
+ax[0].set_ylabel("Longitudinal wake potential [V/pC]", color="r")
 ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
+ax[0].set_xlim(xmax=wakelength * 1e2)
 
-ax[1].plot(wake.f*1e-9, np.abs(wake.Z), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Longitudinal impedance [Abs][$\Omega$]', color='b')
+ax[1].plot(wake.f * 1e-9, np.abs(wake.Z), c="b", lw=1.5, label="Wakis")
+ax[1].set_xlabel("f [GHz]")
+ax[1].set_ylabel("Longitudinal impedance [Abs][$\Omega$]", color="b")
 ax[1].legend()
 
 fig1.tight_layout()
-fig1.savefig(results_folder+'001_longitudinal.png')
+fig1.savefig(results_folder + "001_longitudinal.png")
 plt.show()
 
 # Plot transverse x wake potential and impedance
-fig2, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WPx, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Transverse wake potential X [V/pC]', color='r')
+fig2, ax = plt.subplots(1, 2, figsize=[12, 4], dpi=150)
+ax[0].plot(wake.s * 1e2, wake.WPx, c="r", lw=1.5, label="Wakis")
+ax[0].set_xlabel("s [cm]")
+ax[0].set_ylabel("Transverse wake potential X [V/pC]", color="r")
 ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
+ax[0].set_xlim(xmax=wakelength * 1e2)
 
-ax[1].plot(wake.f*1e-9, np.abs(wake.Zx), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Transverse impedance X [Abs][$\Omega$]', color='b')
+ax[1].plot(wake.f * 1e-9, np.abs(wake.Zx), c="b", lw=1.5, label="Wakis")
+ax[1].set_xlabel("f [GHz]")
+ax[1].set_ylabel("Transverse impedance X [Abs][$\Omega$]", color="b")
 ax[1].legend()
 
 fig2.tight_layout()
-fig2.savefig(results_folder+'001_transverse_x.png')
+fig2.savefig(results_folder + "001_transverse_x.png")
 plt.show()
 
 # Plot transverse y wake potential and impedance
-fig3, ax = plt.subplots(1,2, figsize=[12,4], dpi=150)
-ax[0].plot(wake.s*1e2, wake.WPy, c='r', lw=1.5, label='Wakis')
-ax[0].set_xlabel('s [cm]')
-ax[0].set_ylabel('Transverse wake potential Y [V/pC]', color='r')
+fig3, ax = plt.subplots(1, 2, figsize=[12, 4], dpi=150)
+ax[0].plot(wake.s * 1e2, wake.WPy, c="r", lw=1.5, label="Wakis")
+ax[0].set_xlabel("s [cm]")
+ax[0].set_ylabel("Transverse wake potential Y [V/pC]", color="r")
 ax[0].legend()
-ax[0].set_xlim(xmax=wakelength*1e2)
+ax[0].set_xlim(xmax=wakelength * 1e2)
 
-ax[1].plot(wake.f*1e-9, np.abs(wake.Zy), c='b', lw=1.5, label='Wakis')
-ax[1].set_xlabel('f [GHz]')
-ax[1].set_ylabel('Transverse impedance Y [Abs][$\Omega$]', color='b')
+ax[1].plot(wake.f * 1e-9, np.abs(wake.Zy), c="b", lw=1.5, label="Wakis")
+ax[1].set_xlabel("f [GHz]")
+ax[1].set_ylabel("Transverse impedance Y [Abs][$\Omega$]", color="b")
 ax[1].legend()
 
 fig3.tight_layout()
-fig3.savefig(results_folder+'001_transverse_y.png')
+fig3.savefig(results_folder + "001_transverse_y.png")
 plt.show()
 
 # Plot Electric field component in 2D using imshow
-solver.plot1D(field='E', component='z', 
-              line='z', pos=0.5, xscale='linear', yscale='linear',
-              off_screen=True, title='001_img/Ez1d')
+solver.plot1D(
+    field="E",
+    component="z",
+    line="z",
+    pos=0.5,
+    xscale="linear",
+    yscale="linear",
+    off_screen=True,
+    title="001_img/Ez1d",
+)
 plt.show()
 
 # ----------- 2d plots results --------------------
 from matplotlib.colors import LinearSegmentedColormap
-cmap = LinearSegmentedColormap.from_list('name', plt.cm.jet(np.linspace(0.1, 0.9))) # CST's colormap
+
+cmap = LinearSegmentedColormap.from_list(
+    "name", plt.cm.jet(np.linspace(0.1, 0.9))
+)  # CST's colormap
 
 # Plot Electric field component in 2D using imshow
-solver.plot2D(field='E', component='z', 
-              plane='XY', pos=0.5, 
-              cmap=cmap, vmin=-500, vmax=500., interpolation='hanning',
-              add_patch='cavity', patch_reverse=True, patch_alpha=0.8, 
-              off_screen=True, title='001_img/Ez2d')
+solver.plot2D(
+    field="E",
+    component="z",
+    plane="XY",
+    pos=0.5,
+    cmap=cmap,
+    vmin=-500,
+    vmax=500.0,
+    interpolation="hanning",
+    add_patch="cavity",
+    patch_reverse=True,
+    patch_alpha=0.8,
+    off_screen=True,
+    title="001_img/Ez2d",
+)
 plt.show()
 
 
@@ -208,16 +249,30 @@ plt.show()
 
 # ----------- 3d plots results --------------------
 # Plot Electric field component in 3D using pyvista.plotter
-solver.plot3D('E', component='Abs', 
-              cmap='rainbow', clim=[0, 500],
-              add_stl=['cavity', 'shell'], stl_opacity=0.1,
-              clip_interactive=True, clip_normal='-y')
+solver.plot3D(
+    "E",
+    component="Abs",
+    cmap="rainbow",
+    clim=[0, 500],
+    add_stl=["cavity", "shell"],
+    stl_opacity=0.1,
+    clip_interactive=True,
+    clip_normal="-y",
+)
 
 # Plot Abs Electric field on STL solid `cavity`
-solver.plot3DonSTL('E', component='Abs', 
-                   cmap='rainbow', clim=[0, 500],
-                   stl_with_field='cavity', field_opacity=1.0,
-                   stl_transparent='shell', stl_opacity=0.1, stl_colors='white',
-                   #clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
-                   off_screen=False, zoom=1.2, title='001_img/Ez3d')
-        
+solver.plot3DonSTL(
+    "E",
+    component="Abs",
+    cmap="rainbow",
+    clim=[0, 500],
+    stl_with_field="cavity",
+    field_opacity=1.0,
+    stl_transparent="shell",
+    stl_opacity=0.1,
+    stl_colors="white",
+    # clip_plane=True, clip_normal='-y', clip_origin=[0,0,0], #coming in v0.5.0
+    off_screen=False,
+    zoom=1.2,
+    title="001_img/Ez3d",
+)
