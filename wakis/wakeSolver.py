@@ -184,8 +184,7 @@ class WakeSolver:
         if self.Ez_file is None:
             self.Ez_file = self.folder + "Ez.h5"
         if self.save:
-            if not os.path.exists(self.folder):
-                os.mkdir(self.folder)
+            os.makedirs(self.folder, exist_ok=True)
 
         self.assign_logs()
 
@@ -210,7 +209,7 @@ class WakeSolver:
 
         t0 = time.time()
 
-        if compute_plane.lower() == "both" or "transverse":
+        if compute_plane.lower() in ["both", "transverse"]:
             # Obtain longitudinal Wake potential
             self.calc_long_WP_3d()
 
@@ -223,7 +222,7 @@ class WakeSolver:
             # Obtain transverse impedance
             self.calc_trans_Z()
 
-        elif compute_plane == "longitudinal":
+        elif compute_plane.lower() == "longitudinal":
             # Obtain longitudinal Wake potential
             self.calc_long_WP()
 
@@ -394,6 +393,10 @@ class WakeSolver:
                 np.c_[self.s, self.WP],
                 header="   s [m]" + " " * 20 + "WP [V/pC]" + "\n" + "-" * 48,
             )
+    
+        # Close h5 file
+        self.Ez_hf.close()
+        self.Ez_hf = None
 
     def calc_long_WP_3d(self, **kwargs):
         """
@@ -525,6 +528,10 @@ class WakeSolver:
                 np.c_[self.s, self.WP],
                 header="   s [m]" + " " * 20 + "WP [V/pC]" + "\n" + "-" * 48,
             )
+
+        # Close h5 file
+        self.Ez_hf.close()
+        self.Ez_hf = None
 
     def calc_trans_WP(self, **kwargs):
         """
@@ -988,7 +995,8 @@ class WakeSolver:
                     raise ValueError('Invalid dimension. Use dim = "x" or "y".')
             else:
                 raise ValueError(
-                    'Invalid plane or dimension. Use plane = "longitudinal" or "transverse" and choose the dimension dim = "z", "x" or "y".'
+                    "Invalid plane or dimension. Use plane = 'longitudinal' or "
+                    "'transverse' and choose the dimension dim = 'z', 'x' or 'y'."
                 )
 
         if parameterBounds is None or N_resonators is None:
@@ -1006,7 +1014,6 @@ class WakeSolver:
             parameterBounds = bounds.parameterBounds
 
         # Build the differential evolution model
-        print("Fitting the impedance using Differential Evolution...")
         self.log("\nExtrapolating wake potential using Differential Evolution...")
 
         objectiveFunction = iddefix.ObjectiveFunctions.sumOfSquaredErrorReal
@@ -1030,7 +1037,7 @@ class WakeSolver:
                 crossover_rate=0.5,
             )
 
-        elif DE_kernel == "CMAES":  # TODO: fix UnboundLocalError
+        elif DE_kernel == "CMAES": 
             DE_model.run_cmaes(
                 maxiter=int(maxiter),
                 popsize=popsize,
