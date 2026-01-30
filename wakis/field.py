@@ -556,9 +556,9 @@ class Field:
 
         else:  # 1d array
             if self.on_gpu:
-                return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2).get()
+                return xp.sqrt(self.field_x**2 + self.field_y**2 + self.field_z**2).get()
             else:
-                return xp.sqrt(self.field_x**2 + self.field_y**2, self.field_z**2)
+                return xp.sqrt(self.field_x**2 + self.field_y**2 + self.field_z**2)
 
     def inspect(
         self,
