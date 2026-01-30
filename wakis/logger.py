@@ -6,6 +6,7 @@
 
 import os
 import json
+import numpy as np
 
 from scipy.constants import mu_0 as mu_0
 
@@ -83,6 +84,8 @@ class Logger:
                         return {k: _convert(v) for k, v in obj.items()}
                     if isinstance(obj, (list, tuple)):
                         return [_convert(v) for v in obj]
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
                     try:
                         json.dumps(obj)
                         return obj
