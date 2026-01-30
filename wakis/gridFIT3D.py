@@ -320,7 +320,8 @@ class GridFIT3D:
         self.ZMIN = self.zmin
         self.ZMAX = self.zmax
         self.NZ = self.Nz - self.Nz % (self.size)  # ensure multiple of MPI size
-        self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ + 1)[:-1] + self.dz / 2
+        self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ + 1)[:-1]
+        self.Z += (self.ZMAX - self.ZMIN) / (2 * self.NZ) 
 
         if self.verbose and self.rank == 0:
             print(f" * Global grid ZMIN={self.ZMIN}, ZMAX={self.ZMAX}, NZ={self.NZ}")
@@ -541,7 +542,6 @@ class GridFIT3D:
             snap_solids = self.stl_solids.keys()
 
         # Union of all the surfaces
-        # [TODO]: should use | for union instead or +?
         model = None
         for key in snap_solids:
             solid = self.read_stl(key)
@@ -551,7 +551,6 @@ class GridFIT3D:
                 model = model + solid
 
         edges = model.extract_feature_edges(boundary_edges=True, manifold_edges=False)
-        print(edges)
 
         # Extract points lying in the X-Z plane (Y ≈ 0)
         xz_plane_points = edges.points[np.abs(edges.points[:, 1]) < snap_tol]
@@ -583,13 +582,11 @@ class GridFIT3D:
         snap_tol : float, optional
             Tolerance for snap point detection.
         """
-        # TODO
         # Support for user-defined stl_keys as list
         if snap_solids is None:
             snap_solids = self.stl_solids.keys()
 
         # Union of all the surfaces
-        # [TODO]: should use | for union instead or +?
         model = None
         for key in snap_solids:
             solid = self.read_stl(key)
@@ -611,6 +608,7 @@ class GridFIT3D:
         yz_cloud = pv.PolyData(yz_plane_points)
         xy_cloud = pv.PolyData(xy_plane_points)
 
+        pv.global_theme.allow_empty_mesh = True
         pl = pv.Plotter()
         pl.add_mesh(model, color="white", opacity=0.5, label="base STL")
         pl.add_mesh(
@@ -701,14 +699,14 @@ class GridFIT3D:
                 # idx of segments sorted min -> max
                 idx_max_diffs = np.argsort(np.diff(x))[-1]  # take bigger
 
-                print(f"Bigger segment starts at {x[idx_max_diffs]}")
+                #print(f"Bigger segment starts at {x[idx_max_diffs]}")
                 # compute new point in the middle of the segment
                 val = x[idx_max_diffs] + (x[idx_max_diffs + 1] - x[idx_max_diffs]) / 2
 
                 # insert the new point
                 x = np.insert(x, idx_max_diffs + 1, val)
                 x = np.unique(x)
-                print(f"Inserted point {val} at index {idx_max_diffs}")
+                #print(f"Inserted point {val} at index {idx_max_diffs}")
             x0 = x.copy()
         else:
             raise ValueError(
@@ -727,7 +725,7 @@ class GridFIT3D:
             gtol=tol,
             ftol=tol,
             xtol=tol,
-            verbose=1,
+            verbose=0,
             args=(x0.copy(), is_snap.copy()),
         )
         # transform back to [xmin, xmax]
