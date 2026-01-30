@@ -301,7 +301,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 print("Using MKL backend for time-stepping...")
             self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
             self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
-            self.one_step = self._mpi_one_step_mkl if self.use_mpi else self._one_step_mkl
+            self.one_step = (
+                self._mpi_one_step_mkl if self.use_mpi else self._one_step_mkl
+            )
 
         # Move to GPU
         if use_gpu:
@@ -757,7 +759,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.itA[:, :, -1, "y"] = self.iA[:, :, 0, "y"]
 
             self.tDs = diags(
-                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
+                self.tL.toarray(),
+                shape=(3 * self.N, 3 * self.N),
+                dtype=self.dtype,
             )
             self.itDa = diags(
                 self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype
@@ -859,10 +863,14 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.itA[:, :, -1, "y"] = self.iA[:, :, 0, "y"]
 
             self.tDs = diags(
-                self.tL.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
+                self.tL.toarray(),
+                shape=(3 * self.N, 3 * self.N),
+                dtype=self.dtype,
             )
             self.itDa = diags(
-                self.itA.toarray(), shape=(3 * self.N, 3 * self.N), dtype=self.dtype,
+                self.itA.toarray(),
+                shape=(3 * self.N, 3 * self.N),
+                dtype=self.dtype,
             )
             self.activate_abc = True
 

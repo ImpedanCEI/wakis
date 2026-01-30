@@ -393,7 +393,7 @@ class WakeSolver:
                 np.c_[self.s, self.WP],
                 header="   s [m]" + " " * 20 + "WP [V/pC]" + "\n" + "-" * 48,
             )
-    
+
         # Close h5 file
         self.Ez_hf.close()
         self.Ez_hf = None
@@ -1037,7 +1037,7 @@ class WakeSolver:
                 crossover_rate=0.5,
             )
 
-        elif DE_kernel == "CMAES": 
+        elif DE_kernel == "CMAES":
             DE_model.run_cmaes(
                 maxiter=int(maxiter),
                 popsize=popsize,
@@ -1437,7 +1437,7 @@ class WakeSolver:
         """
         if f_name.endswith(".txt"):
             f_name = f_name[:-4]
-            
+
         if x_data is not None and y_data is not None:
             np.savetxt(
                 f_name + ".txt",

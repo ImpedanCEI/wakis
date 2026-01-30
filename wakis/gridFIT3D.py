@@ -321,7 +321,7 @@ class GridFIT3D:
         self.ZMAX = self.zmax
         self.NZ = self.Nz - self.Nz % (self.size)  # ensure multiple of MPI size
         self.Z = np.linspace(self.ZMIN, self.ZMAX, self.NZ + 1)[:-1]
-        self.Z += (self.ZMAX - self.ZMIN) / (2 * self.NZ) 
+        self.Z += (self.ZMAX - self.ZMIN) / (2 * self.NZ)
 
         if self.verbose and self.rank == 0:
             print(f" * Global grid ZMIN={self.ZMIN}, ZMAX={self.ZMAX}, NZ={self.NZ}")
@@ -699,14 +699,14 @@ class GridFIT3D:
                 # idx of segments sorted min -> max
                 idx_max_diffs = np.argsort(np.diff(x))[-1]  # take bigger
 
-                #print(f"Bigger segment starts at {x[idx_max_diffs]}")
+                # print(f"Bigger segment starts at {x[idx_max_diffs]}")
                 # compute new point in the middle of the segment
                 val = x[idx_max_diffs] + (x[idx_max_diffs + 1] - x[idx_max_diffs]) / 2
 
                 # insert the new point
                 x = np.insert(x, idx_max_diffs + 1, val)
                 x = np.unique(x)
-                #print(f"Inserted point {val} at index {idx_max_diffs}")
+                # print(f"Inserted point {val} at index {idx_max_diffs}")
             x0 = x.copy()
         else:
             raise ValueError(
