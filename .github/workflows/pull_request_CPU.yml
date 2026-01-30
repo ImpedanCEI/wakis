@@ -41,4 +41,4 @@ jobs:
       - name: Run pytest
         run: |
           cd wakis
-          python -m pytest --color=yes -v -s tests
+          python -m pytest --color=yes -v tests
