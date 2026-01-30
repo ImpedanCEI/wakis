@@ -190,11 +190,11 @@ class TestMPILossyCavity:
             xmax,
             ymin,
             ymax,
-            ZMIN, # Global domain zmin
-            ZMAX, # Global domain zmax
+            ZMIN,  # Global domain zmin
+            ZMAX,  # Global domain zmax
             Nx,
             Ny,
-            NZ,   # Global domain Nz
+            NZ,  # Global domain Nz
             use_mpi=use_mpi,  # Enables MPI subdivision of the domain
             stl_solids=stl_solids,
             stl_materials=stl_materials,
@@ -369,7 +369,9 @@ class TestMPILossyCavity:
         if use_mpi:
             if solver.rank == 0:
                 tol = dict(rtol=0.1)
-                assert len(wake.WP) == 5195, "Wake potential MPI samples length mismatch"
+                assert len(wake.WP) == 5195, (
+                    "Wake potential MPI samples length mismatch"
+                )
                 assert np.allclose(wake.WP[::50], self.WP, **tol), (
                     "Wake potential MPI samples failed"
                 )

@@ -58,11 +58,11 @@ grid = GridFIT3D(
     xmax,
     ymin,
     ymax,
-    ZMIN, # global zmin, to be subdivided among MPI ranks
-    ZMAX, # global zmax, to be subdivided among MPI ranks
+    ZMIN,  # global zmin, to be subdivided among MPI ranks
+    ZMAX,  # global zmax, to be subdivided among MPI ranks
     Nx,
     Ny,
-    NZ,   # global cells in z to be subdivided among MPI ranks
+    NZ,  # global cells in z to be subdivided among MPI ranks
     use_mpi=True,  # Enables MPI subdivision of the domain
     stl_solids=stl_solids,
     stl_materials=stl_materials,
@@ -127,7 +127,6 @@ if run_timeloop:
 
     # -------------- Time loop --------------
     for n in tqdm(range(Nt)):
-
         beam.update(solver, n * solver.dt)
 
         solver.mpi_one_step()
@@ -235,7 +234,6 @@ if run_wakefield:
 
     # ----------- 1d plot results --------------------
     if solver.rank == 0:
-
         # Plot longitudinal wake potential and impedance
         fig1, ax = plt.subplots(1, 2, figsize=[12, 4], dpi=150)
         ax[0].plot(wake.s * 1e2, wake.WP, c="r", lw=1.5, label="Wakis")

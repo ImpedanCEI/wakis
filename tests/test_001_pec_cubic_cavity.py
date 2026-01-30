@@ -149,7 +149,9 @@ class TestPecCubicCavity:
     def test_long_wake_potential(self):
         global wake
         tol = dict(rtol=50 * 1e-6, atol=50 * 1e-6)
-        assert np.allclose(wake.WP[::50], self.WP, **tol), "Wake potential samples failed"
+        assert np.allclose(wake.WP[::50], self.WP, **tol), (
+            "Wake potential samples failed"
+        )
         assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(
             1325.6968037037557, 0.1
         ), "Wake potential cumsum failed"
