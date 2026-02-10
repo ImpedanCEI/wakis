@@ -8,6 +8,7 @@ import h5py
 import time
 from tqdm import tqdm
 from wakis.sources import Beam
+from wakis.plotting import PlotMixin
 
 
 class RoutinesMixin:
@@ -224,6 +225,7 @@ class RoutinesMixin:
         callback=None,
         compute_plane="both",
         plot=False,
+        plot_func=PlotMixin.plot2D,
         plot_from=None,
         plot_every=1,
         plot_until=None,
@@ -264,6 +266,8 @@ class RoutinesMixin:
             Default is 'both'.
         plot : bool, optional
             Flag to enable 2D plotting. Default is False.
+        plot_func: callable, optional
+            Plotting function to be called during the timestepping
         plot_from : int, optional
             Timestep to start plotting from. Default is int(self.ti / self.dt).
         plot_every : int, optional
@@ -317,15 +321,7 @@ class RoutinesMixin:
 
         # plot params defaults
         if plot:
-            plotkw = {
-                "plane": "ZY",
-                "pos": 0.5,
-                "title": "Ez",
-                "cmap": "rainbow",
-                "patch_reverse": True,
-                "off_screen": True,
-                "interpolation": "spline36",
-            }
+            plotkw = self.get_plotting_kwargs(plot_func.__name__)
             plotkw.update(kwargs)
 
         # integration path (test position)
@@ -412,6 +408,7 @@ class RoutinesMixin:
             plot_from = int(self.ti / self.dt)
 
         print("Running electromagnetic time-domain simulation...")
+
         t0 = time.time()
         for n in tqdm(range(Nt)):
             # Initial condition
@@ -431,7 +428,7 @@ class RoutinesMixin:
             # Plot
             if plot:
                 if n % plot_every == 0 and n < plot_until and n > plot_from:
-                    self.plot2D(field="E", component="z", n=n, **plotkw)
+                    plot_func(n=n, **plotkw)
                 else:
                     pass
 
@@ -461,3 +458,67 @@ class RoutinesMixin:
         self.logger.wakeSolver["wakelength"] = wakelength
         self.logger.wakeSolver["simulationTime"] = time.time() - t0
         self.logger.save_logs()
+
+    def get_plotting_kwargs(self, name='plot2D'):
+
+        if name == 'plot1D':
+            plotkw = {
+                "field": "E",
+                "component": "z",
+                "line" : "z",
+                "pos" : [0.8, 0.6, 0.5, 0.4, 0.2],
+                "xscale" : "linear",
+                "yscale" : "linear",
+                "off_screen" : True,
+                "colors" : ["#5ccfe6", "#fdb6d0", "#ffae57", "#bae67e", "#ffd580", "#a2aabc"],
+                "title" : "plot1D",
+            }
+
+        if name == 'plot2D':
+            plotkw = {
+                "field": "E",
+                "component": "z",
+                "plane": "ZY",
+                "pos": 0.5,
+                "cmap": "rainbow",
+                "patch_reverse": True,
+                "off_screen": True,
+                "interpolation": "spline36",
+                "title": "plot2D",
+            }
+        elif name == 'plot3D':
+            plotkw = {
+                "field": "E",
+                "component": "z",
+                "add_stl": None,
+                "stl_opacity": 0.0,
+                "stl_colors": "white",
+                "cmap": "jet",
+                "clip_box": False,
+                "clip_normal": "-y",
+                "off_screen": True,
+                "zoom": 1.0,
+                "nan_opacity": 1.0,
+                "title": "plot3D",
+            }
+        elif name == 'plot3DonSTL':
+            plotkw = {
+                "field": "E",
+                "component": "z",
+                "cmap" : "rainbow",
+                "stl_with_field" : list(self.grid.stl_solids.keys())[0],
+                "field_opacity" : 1.0,
+                "stl_transparent" : list(self.grid.stl_solids.keys()),
+                "stl_opacity" : 0.1,
+                "stl_colors" : list(self.grid.stl_colors.values()),
+                "clip_plane" : True,
+                "clip_normal" : "-y",
+                "clip_origin" : [0,0,0],
+                "off_screen" : True,
+                "zoom" : 1.2,
+                "title" : "plot3DonSTL"
+            }
+
+        return plotkw
+
+
