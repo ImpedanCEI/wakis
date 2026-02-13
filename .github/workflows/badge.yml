@@ -1,0 +1,29 @@
+name: Lines of code
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  run_tests:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Make the default shell a login shell, so that conda is initialised properly
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Make Code Badge
+      uses: shadowmoose/GHA-LoC-Badge@1.0.0
+      id: badge
+      with:
+        debug: true
+        directory: ./wakis/
+        badge: ./docs/img/badge.svg
+        patterns: '*.js'  # Patterns in the format of a '.gitignore' file, separated by pipes.
+        ignore: 'node_modules'

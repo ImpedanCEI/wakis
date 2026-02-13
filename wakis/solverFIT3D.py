@@ -37,6 +37,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                  bc_high=['Periodic', 'Periodic', 'Periodic'],
                  use_stl=False, use_conductors=False,
                  use_gpu=False, use_mpi=False, dtype=np.float64,
+                 use_sibc=True, fmax=1e9,
                  n_pml=10, bg=[1.0, 1.0], verbose=1):
         '''
         Class holding the 3D time-domain electromagnetic solver
@@ -61,6 +62,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         bc_high: list, default ['Periodic', 'Periodic', 'Periodic']
             Domain box boundary conditions for X+, Y+, Z+
         use_conductors: bool, default False
+            [LEGACY] Will be deprecated in future releases
             If true, enables geometry import based on elements from `conductors.py`
         use_stl: bool, default False
             If true, activates all the solids and materials passed to the `grid` object
@@ -151,8 +153,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # MPI init
         if self.use_mpi:
             if self.grid.use_mpi:
-                self.mpi_initialize()
-                self.one_step = self.mpi_one_step
+                self._mpi_initialize()
+                self.one_step = self._mpi_one_step
             else:
                 print('[!] Grid not subdivided for MPI, set `use_mpi`=True also in `GridFIT3D` to enable MPI')
 
@@ -185,7 +187,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.bc_low = bc_low
         self.bc_high = bc_high
         self.update_logger(['bc_low', 'bc_high'])
-        self.apply_bc_to_C()
+        self._apply_bc_to_C()
 
         # Materials
         if verbose:
@@ -202,9 +204,15 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ieps = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.eps_bg)
         self.imu = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*(1./self.mu_bg)
         self.sigma = Field(self.Nx, self.Ny, self.Nz, use_ones=True, dtype=self.dtype)*self.sigma_bg
+        self.use_sibc = use_sibc # surface impedance boundary condition
+        self.fmax = fmax         # maximum frequency for SIBC
+        if wake is not None and fmax is None:
+            self.fmax = self.wake.fmax
+        if verbose > 1:
+            print(f'* Maximum frequency for simulation fmax={self.fmax/1e9} GHz')
 
         if self.use_stl:
-            self.apply_stl()
+            self._apply_stl_materials()
 
         # Fill PML BCs
         if self.activate_pml:
@@ -215,7 +223,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.pml_hi = 10.0
             self.pml_func = np.geomspace
             self.pml_eps_r = 1.0
-            self.fill_pml_sigmas()
+            self._fill_pml_sigmas()
             self.update_logger(['n_pml'])
 
         # Timestep calculation
@@ -230,7 +238,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.update_logger(['dt'])
 
         if self.use_conductivity: # relaxation time criterion tau
-
+            # TODO: can be avoided by using a Crank-Nicolson scheme for the current update
             mask = np.logical_and(self.sigma.toarray()!=0, #for non-conductive
                                 self.ieps.toarray()!=0)  #for PEC eps=inf
 
@@ -255,7 +263,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 print('Using MKL backend for time-stepping...')
             self.tDsiDmuiDaC = mkl_sparse_mat(self.tDsiDmuiDaC)
             self.itDaiDepsDstC = mkl_sparse_mat(self.itDaiDepsDstC)
-            self.one_step = self.one_step_mkl
+            self.one_step = self._one_step_mkl
 
         # Move to GPU
         if use_gpu:
@@ -275,8 +283,59 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.solverInitializationTime = time.time() - t0
         self.update_logger(['solverInitializationTime'])
 
-        self.solverInitializationTime = time.time() - t0
-        self.update_logger(['solverInitializationTime'])
+    def _apply_stl_materials(self):
+        '''
+        Mask the cells inside the stl and assing the material
+        defined by the user
+
+        * Note: stl material should contain **relative** epsilon and mu
+        ** Note 2: when assigning the stl material, the default values
+                   1./eps_0 and 1./mu_0 are substracted
+        '''
+        grid = self.grid.grid
+        self.stl_solids = self.grid.stl_solids
+        self.stl_materials = self.grid.stl_materials
+        self.stl_colors = self.grid.stl_colors
+
+        for key in self.stl_solids.keys():
+
+            # TODO: adapt for subpixel smoothing
+
+            # Retrieve mask and materials from grid
+            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
+            eps = self.stl_materials[key][0]*eps_0
+            mu = self.stl_materials[key][1]*mu_0
+
+            # Conductivity
+            # Max conductivity that can be resolved without SIBC
+            dn = np.sqrt(2)*np.min([self.dx, self.dy, self.dz])
+            sigma_max = 10/(np.pi * self.fmax * mu * dn**2)
+            if self.verbose > 1:
+                print(f'* Max resolved conductivity without SIBC: {sigma_max} S/m')
+
+            if len(self.stl_materials[key]) == 3:
+
+                sigma = self.stl_materials[key][2]
+
+                # Mark surface cells for SIBC if conductivity is high
+                if self.use_sibc and self.stl_materials[key][2] > sigma_max:
+                    if self.verbose > 1:
+                        print(f'* Applying SIBC for solid "{key}" with sigma={sigma} S/m')
+                    self.grid._mark_cells_in_surface(key)
+                    imp = np.sqrt(np.pi*self.fmax*mu/sigma)
+                    sigma = 1/imp  # SIBC surface conductivity [S]
+                    eps = 1/imp
+
+                # Update sigma tensor
+                self.sigma += self.sigma * (-1.0*mask)
+                self.sigma += mask * sigma
+                self.use_conductivity = True
+
+            # Update ieps and imu tensors
+            self.ieps += self.ieps * (-1.0*mask)
+            self.imu += self.imu * (-1.0*mask)
+            self.ieps += mask * 1./eps
+            self.imu += mask * 1./mu
 
     def update_tensors(self, tensor='all'):
         '''Update tensor matrices after
@@ -312,9 +371,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
     def _one_step(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
@@ -331,11 +390,11 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.J.fromarray(self.sigma.toarray()*self.E.toarray()
                              )
 
-    def one_step_mkl(self):
+    def _one_step_mkl(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*dot_product_mkl(self.tDsiDmuiDaC,self.E.toarray())
@@ -351,7 +410,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
-    def mpi_initialize(self):
+    def _mpi_initialize(self):
         self.comm = self.grid.comm
         self.rank = self.grid.rank
         self.size = self.grid.size
@@ -361,30 +420,30 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.ZMAX = self.grid.ZMAX
         self.Z = self.grid.Z
 
-    def mpi_one_step(self):
+    def _mpi_one_step(self):
         if self.step_0:
-            self.set_ghosts_to_0()
+            self._set_ghosts_to_0()
             self.step_0 = False
-            self.attrcleanup()
+            self._attrcleanup()
 
         self.H.fromarray(self.H.toarray() -
                          self.dt*self.tDsiDmuiDaC*self.E.toarray()
                          )
 
-        self.mpi_communicate(self.H)
-        self.mpi_communicate(self.J)
+        self._mpi_communicate(self.H)
+        self._mpi_communicate(self.J)
         self.E.fromarray(self.E.toarray() +
                          self.dt*(self.itDaiDepsDstC * self.H.toarray()
                                   - self.ieps.toarray()*self.J.toarray()
                                   )
                          )
 
-        self.mpi_communicate(self.E)
+        self._mpi_communicate(self.E)
         # include current computation
         if self.use_conductivity:
             self.J.fromarray(self.sigma.toarray()*self.E.toarray())
 
-    def mpi_communicate(self, field):
+    def _mpi_communicate(self, field):
         if self.use_gpu:
             field.from_gpu()
 
@@ -611,7 +670,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         return _field
 
-    def apply_bc_to_C(self):
+    def _apply_bc_to_C(self):
         '''
         Modifies rows or columns of C and tDs and itDa matrices
         according to bc_low and bc_high
@@ -752,7 +811,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             self.activate_pml = True
             self.use_conductivity = True
 
-    def fill_pml_sigmas(self):
+    def _fill_pml_sigmas(self):
         '''
         Routine to calculate pml sigmas and apply them
         to the conductivity tensor sigma
@@ -938,7 +997,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
                 self.E[:, :, -1, d] = E_abc[2][d+'hi']
                 self.H[:, :, -1, d] = H_abc[2][d+'hi']
 
-    def set_ghosts_to_0(self):
+    def _set_ghosts_to_0(self):
         '''
         Cleanup for initial conditions if they are
         accidentally applied to the ghost cells
@@ -957,8 +1016,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.E[:, -1, :, 'y'] = 0.
         self.E[:, :, -1, 'z'] = 0.
 
-    def apply_conductors(self):
+    def _apply_conductors(self):
         '''
+        [LEGACY] conductors support
         Set the 1/epsilon values inside the PEC conductors to zero
         '''
         self.flag_in_conductors = self.grid.flag_int_cell_yz[:-1,:,:]  \
@@ -967,8 +1027,9 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         self.ieps *= self.flag_in_conductors
 
-    def set_field_in_conductors_to_0(self):
+    def _set_field_in_conductors_to_0(self):
         '''
+        [LEGACY] conductors support
         Cleanup for initial conditions if they are
         accidentally applied to the conductors
         '''
@@ -979,73 +1040,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.H *= self.flag_cleanup
         self.E *= self.flag_cleanup
 
-    def apply_stl(self):
-        '''
-        Mask the cells inside the stl and assing the material
-        defined by the user
-
-        * Note: stl material should contain **relative** epsilon and mu
-        ** Note 2: when assigning the stl material, the default values
-                   1./eps_0 and 1./mu_0 are substracted
-        '''
-        grid = self.grid.grid
-        self.stl_solids = self.grid.stl_solids
-        self.stl_materials = self.grid.stl_materials
-        self.stl_colors = self.grid.stl_colors
-
-        for key in self.stl_solids.keys():
-
-            mask = np.reshape(grid[key], (self.Nx, self.Ny, self.Nz)).astype(int)
-
-            if type(self.stl_materials[key]) is str:
-                # Retrieve from material library
-                mat_key = self.stl_materials[key].lower()
-
-                eps = material_lib[mat_key][0]*eps_0
-                mu = material_lib[mat_key][1]*mu_0
-
-                # Setting to zero
-                self.ieps += self.ieps * (-1.0*mask)
-                self.imu += self.imu * (-1.0*mask)
-
-                # Adding new values
-                self.ieps += mask * 1./eps
-                self.imu += mask * 1./mu
-
-                # Conductivity
-                if len(material_lib[mat_key]) == 3:
-                    sigma = material_lib[mat_key][2]
-                    self.sigma += self.sigma * (-1.0*mask)
-                    self.sigma += mask * sigma
-                    self.use_conductivity = True
-
-                elif self.sigma_bg > 0.0: # assumed sigma = 0
-                    self.sigma += self.sigma * (-1.0*mask)
-
-            else:
-                # From input
-                eps = self.stl_materials[key][0]*eps_0
-                mu = self.stl_materials[key][1]*mu_0
-
-                # Setting to zero
-                self.ieps += self.ieps * (-1.0*mask)
-                self.imu += self.imu * (-1.0*mask)
-
-                # Adding new values
-                self.ieps += mask * 1./eps
-                self.imu += mask * 1./mu
-
-                # Conductivity
-                if len(self.stl_materials[key]) == 3:
-                    sigma = self.stl_materials[key][2]
-                    self.sigma += self.sigma * (-1.0*mask)
-                    self.sigma += mask * sigma
-                    self.use_conductivity = True
-
-                elif self.sigma_bg > 0.0: # assumed sigma = 0
-                    self.sigma += self.sigma * (-1.0*mask)
-
-    def attrcleanup(self):
+    def _attrcleanup(self):
         # Fields
         del self.L, self.tL, self.iA, self.itA
         if hasattr(self, 'BC'):
@@ -1082,13 +1077,13 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             H = self.mpi_gather_asField('H')
             E = self.mpi_gather_asField('E')
             J = self.mpi_gather_asField('J')
-
+            state = None
             if self.rank == 0:
                     state = h5py.File(filename, "w")
-                    state.create_dataset("H", data=H)
-                    state.create_dataset("E", data=E)
-                    state.create_dataset("J", data=J)
-            # TODO: check for MPI-GPU
+                    state.create_dataset("H", data=H.toarray())
+                    state.create_dataset("E", data=E.toarray())
+                    state.create_dataset("J", data=J.toarray())
+        # TODO: check for MPI-GPU
 
         elif self.use_gpu: # GPU savestate
             state = h5py.File(filename, "w")
@@ -1102,7 +1097,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             state.create_dataset("E", data=self.E.toarray())
             state.create_dataset("J", data=self.J.toarray())
 
-        if close:
+        if close and state is not None:
             state.close()
         else:
             return state  # Caller must close this manually
@@ -1116,40 +1111,46 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         Parameters:
         -----------
         filename : str, optional
-            The name of the HDF5 file to load the solver state from. Default is "solver_state.h5".
+            The name of the HDF5 file to load the solver state from.
+            Default is "solver_state.h5".
 
         Returns:
         --------
         None
         """
-        state = h5py.File(filename, "r")
 
-        self.E.fromarray(state["E"][:])
-        self.H.fromarray(state["H"][:])
-        self.J.fromarray(state["J"][:])
+        if self.use_mpi: #TODO: test
+            if self.rank == 0:
+                with h5py.File(filename, "r") as f:
+                    state = {
+                        "E": f["E"][:],
+                        "H": f["H"][:],
+                        "J": f["J"][:]
+                    }
+                zz = np.s_[:self.Nz]
+            elif self.rank == self.size - 1:
+                state = None
+                zz = np.s_[(self.NZ-self.Nz):]
+            else:
+                state = None
+                zlo = (self.NZ//self.size+1) +\
+                    + (self.NZ//self.size+2) * (self.rank-1)
+                zz = np.s_[zlo:zlo+self.Nz]
 
-        # TODO: support MPI loadstate
+            state = self.comm.bcast(state, root=0)
 
-        state.close()
+            for d in [0, 1, 2]: # x,y,z
+                self.E[:, :, :, d] = state["E"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
+                self.H[:, :, :, d] = state["H"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
+                self.J[:, :, :, d] = state["J"].reshape((self.Nx, self.Ny, self.NZ, 3), order='F')[:, :, zz, d]
 
-    def read_state(self, filename="solver_state.h5"):
-        """Open an HDF5 file for reading without loading its contents.
+        else: # CPU/GPU loadstate
+            state = h5py.File(filename, "r")
+            self.E.fromarray(state["E"][:])
+            self.H.fromarray(state["H"][:])
+            self.J.fromarray(state["J"][:])
 
-        This function returns an open `h5py.File` object, allowing the caller
-        to manually inspect or extract data as needed. The file must be closed
-        by the caller after use.
-
-        Parameters:
-        -----------
-        filename : str, optional
-            The name of the HDF5 file to open. Default is "solver_state.h5".
-
-        Returns:
-        --------
-        h5py.File
-            An open HDF5 file object in read mode.
-        """
-        return h5py.File(filename, "r")
+            state.close()
 
     def reset_fields(self):
         """

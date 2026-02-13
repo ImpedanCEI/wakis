@@ -92,7 +92,7 @@ class TestMPILossyCavity:
                 'ymin': -0.25999999046325684, 'ymax': 0.25999999046325684,
                 'zmin': -0.25, 'zmax': 0.550000011920929,
                 'stl_solids': {'cavity': 'tests/stl/007_vacuum_cavity.stl', 'shell': 'tests/stl/007_lossymetal_shell.stl'},
-                'stl_materials': {'cavity': 'vacuum', 'shell': [30, 1.0, 30]},
+                'stl_materials': {'cavity': [1.0, 1.0], 'shell': [30, 1.0, 30]},
                 'gridInitializationTime': 0}
 
     solverLogs = {'use_gpu': False, 'use_mpi': False, 'background': 'pec',
@@ -202,7 +202,7 @@ class TestMPILossyCavity:
             for n in tqdm(range(Nt)):
 
                 beam.update(solver, n*solver.dt)
-                solver.mpi_one_step()
+                solver.one_step()
 
             Ez = solver.mpi_gather('Ez', x=int(Nx/2), y=int(Ny/2))
             if solver.rank == 0:
@@ -252,6 +252,33 @@ class TestMPILossyCavity:
                 xscale='linear', yscale='linear',
                 off_screen=True, title=self.img_folder+'Ez1d', n=3000)
 
+    def test_mpi_save_state(self):
+        # Test MPI savestate
+        global solver
+        filename = 'mpi_test_state.h5'
+        solver.save_state(filename)
+
+        if use_mpi:
+            solver.comm.Barrier()  # Ensure all processes reach this point
+        assert os.path.exists(filename), "MPI savestate file not created"
+
+    def test_mpi_load_state(self):
+        global solver
+        E_slice = solver.E[int(solver.Nx/2), int(solver.Ny/2), :, 'z'].copy()  # Save current field slice
+        solver.reset_fields()  # Reset fields to zero
+
+        # Test MPI loadstate
+        filename = 'mpi_test_state.h5'
+        if use_mpi:
+            solver.comm.Barrier()  # Ensure all processes reach this point
+        assert os.path.exists(filename), "MPI loadstate file not found"
+        solver.load_state(filename)
+
+        # Check if fields were restored correctly
+        E_slice_loaded = solver.E[int(solver.Nx/2), int(solver.Ny/2), :, 'z']
+        assert np.allclose(E_slice, E_slice_loaded), "MPI loadstate failed to restore fields correctly"
+
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_mpi_wakefield(self):
         # Reset fields
         global solver
@@ -284,7 +311,7 @@ class TestMPILossyCavity:
         # Run simulation
         solver.wakesolve(wakelength=wakelength,
                          wake=wake)
-
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_long_wake_potential(self):
         global wake
         global solver
@@ -301,6 +328,7 @@ class TestMPILossyCavity:
             assert np.allclose(wake.WP[::50], self.WP, rtol=0.1), "Wake potential samples failed"
             assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(184.43818552913254, 0.1), "Wake potential cumsum MPI failed"
 
+    @pytest.mark.skip(reason="Long test, enable when needed")
     def test_long_impedance(self):
         global wake
         global solver

@@ -23,7 +23,7 @@ class WakeSolver():
                  xsource=0., ysource=0., xtest=0., ytest=0., 
                  chargedist=None, ti=None, 
                  compute_plane='both', skip_cells=0, add_space=None, 
-                 Ez_file='Ez.h5', save=True, results_folder='results/',
+                 Ez_file=None, save=True, results_folder='results/',
                  verbose=0, counter_moving=False):
         '''
         Parameters
@@ -110,6 +110,8 @@ class WakeSolver():
             This determines de size of the 3d wake potential
 
         '''
+        self.verbose = verbose
+        print('Initializing WakeSolver...')
 
         #beam
         self.q = q
@@ -123,11 +125,16 @@ class WakeSolver():
         self.skip_cells = skip_cells
         self.compute_plane = compute_plane
         self.DE_model = None
+        self.fmax = self.v/self.sigmaz/3
+
+        self.log(f'* Beam longitudinal sigma sigmaz={self.sigmaz*1e3} mm, sigmat={self.sigmaz/self.v*1e9} ns')
+        self.log(f'* Maximum frequency of interest fmax={self.fmax/1e9} GHz')
 
         self.counter_moving = counter_moving
 
         if add_space is not None: #legacy support for add_space
             self.skip_cells = add_space
+            self.log(f'* Field values skipped from boundaries: {self.skip_cells} cells')
 
         # Injection time
         if ti is not None:
@@ -136,6 +143,7 @@ class WakeSolver():
             #ti = 8.548921333333334*self.sigmaz/self.v  #injection time as in CST for beta = 1
             ti = 8.548921333333334*self.sigmaz/(np.sqrt(self.beta)*self.v) #injection time as in CST for beta <=1
             self.ti = ti
+            self.log(f'* Beam source injection time ti={self.ti} s')
 
         #field
         self.Ez_file = Ez_file
@@ -159,7 +167,6 @@ class WakeSolver():
         self.lambdaf = None
 
         #user
-        self.verbose = verbose
         self.logger = Logger()
         self.save = save
         self.folder = results_folder
@@ -170,7 +177,7 @@ class WakeSolver():
         if self.save:
             if not os.path.exists(self.folder):
                 os.mkdir(self.folder)
-        
+
         self.assign_logs()
 
     def solve(self, compute_plane=None, **kwargs):
@@ -340,7 +347,7 @@ class WakeSolver():
         # check for rounding errors
         if nt > len(keys)-4:
             nt = len(keys)-4
-            self.log('*** rounding error in number of timesteps')
+            self.log('[!] Rounding error in number of timesteps')
 
         # Assembly Ez field
         self.log('Assembling Ez field...')
@@ -396,10 +403,6 @@ class WakeSolver():
             Number of transverse cells used for the 3d calculation: 2*n+1
             This determines de size of the 3d wake potential
         '''
-        self.log('\n')
-        self.log('Longitudinal wake potential')
-        self.log('-'*24)
-
         for key, val in kwargs.items():
             setattr(self, key, val)
 
@@ -446,7 +449,7 @@ class WakeSolver():
         # check for rounding errors
         if nt > len(keys)-4:
             nt = len(keys)-4
-            self.log('*** rounding error in number of timesteps')
+            self.log('[!] Rounding error in number of timesteps')
 
         print('Calculating longitudinal wake potential WP(s)')
         with tqdm(total=len(s)*(i0*2+1)*(j0*2+1)) as pbar:
@@ -522,9 +525,6 @@ class WakeSolver():
         for key, val in kwargs.items():
             setattr(self, key, val)
 
-        self.log('\n')
-        self.log('Transverse wake potential')
-        self.log('-'*24)
         self.log(f'* No. transverse cells = {self.n_transverse_cells}')
 
         ds = self.s[2]-self.s[1]
@@ -585,15 +585,10 @@ class WakeSolver():
             Beam sigma in the longitudinal direction [m].
             Used to calculate maximum frequency of interest fmax=c/(3*sigmaz)
         '''
-        self.log('\n')
-        self.log('Longitudinal impedance')
-        self.log('-'*24)
-
         for key, val in kwargs.items():
             setattr(self, key, val)
 
         print('Calculating longitudinal impedance Z...')
-        self.log(f'Single sided DFT with number of samples = {samples}')
 
         # setup charge distribution in s
         if self.lambdas is None and self.chargedist is not None:
@@ -601,15 +596,17 @@ class WakeSolver():
         elif self.lambdas is None and self.chargedist is None:
             self.calc_lambdas_analytic()
             try:
-                self.log('! Using analytic charge distribution λ(s) since no data was provided')
+                self.log('[!] Using analytic charge distribution λ(s) since no data was provided')
             except Exception: #ascii encoder error handling
-                self.log('! Using analytic charge distribution since no data was provided')
+                self.log('[!] Using analytic charge distribution since no data was provided')
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
         if fmax is None:
-            fmax = self.v/self.sigmaz/3   #max frequency of interest
+            fmax = self.fmax   #max frequency of interest
         N = int((self.v/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
+        self.log(f'* Single sided DFT with number of samples = {samples} and fmax = {fmax}')
+        self.log(f'* Zero-padding to N = {N} points with ds = {ds} m')
 
         # Obtain DFTs - is it v or c?
         lambdafft = np.fft.fft(self.lambdas*self.v, n=N)
@@ -637,21 +634,17 @@ class WakeSolver():
         single-sided DFT with 1000 samples
         Parameters can be passed as **kwargs
         '''
-        self.log('\n')
-        self.log('Transverse impedance')
-        self.log('-'*24)
-
         print('Calculating transverse impedance Zx, Zy...')
-        self.log(f'Single sided DFT with number of samples = {samples}')
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:]-self.s[:-1])
         if fmax is None:
-            fmax = self.v/self.sigmaz/3   #max frequency of interest
+            fmax = self.fmax  #max frequency of interest
         N = int((self.v/ds)//fmax*samples) #to obtain a 1000 sample single-sided DFT
+        self.log(f'* Single-sided DFT with number of samples = {samples} and fmax = {fmax}')
+        self.log(f'* Zero-padding to N = {N} points with ds = {ds} m')
 
         # Obtain DFTs
-
         # Normalized charge distribution λ(w)
         lambdafft = np.fft.fft(self.lambdas*self.v, n=N)
         ffft=np.fft.fftfreq(len(lambdafft), ds/self.v)
@@ -717,7 +710,7 @@ class WakeSolver():
             elif len(self.zf) == len(self.chargedist):
                 z = self.zf
             else:
-                self.log('Dimension error: check input dimensions')
+                self.log('[!] Dimension error: check input dimensions')
 
         self.lambdas = np.interp(self.s, z, chargedist/self.q)
 
@@ -777,6 +770,7 @@ class WakeSolver():
                          use_minimization=True, minimization_margin=[0.3, 0.2, 0.01],
                          minimum_peak_height=1.0, distance=3, inspect_bounds=False,
                          Rs_bounds=[0.8, 10], Q_bounds=[0.5, 5], fres_bounds=[-0.01e9, +0.01e9],
+                         verbose=0,
                          ):
         import iddefix
 
@@ -839,7 +833,7 @@ class WakeSolver():
 
         self.DE_model = DE_model
         self.log(DE_model.warning)
-        if self.verbose:
+        if verbose:
             print(DE_model.warning)
 
         return DE_model
@@ -1121,8 +1115,10 @@ class WakeSolver():
         obj.__dict__.update(self.__dict__)
         return obj
 
-    def log(self, txt):
-        if self.verbose:
+    def log(self, txt, level=0):
+        if self.verbose and level==0:
+            print(txt)
+        elif self.verbose and level==1:
             print('\x1b[2;37m'+txt+'\x1b[0m')
 
     def read_cst_3d(self, path=None, folder='3d', filename='Ez.h5', units=1e-3):
