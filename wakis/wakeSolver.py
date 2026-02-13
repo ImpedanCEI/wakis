@@ -30,6 +30,7 @@ class WakeSolver:
         ytest=0.0,
         chargedist=None,
         ti=None,
+        fmax=None,
         compute_plane="both",
         skip_cells=0,
         add_space=None,
@@ -62,6 +63,9 @@ class WakeSolver:
         ti : float, optional
             Injection time, when beam enters domain [s]. If not provided,
             the default value ti=8.53*sigmaz will be used
+        fmax : float, optional
+            Maximum frequency for impedance calculation [Hz]. If not provided,
+            it will be calculated from the beam `sigmaz` as fmax=beta*c/(3*sigmaz)
         chargedist : dict or str, default None
             If not provided, an analytic gaussian with sigmaz and q will be used.
             When str, specifies the filename containing the charge distribution data
@@ -134,6 +138,10 @@ class WakeSolver:
         self.xtest, self.ytest = xtest, ytest
         self.chargedist = chargedist
         self.ti = ti
+        if fmax is None:
+            self.fmax = self.v / (3.0 * self.sigmaz)
+        else:
+            self.fmax = fmax
         self.skip_cells = skip_cells
         self.compute_plane = compute_plane
         self.DE_model = None
@@ -664,8 +672,7 @@ class WakeSolver:
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:] - self.s[:-1])
-        if fmax is None:
-            fmax = self.v / self.sigmaz / 3  # max frequency of interest
+        fmax = self.fmax if fmax is None else fmax
         N = int(
             (self.v / ds) // fmax * samples
         )  # to obtain a 1000 sample single-sided DFT
@@ -722,8 +729,7 @@ class WakeSolver:
 
         # Set up the DFT computation
         ds = np.mean(self.s[1:] - self.s[:-1])
-        if fmax is None:
-            fmax = self.v / self.sigmaz / 3  # max frequency of interest
+        fmax = self.fmax if fmax is None else fmax
         N = int(
             (self.v / ds) // fmax * samples
         )  # to obtain a 1000 sample single-sided DFT
