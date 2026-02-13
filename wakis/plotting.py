@@ -3,9 +3,9 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 
-import pyvista as pv
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pyvista as pv
 
 
 class PlotMixin:
@@ -452,7 +452,13 @@ class PlotMixin:
                             normal=clip_normal, origin=clip_origin
                         ).subdivide_adaptive(max_edge_len=3 * np.min(self.dz))
                     except Exception as e:
-                        print(f"[!] Surface non-manifold, clip with plane skipped: {e}")
+                        surf = surf.clip(
+                            normal=clip_normal,
+                            origin=clip_origin,
+                            invert=False,
+                        ).subdivide_adaptive(max_edge_len=3 * np.min(self.dz))
+                        if self.verbose > 1:
+                            print(f"[!] '{key}' surface non-manifold: {e}")
 
                 fieldonsurf = surf.sample(points, tolerance=tolerance)
 
@@ -512,9 +518,15 @@ class PlotMixin:
                         try:
                             surf = surf.clip_closed_surface(
                                 normal=clip_normal, origin=clip_origin
-                            )
-                        except Exception:
-                            print("Surface non-manifold, clip with plane skipped")
+                            ).subdivide_adaptive(max_edge_len=3 * np.min(self.dz))
+                        except Exception as e:
+                            surf = surf.clip(
+                                normal=clip_normal,
+                                origin=clip_origin,
+                                invert=False,
+                            ).subdivide_adaptive(max_edge_len=3 * np.min(self.dz))
+                            if self.verbose > 1:
+                                print(f"[!] '{key}' surface non-manifold: {e}")
 
                     fieldonsurf = surf.sample(points, tolerance=tolerance)
 
