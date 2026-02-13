@@ -20,11 +20,11 @@ class WakeSolver():
     '''
 
     def __init__(self, wakelength=None, q=1e-9, sigmaz=1e-3, beta=1.0,
-                 xsource=0., ysource=0., xtest=0., ytest=0.,
-                 chargedist=None, ti=None,
-                 compute_plane='both', skip_cells=0, add_space=None,
+                 xsource=0., ysource=0., xtest=0., ytest=0., 
+                 chargedist=None, ti=None, 
+                 compute_plane='both', skip_cells=0, add_space=None, 
                  Ez_file=None, save=True, results_folder='results/',
-                 verbose=1, counter_moving=False):
+                 verbose=0, counter_moving=False):
         '''
         Parameters
         ----------
@@ -317,9 +317,7 @@ class WakeSolver():
         ti = self.ti
 
         # longitudinal variables
-        if self.zf is None:
-            self.zf = self.z
-        dz = self.zf[2]-self.zf[1]
+        if self.zf is None: self.zf = self.z
         zmax = np.max(self.zf) #should it be domain's edge instead?
         zmin = np.min(self.zf)
 
@@ -374,7 +372,7 @@ class WakeSolver():
                     ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                     it = int(ts/dt)                 #find index for t
                     if it < nt:
-                        WP[n] = WP[n]+(Ezt[k, it])*dz   #compute integral
+                        WP[n] = WP[n]+(Ezt[k, it])*self.dz[k]   #compute integral
                     pbar.update(1)
 
         WP = WP/(self.q*1e12)     # [V/pC]
@@ -418,11 +416,9 @@ class WakeSolver():
         ti = self.ti
 
         # longitudinal varianles
-        if self.zf is None:
-            self.zf = self.z
-        dz = self.zf[2]-self.zf[1]
-        zmax = np.max(self.zf)
-        zmin = np.min(self.zf)
+        if self.zf is None: self.zf = self.z
+        zmax = np.max(self.zf) 
+        zmin = np.min(self.zf)              
 
         if self.skip_cells !=0:
             zz = slice(self.skip_cells, -self.skip_cells)
@@ -472,7 +468,7 @@ class WakeSolver():
                                 ts = (z[-k - 1] - s[n]) / (-1 * self.v) - zmax / (-1 * self.v) - self.t[0] + ti
                                 it = int(ts / dt)  # find index for t
                                 if it < nt:
-                                    WP[n] = WP[n] + (Ezt[-k - 1, it]) * (-1 * dz)  # compute integral
+                                    WP[n] = WP[n] + (Ezt[-k - 1, it]) * (-1 * self.dz[k])  # compute integral
                             pbar.update(1)
 
 
@@ -482,7 +478,7 @@ class WakeSolver():
                                 ts = (z[k]+s[n])/self.v-zmin/self.v-self.t[0]+ti
                                 it = int(ts / dt)  # find index for t
                                 if it < nt:
-                                    WP[n] = WP[n] + (Ezt[k, it]) * dz  # compute integral
+                                    WP[n] = WP[n] + (Ezt[k, it]) * self.dz[k]  # compute integral
 
                             pbar.update(1)
 
@@ -531,14 +527,6 @@ class WakeSolver():
 
         self.log(f'* No. transverse cells = {self.n_transverse_cells}')
 
-        # Obtain dx, dy, ds
-        if 'dx' in kwargs.keys() and 'dy' in kwargs.keys():
-            dx = kwargs['dx']
-            dy = kwargs['dy']
-        else:
-            dx=self.xf[2]-self.xf[1]
-            dy=self.yf[2]-self.yf[1]
-
         ds = self.s[2]-self.s[1]
         i0, j0 = self.n_transverse_cells, self.n_transverse_cells
 
@@ -558,9 +546,9 @@ class WakeSolver():
                         pbar.update(1)
 
                 # Perform the gradient (second order scheme)
-                WPx[n] = - (int_WP[i0+1,j0,n]-int_WP[i0-1,j0,n])/(2*dx)
-                WPy[n] = - (int_WP[i0,j0+1,n]-int_WP[i0,j0-1,n])/(2*dy)
-
+                WPx[n] = - (int_WP[i0+1,j0,n]-int_WP[i0-1,j0,n])/(self.dx[i0-1]+self.dx[i0])
+                WPy[n] = - (int_WP[i0,j0+1,n]-int_WP[i0,j0-1,n])/(self.dy[j0-1]+self.dy[j0])
+    
         self.WPx = WPx
         self.WPy = WPy
 
@@ -996,6 +984,12 @@ class WakeSolver():
             self.yf = np.array(hf['y'])
         if 'z' in hf.keys():
             self.zf = np.array(hf['z'])
+        if 'dx' in hf.keys():
+            self.dx = np.array(hf['dx'])
+        if 'dy' in hf.keys():
+            self.dy = np.array(hf['dy'])
+        if 'dz' in hf.keys():
+            self.dz = np.array(hf['dz'])
         if 't' in hf.keys():
             self.t = np.array(hf['t'])
 

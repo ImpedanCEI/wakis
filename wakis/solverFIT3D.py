@@ -68,6 +68,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             If true, activates all the solids and materials passed to the `grid` object
         use_gpu: bool, default False,
             Using cupyx, enables GPU accelerated computation of every timestep
+        n_pml: int, default 10,
+            Number of PML cells at the boundaries of the simulation box
         bg: list, default [1.0, 1.0]
             Background material for the simulation box [eps_r, mu_r, sigma]. Default is vacuum.
             It supports any material from the material library in `materials.py`, of a
@@ -217,9 +219,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             if verbose:
                 print('Filling PML sigmas...')
             self.n_pml = n_pml
-            self.pml_lo = 5e-3
-            self.pml_hi = 1.e-1
+            self.pml_lo = 5.0e-3
+            self.pml_hi = 10.0
             self.pml_func = np.geomspace
+            self.pml_eps_r = 1.0
             self._fill_pml_sigmas()
             self.update_logger(['n_pml'])
 
@@ -228,7 +231,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
             print('Calculating maximal stable timestep...')
         self.cfln = cfln
         if dt is None:
-            self.dt = cfln / (c_light * np.sqrt(1 / self.grid.dx ** 2 + 1 / self.grid.dy ** 2 + 1 / self.grid.dz ** 2))
+            self.dt = cfln / (c_light * np.sqrt(1 / np.min(self.grid.dx) ** 2 + 1 / np.min(self.grid.dy) ** 2 + 1 / np.min(self.grid.dz) ** 2))
         else:
             self.dt = dt
         self.dt = dtype(self.dt)
@@ -252,8 +255,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         self.iDmu = diags(self.imu.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
         self.Dsigma = diags(self.sigma.toarray(), shape=(3*N, 3*N), dtype=self.dtype)
 
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
 
         if imported_mkl and not self.use_gpu: # MKL backend for CPU
             if verbose:
@@ -362,8 +365,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         if self.verbose:
             print('Re-Pre-computing ...')
-        self.tDsiDmuiDaC = self.tDs * self.iDmu * self.iDa * self.C
-        self.itDaiDepsDstC = self.itDa * self.iDeps * self.Ds * self.C.transpose()
+        self.tDsiDmuiDaC = self.iDa * self.iDmu * self.C * self.Ds
+        self.itDaiDepsDstC = self.iDeps * self.itDa * self.C.transpose() * self.tDs
         self.step_0 = False
 
     def _one_step(self):
@@ -384,7 +387,8 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
 
         #include current computation
         if self.use_conductivity:
-            self.J.fromarray(self.sigma.toarray()*self.E.toarray())
+            self.J.fromarray(self.sigma.toarray()*self.E.toarray()
+                             )
 
     def _one_step_mkl(self):
         if self.step_0:
@@ -822,59 +826,89 @@ class SolverFIT3D(PlotMixin, RoutinesMixin):
         # Fill
         if self.bc_low[0].lower() == 'pml':
             #sx[0:self.n_pml] = eps_0/(2*self.dt)*((self.x[self.n_pml] - self.x[:self.n_pml])/(self.n_pml*self.dx))**pml_exp
-            sx[0:self.n_pml] = np.linspace( self.pml_hi, self.pml_lo, self.n_pml)
+            sx[0:self.n_pml] = self.pml_func(self.pml_hi, self.pml_lo, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the yz plane
+                ieps_0_pml = self.ieps[self.n_pml+1, self.Ny//2, self.Nz//2, d]
+                sigma_0_pml = self.sigma[self.n_pml+1, self.Ny//2, self.Nz//2, d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for i in range(self.n_pml):
-                    self.ieps[i, :, :, d] = 1./eps_0
-                    self.sigma[i, :, :, d] = sx[i]
-                    #if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt))
+                    self.ieps[i, :, :, d] = ieps_0_pml
+                    self.sigma[i, :, :, d] = sigma_0_pml + sigma_mult_pml * sx[i]
+                    #if sx[i] > 0 : self.ieps[i, :, :, d] = 1/(eps_0+sx[i]*(2*self.dt)) 
 
         if self.bc_low[1].lower() == 'pml':
             #sy[0:self.n_pml] = 1/(2*self.dt)*((self.y[self.n_pml] - self.y[:self.n_pml])/(self.n_pml*self.dy))**pml_exp
-            sy[0:self.n_pml] = self.pml_func( self.pml_hi, self.pml_lo, self.n_pml)
+            sy[0:self.n_pml] = self.pml_func(self.pml_hi, self.pml_lo, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the xz plane
+                ieps_0_pml = self.ieps[self.Nx//2, self.n_pml+1, self.Nz//2, d]
+                sigma_0_pml = self.sigma[self.Nx//2, self.n_pml+1, self.Nz//2, d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for j in range(self.n_pml):
-                    self.ieps[:, j, :, d] = 1./eps_0
-                    self.sigma[:, j, :, d] = sy[j]
-                    #if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt))
+                    self.ieps[:, j, :, d] = ieps_0_pml
+                    self.sigma[:, j, :, d] = sigma_0_pml + sigma_mult_pml * sy[j]
+                    #if sy[j] > 0 : self.ieps[:, j, :, d] = 1/(eps_0+sy[j]*(2*self.dt)) 
 
         if self.bc_low[2].lower() == 'pml':
             #sz[0:self.n_pml] = eps_0/(2*self.dt)*((self.z[self.n_pml] - self.z[:self.n_pml])/(self.n_pml*self.dz))**pml_exp
-            sz[0:self.n_pml] = self.pml_func( self.pml_hi, self.pml_lo, self.n_pml)
+            sz[0:self.n_pml] = self.pml_func(self.pml_hi, self.pml_lo, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the xy plane
+                ieps_0_pml = self.ieps[self.Nx//2, self.Ny//2, self.n_pml+1, d]
+                sigma_0_pml = self.sigma[self.Nx//2, self.Ny//2, self.n_pml+1, d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for k in range(self.n_pml):
-                    self.ieps[:, :, k, d] = 1./eps_0
-                    self.sigma[:, :, k, d] = sz[k]
-                    #if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.n_pml])*eps_0)
+                    self.ieps[:, :, k, d] = ieps_0_pml
+                    self.sigma[:, :, k, d] = sigma_0_pml + sigma_mult_pml * sz[k]
+                    #if sz[k] > 0. : self.ieps[:, :, k, d] = 1/(np.mean(sz[:self.n_pml])*eps_0) 
 
         if self.bc_high[0].lower() == 'pml':
             #sx[-self.n_pml:] = 1/(2*self.dt)*((self.x[-self.n_pml:] - self.x[-self.n_pml])/(self.n_pml*self.dx))**pml_exp
-            sx[-self.n_pml:] = self.pml_func( self.pml_lo, self.pml_hi, self.n_pml)
+            sx[-self.n_pml:] = self.pml_func(self.pml_lo, self.pml_hi, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the yz plane
+                ieps_0_pml = self.ieps[-(self.n_pml+1), self.Ny//2, self.Nz//2, d]
+                sigma_0_pml = self.sigma[-(self.n_pml+1), self.Ny//2, self.Nz//2, d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for i in range(self.n_pml):
                     i +=1
-                    self.ieps[-i, :, :, d] = 1./eps_0
-                    self.sigma[-i, :, :, d] = sx[-i]
-                    #if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt))
+                    self.ieps[-i, :, :, d] = ieps_0_pml
+                    self.sigma[-i, :, :, d] = sigma_0_pml + sigma_mult_pml * sx[-i]
+                    #if sx[-i] > 0 : self.ieps[-i, :, :, d] = 1/(eps_0+sx[-i]*(2*self.dt)) 
 
         if self.bc_high[1].lower() == 'pml':
             #sy[-self.n_pml:] = 1/(2*self.dt)*((self.y[-self.n_pml:] - self.y[-self.n_pml])/(self.n_pml*self.dy))**pml_exp
-            sy[-self.n_pml:] = self.pml_func( self.pml_lo, self.pml_hi, self.n_pml)
+            sy[-self.n_pml:] = self.pml_func(self.pml_lo, self.pml_hi, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the xz plane
+                ieps_0_pml = self.ieps[self.Nx//2, -(self.n_pml+1), self.Nz//2, d]
+                sigma_0_pml = self.sigma[self.Nx//2, -(self.n_pml+1), self.Nz//2, d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for j in range(self.n_pml):
                     j +=1
-                    self.ieps[:, -j, :, d] = 1./eps_0
-                    self.sigma[:, -j, :, d] = sy[-j]
-                    #if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt))
+                    self.ieps[:, -j, :, d] = ieps_0_pml
+                    self.sigma[:, -j, :, d] = sigma_0_pml + sigma_mult_pml * sy[-j]
+                    #if sy[-j] > 0 : self.ieps[:, -j, :, d] = 1/(eps_0+sy[-j]*(2*self.dt)) 
 
         if self.bc_high[2].lower() == 'pml':
             #sz[-self.n_pml:] = eps_0/(2*self.dt)*((self.z[-self.n_pml:] - self.z[-self.n_pml])/(self.n_pml*self.dz))**pml_exp
-            sz[-self.n_pml:] = self.pml_func( self.pml_lo, self.pml_hi, self.n_pml)
+            sz[-self.n_pml:] = self.pml_func(self.pml_lo, self.pml_hi, self.n_pml)
             for d in ['x', 'y', 'z']:
+                # Get the properties from the layer before the PML
+                # Take the values at the center of the xy plane
+                ieps_0_pml = self.ieps[self.Nx//2, self.Ny//2, -(self.n_pml+1), d]
+                sigma_0_pml = self.sigma[self.Nx//2, self.Ny//2, -(self.n_pml+1), d]
+                sigma_mult_pml = 1 if sigma_0_pml < 1 else sigma_0_pml # avoid null sigma in PML for relaxation time computation
                 for k in range(self.n_pml):
                     k +=1
-                    self.ieps[:, :, -k, d] = 1./eps_0
-                    self.sigma[:, :, -k, d] = sz[-k]
+                    self.ieps[:, :, -k, d] = ieps_0_pml
+                    self.sigma[:, :, -k, d] = sigma_0_pml + sigma_mult_pml * sz[-k]
                     #self.ieps[:, :, -k, d] = 1/(np.mean(sz[-self.n_pml:])*eps_0)
 
     def get_abc(self):
