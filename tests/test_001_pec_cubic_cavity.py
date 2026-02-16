@@ -1,8 +1,9 @@
-import os, sys
+import os
+import sys
 import numpy as np
 import pyvista as pv
 
-sys.path.append('../wakis')
+sys.path.append("../wakis")
 
 from wakis import SolverFIT3D
 from wakis import GridFIT3D
@@ -10,9 +11,11 @@ from wakis import WakeSolver
 
 import pytest
 
+
 @pytest.mark.slow
 class TestPecCubicCavity:
     # Regression data
+    # fmt: off
     WP = np.array([-9.95458549e-17, -2.05046155e-14, -3.13946919e-12, -3.06897233e-10,
        -1.92003072e-08, -7.69621207e-07, -1.97695468e-05, -3.25246046e-04,
        -3.42179648e-03, -2.29496511e-02, -9.74681785e-02, -2.57605933e-01,
@@ -36,7 +39,7 @@ class TestPecCubicCavity:
        -7.75370758e-02, -4.96148372e-01, -3.45729644e-01,  2.34144828e-01,
         5.27290473e-01,  1.94868331e-01, -3.18596495e-01, -4.42170990e-01,
        -1.17578617e-01,  3.06112222e-01,  4.35816760e-01,  1.08211242e-01,
-       -3.86427725e-01, -4.71772210e-01,  1.47990082e-02,  4.94782071e-01])
+       -3.86427725e-01, -4.71772210e-01,  1.47990082e-02,  4.94782071e-01],)
 
     Z = np.array([-5.24909426e+00   +0.j,  8.16923909e-01   +6.02403378j,
        -2.06427345e+00   +3.71312638j, -4.10217932e+00  +13.95118407j,
@@ -62,7 +65,10 @@ class TestPecCubicCavity:
        -8.08239099e+02-1285.08243448j,  5.88954657e+01 +217.25217304j,
         3.56057712e+02 -686.69210039j, -4.64168091e+02 -233.95310497j,
         2.46994361e+02 +172.91480762j,  7.19317366e+01 -481.61037549j,
-       -3.19808635e+02 +104.88892043j,  3.25327940e+02  +79.96383153j])
+       -3.19808635e+02 +104.88892043j,  3.25327940e+02  +79.96383153j],)
+    # fmt: on
+
+    dtype = np.float32
 
     def test_simulation(self):
         print("\n---------- Initializing simulation ------------------")
@@ -72,76 +78,113 @@ class TestPecCubicCavity:
         Nz = 150
 
         # Embedded boundaries
-        stl_file = 'tests/stl/001_cubic_cavity.stl'
+        stl_file = "tests/stl/001_cubic_cavity.stl"
         surf = pv.read(stl_file)
 
-        stl_solids = {'cavity': stl_file}
-        stl_materials = {'cavity': 'vacuum'}
+        stl_solids = {"cavity": stl_file}
+        stl_materials = {"cavity": "vacuum"}
 
         # Domain bounds
         xmin, xmax, ymin, ymax, zmin, zmax = surf.bounds
 
         # set grid and geometry
         global grid
-        grid = GridFIT3D(xmin, xmax, ymin, ymax, zmin, zmax, Nx, Ny, Nz,
-                        stl_solids=stl_solids,
-                        stl_materials=stl_materials)
+        grid = GridFIT3D(
+            xmin,
+            xmax,
+            ymin,
+            ymax,
+            zmin,
+            zmax,
+            Nx,
+            Ny,
+            Nz,
+            stl_solids=stl_solids,
+            stl_materials=stl_materials,
+        )
 
         # Beam parameters
-        beta = 1.          # beam beta
-        sigmaz = 18.5e-3*beta    #[m]
-        q = 1e-9            #[C]
-        xs = 0.             # x source position [m]
-        ys = 0.             # y source position [m]
-        xt = 0.             # x test position [m]
-        yt = 0.             # y test position [m]
+        beta = 1.0  # beam beta
+        sigmaz = 18.5e-3 * beta  # [m]
+        q = 1e-9  # [C]
+        xs = 0.0  # x source position [m]
+        ys = 0.0  # y source position [m]
+        xt = 0.0  # x test position [m]
+        yt = 0.0  # y test position [m]
 
         global wake
         skip_cells = 12  # no. cells to skip in WP integration
-        wake = WakeSolver(q=q, sigmaz=sigmaz, beta=beta,
-                    xsource=xs, ysource=ys, xtest=xt, ytest=yt,
-                    save=False, Ez_file='tests/001_Ez.h5',
-                    skip_cells=skip_cells,
-                    )
+        wake = WakeSolver(
+            q=q,
+            sigmaz=sigmaz,
+            beta=beta,
+            xsource=xs,
+            ysource=ys,
+            xtest=xt,
+            ytest=yt,
+            save=False,
+            Ez_file="tests/001_Ez.h5",
+            skip_cells=skip_cells,
+        )
 
         # boundary conditions
-        bc_low=['pec', 'pec', 'pec']
-        bc_high=['pec', 'pec', 'pec']
+        bc_low = ["pec", "pec", "pec"]
+        bc_high = ["pec", "pec", "pec"]
 
         # set Solver object
-        solver = SolverFIT3D(grid, wake,
-                            bc_low=bc_low, bc_high=bc_high,
-                            use_stl=True, bg='pec')
+        solver = SolverFIT3D(
+            grid,
+            wake,
+            bc_low=bc_low,
+            bc_high=bc_high,
+            use_stl=True,
+            bg="pec",
+            dtype=self.dtype,
+        )
 
-        wakelength = 1. #[m]
+        wakelength = 1.0  # [m]
         solver.wakesolve(wakelength=wakelength, save_J=False)
-        os.remove('tests/001_Ez.h5')
+        os.remove("tests/001_Ez.h5")
 
     def test_long_wake_potential(self):
         global wake
-        assert np.allclose(wake.WP[::50], self.WP), "Wake potential samples failed"
-        assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(1325.6968037037557, 0.1), "Wake potential cumsum failed"
+        tol = dict(rtol=50 * 1e-6, atol=50 * 1e-6)
+        assert np.allclose(wake.WP[::50], self.WP, **tol), (
+            "Wake potential samples failed"
+        )
+        assert np.cumsum(np.abs(wake.WP))[-1] == pytest.approx(
+            1325.6968037037557, 0.1
+        ), "Wake potential cumsum failed"
 
     def test_long_impedance(self):
         global wake
-        assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z)), "Abs Impedance samples failed"
-        assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z)), "Real Impedance samples failed"
-        assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z)), "Imag Impedance samples failed"
-        assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(372019.59123029554, 0.1), "Abs Impedance cumsum failed"
+        tol = dict(rtol=50 * 1e-5, atol=50 * 1e-5)
+        assert np.allclose(np.abs(wake.Z)[::20], np.abs(self.Z), **tol), (
+            "Abs Impedance samples failed"
+        )
+        assert np.allclose(np.real(wake.Z)[::20], np.real(self.Z), **tol), (
+            "Real Impedance samples failed"
+        )
+        assert np.allclose(np.imag(wake.Z)[::20], np.imag(self.Z), **tol), (
+            "Imag Impedance samples failed"
+        )
+        assert np.cumsum(np.abs(wake.Z))[-1] == pytest.approx(
+            372019.59123029554, 0.1
+        ), "Abs Impedance cumsum failed"
 
     def test_grid_save_to_h5(self):
         global grid
-        grid.save_to_h5('tests/001_grid.h5')
-        assert os.path.exists('tests/001_grid.h5'), "Grid save_to_h5 failed"
+        grid.save_to_h5("tests/001_grid.h5")
+        assert os.path.exists("tests/001_grid.h5"), "Grid save_to_h5 failed"
 
     def test_grid_load_from_h5(self):
         global grid
-        grid2 = GridFIT3D(load_from_h5='tests/001_grid.h5',
-                          verbose=2)
+        grid2 = GridFIT3D(load_from_h5="tests/001_grid.h5", verbose=2)
 
         assert np.array_equal(grid.x, grid2.x), "Grid load_from_h5 x-coords failed"
         assert np.array_equal(grid.y, grid2.y), "Grid load_from_h5 y-coords failed"
         assert np.array_equal(grid.z, grid2.z), "Grid load_from_h5 z-coords failed"
-        assert np.array_equal(grid.grid['cavity'], grid2.grid['cavity']), "Grid load_from_h5 solid mask failed"
-        os.remove('tests/001_grid.h5')
-
+        assert np.array_equal(grid.grid["cavity"], grid2.grid["cavity"]), (
+            "Grid load_from_h5 solid mask failed"
+        )
+        os.remove("tests/001_grid.h5")

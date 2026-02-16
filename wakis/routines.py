@@ -214,7 +214,7 @@ class RoutinesMixin:
 
         # End
         if save:
-            for hf in hfs:
+            for hf in hfs.values():
                 hf.close()
 
     def wakesolve(

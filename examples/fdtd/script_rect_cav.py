@@ -1,15 +1,13 @@
 import numpy as np
-from scipy.constants import c as c_light, epsilon_0 as eps_0, mu_0 as mu_0
+from scipy.constants import c as c_light, mu_0 as mu_0
 import matplotlib.pyplot as plt
-from matplotlib import patches
 import os
 from tqdm import tqdm
 from solver2D import EMSolver2D
 from grid2D import Grid2D
-from conductors import OutRect, Plane, ConductorsAssembly, InCircle, OutCircle
-from scipy.special import jv
+from conductors import OutRect, Plane, ConductorsAssembly
 
-L = 1.
+L = 1.0
 # Number of mesh cells
 N = 50
 Nx = N
@@ -22,22 +20,22 @@ xmin = -L / 2
 xmax = L / 2
 ymin = -L / 2
 ymax = L / 2
-Lx = L*0.75
-Ly = L*0.75
+Lx = L * 0.75
+Ly = L * 0.75
 x_cent = 0
 y_cent = 0
 
 rect = OutRect(Lx, Ly, x_cent, y_cent)
 
-theta = np.pi/2*0.25
+theta = np.pi / 2 * 0.25
 m_plane1 = np.tan(theta)
-q_plane1 = Ly/ 2
+q_plane1 = Ly / 2
 m_plane2 = np.tan(theta)
-q_plane2 = -Ly/2
-m_plane3 = -1/np.tan(theta)
-q_plane3 = (Ly / 2)/np.tan(theta)
-m_plane4 = -1/np.tan(theta)
-q_plane4 = -(Ly / 2)/np.tan(theta)
+q_plane2 = -Ly / 2
+m_plane3 = -1 / np.tan(theta)
+q_plane3 = (Ly / 2) / np.tan(theta)
+m_plane4 = -1 / np.tan(theta)
+q_plane4 = -(Ly / 2) / np.tan(theta)
 # -dx/3+2*dx
 plane1 = Plane(m_plane1, q_plane1, tol=0, sign=1)
 plane2 = Plane(m_plane2, q_plane2, tol=0, sign=-1)
@@ -46,16 +44,16 @@ plane4 = Plane(m_plane4, q_plane4, tol=0, sign=-1)
 
 conductors = ConductorsAssembly([plane1, plane2, plane3, plane4])
 
-#theta = 0
-#conductors = ConductorsAssembly([rect])
-sol_type = 'ECT'
+# theta = 0
+# conductors = ConductorsAssembly([rect])
+sol_type = "ECT"
 
 grid = Grid2D(xmin, xmax, ymin, ymax, Nx, Ny, conductors, sol_type)
-i_s = int(1 * Nx / 2.)
-j_s = int(1 * Ny / 2.)
+i_s = int(1 * Nx / 2.0)
+j_s = int(1 * Ny / 2.0)
 NCFL = 1
-bc_low = ['dirichlet', 'dirichlet', 'dirichlet']
-bc_high = ['dirichlet', 'dirichlet', 'dirichlet']
+bc_low = ["dirichlet", "dirichlet", "dirichlet"]
+bc_high = ["dirichlet", "dirichlet", "dirichlet"]
 
 solver = EMSolver2D(grid, sol_type, NCFL, i_s, j_s, bc_low, bc_high)
 
@@ -66,8 +64,8 @@ eps_r = 1
 Nborrow = np.zeros((Nx, Ny))
 Nlend = np.zeros((Nx, Ny))
 minpatch = np.ones((Nx, Ny))
-small_patch = np.ones((Nx, Ny), dtype = bool)
-'''
+small_patch = np.ones((Nx, Ny), dtype=bool)
+"""
 for ii in range(Nx):
     for jj in range(Ny):
         Nborrow[ii, jj] = len(grid.borrowing[ii, jj])
@@ -76,17 +74,21 @@ for ii in range(Nx):
         for (_, _, patch, _) in grid.borrowing[ii, jj]:
             if patch < minpatch[ii, jj]:
                 minpatch[ii, jj] = patch
-'''
+"""
 for ii in range(Nx):
     for jj in range(Ny):
         small_patch[ii, jj] = minpatch[ii, jj] < grid.S_stab[ii, jj]
 
 
 def analytic_sol(x, y, t):
-    Rm = np.array([[np.cos(-theta), - np.sin(-theta)],[np.sin(-theta), np.cos(-theta)]])
+    Rm = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
     [x_0, y_0] = np.dot(Rm, np.array([x, y]))
 
-    return np.cos(np.pi/Lx*(x_0 - Lx/2))*np.cos(np.pi/Ly*(y_0 - Lx/2))*np.cos(np.sqrt(2)*np.pi/Lx*c_light*t)
+    return (
+        np.cos(np.pi / Lx * (x_0 - Lx / 2))
+        * np.cos(np.pi / Ly * (y_0 - Lx / 2))
+        * np.cos(np.sqrt(2) * np.pi / Lx * c_light * t)
+    )
 
 
 for ii in range(Nx):
@@ -100,14 +102,14 @@ for ii in range(Nx):
 
 max_sol = solver.Hz
 
-t_f = 1.1*np.sqrt(2)*Lx/c_light
-Nt = int(t_f/solver.dt)
-#Nt = 100
+t_f = 1.1 * np.sqrt(2) * Lx / c_light
+Nt = int(t_f / solver.dt)
+# Nt = 100
 
 sol = np.zeros_like(solver.Hz)
 
 for t in tqdm(range(Nt)):
-    '''
+    """
     for ii in range(-6, 7):
         for jj in range(-6, 7):
             iii = solver.i_s + ii
@@ -123,8 +125,8 @@ for t in tqdm(range(Nt)):
 
             solver.Jx[iii, jjj] = amp
             #solver.Jy[iii, jjj] = amp
-    '''
-    #for ii in range(Nx + 1):
+    """
+    # for ii in range(Nx + 1):
     #    for jj in range(Ny + 1):
     #       x = (ii + 0.5) * dx + xmin
     #        y = (jj + 0.5) * dy + ymin
@@ -132,20 +134,25 @@ for t in tqdm(range(Nt)):
 
     fig, axs = plt.subplots(1, 3, figsize=(16, 5))
     fig.subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.94, wspace=0.15)
-    im1 = axs[0].imshow(solver.Ex, cmap='jet', vmax=200, vmin=-200)  # ,extent=[0, L , 0, L ])
-    axs[0].set_xlabel('x [m]')
-    axs[0].set_ylabel('y [m]')
-    axs[0].set_title('Ex [V/m]')
-    fig.colorbar(im1, ax=axs[0], )
-    im1 = axs[1].imshow(solver.Ey, cmap='jet', vmax=200, vmin=-200)
-    axs[1].set_xlabel('x [m]')
-    axs[1].set_ylabel('y [m]')
-    axs[1].set_title('Ey [V/m]')
+    im1 = axs[0].imshow(
+        solver.Ex, cmap="jet", vmax=200, vmin=-200
+    )  # ,extent=[0, L , 0, L ])
+    axs[0].set_xlabel("x [m]")
+    axs[0].set_ylabel("y [m]")
+    axs[0].set_title("Ex [V/m]")
+    fig.colorbar(
+        im1,
+        ax=axs[0],
+    )
+    im1 = axs[1].imshow(solver.Ey, cmap="jet", vmax=200, vmin=-200)
+    axs[1].set_xlabel("x [m]")
+    axs[1].set_ylabel("y [m]")
+    axs[1].set_title("Ey [V/m]")
     fig.colorbar(im1, ax=axs[1])
-    im1 = axs[2].imshow(solver.Hz, cmap='jet', vmax=1, vmin=-1)
-    axs[2].set_xlabel('x [m]')
-    axs[2].set_ylabel('y [m]')
-    axs[2].set_title('Hz [A/m]')
+    im1 = axs[2].imshow(solver.Hz, cmap="jet", vmax=1, vmin=-1)
+    axs[2].set_xlabel("x [m]")
+    axs[2].set_ylabel("y [m]")
+    axs[2].set_title("Hz [A/m]")
     fig.colorbar(im1, ax=axs[2])
     plt.suptitle(str(solver.time))
     # im1 = axs[1,0].imshow(Hx.T,cmap='jet',origin='lower')#,extent=[0, L , 0, L ])
@@ -163,16 +170,16 @@ for t in tqdm(range(Nt)):
     # axs[1,2].set_ylabel('y [m]')
     # axs[1,2].set_title('Ez [V/m]')
     # fig.colorbar(im1, ax=axs[1,2])
-    folder = sol_type + '_images_rect'
+    folder = sol_type + "_images_rect"
     if not os.path.exists(folder):
         os.mkdir(folder)
 
-    filename = folder + '/%d.png' % t
+    filename = folder + "/%d.png" % t
     plt.savefig(filename)
     plt.close(fig)
     solver.time += solver.dt
     solver.one_step()
-    #solver.Hz[i_s, j_s] += solver.gauss(solver.time)
+    # solver.Hz[i_s, j_s] += solver.gauss(solver.time)
 # Compute the analytic solution
 sol = np.zeros_like(solver.Hz)
 
