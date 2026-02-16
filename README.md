@@ -25,17 +25,17 @@
 * Different time-domain sources: particle beam, planewave, gaussian wavepacket
 * 100% python, fully exposed API (material tensors, fields $E$, $H$, $J$). Matrix operators based on `numpy` and `scipy.sparse` routines ensure fast calculations.
 * 1d, 2d, 3d built-in plotting on-the-fly
-* Optimized memory consumption
-* GPU acceleration using `cupy/cupyx`
+* Optimized memory consumption & GPU acceleration using `cupy/cupyx`
 * CUDA-aware MPI parallelization with `mpi4py` and `ipyparallel`: added in[#v0.6.0](https://github.com/ImpedanCEI/wakis/releases/tag/v0.6.0)
+* Snappy Smart mesh added in [#v0.6.2](https://github.com/ImpedanCEI/wakis/releases/tag/v0.6.2)
 
 🧩 Other complementary tools in the ecosystem:
 * Wakefield extrapolation via broadband resonator fitting with PIML [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX) evolutionary algorithms
 * Non-equidistant Filon Fourier integration with [`neffint`](https://github.com/ImpedanCEI/neffint)
 * Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
 
-📣 Tag and version changes are decribed in each Wakis [Github Release](https://github.com/ImpedanCEI/wakis/releases):
-* To be informed of the latest features/bug fixes pushed to `main`, check the draft [`release.md`](https://github.com/ImpedanCEI/wakis/blob/main/release.md)
+📣 Tag and version changes are decribed in each Wakis [Github Release](https://github.com/ImpedanCEI/wakis/releases)
+
 * For specific needs, please contact the developer 👩‍💻👋: elena.de.la.fuente.garcia@cern.ch
 
 ## How to use
@@ -59,19 +59,14 @@ Check 🌐📁 [`wakis-benchmarks/`](https://github.com/ImpedanCEI/wakis-benchma
 * Lossy pillbox cavity (cylindrical) above cutoff
 * Simulations using beams with different relativistic $\beta$
 
-Check 🌐📁 [`CEI-logo/`](https://github.com/ImpedanCEI/CEI-logo) for a fun & complete beam-coupling impedance workflow tutorial, including:
-* **001**: Electromagnetic simulation preparation, inspection & 1d, 2d, 3d plotting.
-* **002**: Wakefield simulation on GPU
-* **003**: Extrapolation of wakefield simulation to fully decayed with [`iddefix`](https://github.com/ImpedanCEI/IDDEFIX). Conversion to wake function for beam dynamics simulation with [`neffint`](https://github.com/ImpedanCEI/neffint).
-* **004**: Beam-induced heating estimation due to impedance with [`bihc`](https://github.com/ImpedanCEI/BIHC)
-* **005**: MPI simulation example in notebooks with `ipyparallel` and `mpi4py`
+Check 🌐📁 [`BE-Seminar-demo/`](https://github.com/ImpedanCEI/CEI-logo) for a complete demonstration of Wakis usage.
 
 ## Installation
-Wakis supports `Python 3.9 - 3.11` and can be installed in any `conda` environment.
+Wakis supports `Python 3.9 - 3.12` and can be installed in any `conda` environment.
 
 📖 **For a detailed installation guide (GPU, MPI setup, FAQs), check our [documentation](https://wakis.readthedocs.io/en/latest/installation.html).**
 
-### Users: Install via PyPI
+### Install via PyPI
 For basic usage, simply run:
 ```bash
 pip install wakis
@@ -80,30 +75,23 @@ For additional features, including **interactive 3D plots in Jupyter notebooks**
 ```bash
 pip install wakis['notebook']
 ```
-To install **complementary tools** in the Wakis ecosystem:
+To install Wakis from the source, clone the repository and install it in *editable* mode:
 ```bash
-pip install neffint iddefix bihc
+git clone https://github.com/ImpedanCEI/wakis.git
+cd wakis
+pip install -e .
 ```
+
+### Install via Docker
+A pre-built [Docker image of Wakis](https://hub.docker.com/r/edelafue/wakis) is available for easy setup and reproducibility.
+
+```bash
+sudo docker pull docker.io/edelafue/wakis:latest
+sudo docker run --rm -it docker.io/edelafue/wakis:latest /bin/bash
+```
+
 💡 **Have a bug, feature request, or suggestion?** Open a [GitHub Issue](https://github.com/ImpedanCEI/wakis/issues) so the community can track it.
 
-### Developers: Contribute to Wakis
-First, [Fork](https://github.com/ImpedanCEI/wakis/fork) the repository and clone it from `main`:
-```bash
-# SSH:
-git clone git@github.com:YourUserName/wakis.git
-
-# or HTTPS:
-git clone https://github.com/YourUserName/wakis.git
-```
-Create a dedicated **conda environment** and install dependencies:
-```bash
-cd wakis/
-conda create --name wakis-env python=3.11
-conda activate wakis-env
-pip install -r requirements.txt
-pip install -e .  # install wakis in editable mode
-pip install neffint iddefix bihc  # Optional tools
-```
 🛠️ **Want to contribute?**  To merge your changes into `main`, create a **Pull Request (PR)** following our [PR template](https://github.com/ImpedanCEI/wakis/blob/main/.github/pull_request_template.md).
 
 ## Motivation
