@@ -65,8 +65,8 @@ setup(
     ],
     extras_require={
         "gpu": ["cupy"],
-        "notebook": ["jupyterlab", "ipympl", "bihc", "iddefix"],
-        "legacy": notebook_required,
+        "all": ["jupyterlab", "ipympl", "bihc", "iddefix"],
+        "notebook": notebook_required,
     },
     tests_require=["pytest"],
 )
