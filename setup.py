@@ -68,5 +68,5 @@ setup(
         "all": ["jupyterlab", "ipympl", "bihc", "iddefix"],
         "notebook": notebook_required,
     },
-    tests_require=["pytest"],
+    tests_require=["pytest", "pytest-cov"],
 )

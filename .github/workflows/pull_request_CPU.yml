@@ -42,7 +42,7 @@ jobs:
       - name: Run pytest (with coverage)
         run: |
           cd wakis
-          python -m pytest --cov=wakis --cov-report=term -v tests
+          python -m pytest --cov=wakis --cov-config=.coveragerc --cov-report=term -v tests
 
       - name: Generate coverage summary
         run: |
