@@ -274,14 +274,17 @@ class TestMPILossyCavity:
                 "Electric field Ez samples failed"
             )
 
-    def test_mpi_gather_asField(self):
+    def test_mpi_gather_asField(self, flag_offscreen):
         # Plot inspect after mpi gather
         global solver
         if use_mpi:
             E = solver.mpi_gather_asField("E")
             if solver.rank == 0:  # custom plots go in rank 0
                 fig, ax = E.inspect(
-                    figsize=[20, 6], plane="YZ", show=False, handles=True
+                    figsize=[20, 6],
+                    plane="YZ",
+                    off_screen=flag_offscreen,
+                    handles=True,
                 )
                 fig.savefig(
                     self.img_folder + "Einspect_" + str(3000).zfill(4) + ".png"
@@ -289,7 +292,10 @@ class TestMPILossyCavity:
                 plt.close(fig)
         else:
             fig, ax = solver.E.inspect(
-                figsize=[20, 6], plane="YZ", show=False, handles=True
+                figsize=[20, 6],
+                plane="YZ",
+                off_screen=flag_offscreen,
+                handles=True,
             )
             fig.savefig(
                 self.img_folder + "Einspect_" + str(3000).zfill(4) + ".png"
