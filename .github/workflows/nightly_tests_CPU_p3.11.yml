@@ -1,15 +1,11 @@
-# This is a basic workflow that is manually triggered
+# This is a basic workflow that is nighly triggered
 
-name: pull_request_tests_MPI_python10
+name: nightly_tests_CPU_py3.11
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
+# Controls when the action will run. CRON schedule runs at mm hh dd mm yy UTC TIME
 on:
-  # Run tests for every pull request targeting main
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 0 * * *"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -24,26 +20,23 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        path: wakis
     - name: Setup Miniforge
       uses: conda-incubator/setup-miniconda@v2
       with:
         miniforge-version: latest
         python-version: "3.11"
-    - name: mpi install
-      run: |
-        conda install -c conda-forge openmpi
-        conda install -c conda-forge mpi4py
     - name: pip install
       run:  |
-        cd wakis
-        pip install -e .
+        pip install wakis
+        pip uninstall vtk -y
+        pip install --extra-index-url https://wheels.vtk.org vtk-osmesa
     - name: Print versions
       run: conda list
+    - name: Checkout wakis
+      uses: actions/checkout@v4
+      with:
+        path: wakis
     - name: Run pytest
       run:  |
         cd wakis
-        mpiexec -n 2 python -m pytest --color=yes -v tests/test_007_mpi_lossy_cavity.py
+        python -m pytest --cov=wakis -v tests
