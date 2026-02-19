@@ -31,7 +31,8 @@ jobs:
       - name: Install wakis
         run: |
           cd wakis
-          pip install -e .
+          pip install .
+          pip install pytest pytest-cov
 
       - name: Print installed packages
         run: conda list
