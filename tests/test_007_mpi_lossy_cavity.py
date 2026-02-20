@@ -111,8 +111,8 @@ class TestMPILossyCavity:
     }
 
     solverLogs = {
-        "use_gpu": False,
-        "use_mpi": False,
+        "use_gpu": False,  # updated in test_log_file
+        "use_mpi": False,  # updated in test_log_file
         "background": "pec",
         "bc_low": ["pec", "pec", "pec"],
         "bc_high": ["pec", "pec", "pec"],
@@ -434,7 +434,7 @@ class TestMPILossyCavity:
                 250910.51090497518, 0.1
             ), "Abs Impedance cumsum failed"
 
-    def test_log_file(self):
+    def test_log_file(self, use_gpu):
         # Helper function to compare nested dicts with float tolerance
         def assert_dict_allclose(d1, d2, rtol=1e-6, atol=1e-6, path=""):
             assert set(d1.keys()) == set(d2.keys()), (
@@ -515,6 +515,7 @@ class TestMPILossyCavity:
         solver.logger.solver["solverInitializationTime"] = 0
         solver.logger.wakeSolver["simulationTime"] = 0
         self.solverLogs["use_mpi"] = use_mpi
+        self.solverLogs["use_gpu"] = use_gpu
 
         # Check log file exists
         logfile = os.path.join(
