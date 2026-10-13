@@ -104,9 +104,9 @@ class GaussianPacket(WaveformSource):
         if self.field not in ("E", "H"):
             raise ValueError("field must be either 'E' or 'H'")
 
-        if self.sigmaf is not None and self.sigmaz is None:
+        if self.sigmaz is None and self.sigmaf is not None:
             self.sigmaz = c_light / (2 * np.pi * self.sigmaf)
-        if self.sigmaf is None and self.sigmaz is not None:
+        elif self.sigmaz is not None and self.sigmaf is None:
             self.sigmaf = c_light / (2 * np.pi * self.sigmaz)
         if self.tinj is None and self.sigmaz is not None:
             self.tinj = 6 * self.sigmaz
@@ -121,6 +121,7 @@ class GaussianPacket(WaveformSource):
             self.sigmaz = 10 * np.mean(
                 solver.dz
             )  # only feasible for not to ununiform grids
+            self.sigmaf = c_light / (2 * np.pi * self.sigmaz)
         if self.tinj is None:
             self.tinj = 6 * self.sigmaz
         if self.sigmaxy is None:
