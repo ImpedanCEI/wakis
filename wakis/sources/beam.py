@@ -85,6 +85,7 @@ class Beam:
         profile = self._compute_longitudinal_profile(
             solver.z, t + solver.dt / 2, self.zmin
         )
+        profile = np.asarray(profile, dtype=solver.dtype)
         if solver.source_type == "tfsf":
             self._update_tfsf(solver, t, profile)
         else:
@@ -92,8 +93,8 @@ class Beam:
 
     def _compute_longitudinal_profile(self, z_pos, t, zmin):
         """Return the normalized Gaussian bunch profile at ``z_pos`` and ``t``."""
-        z_source = zmin + self.v * (t - self.ti)
-        s = z_pos - z_source
+        source_offset = zmin - self.v * self.ti
+        s = (z_pos - self.v * t) - source_offset
         return (
             1
             / np.sqrt(2 * np.pi * self.sigmaz**2)
@@ -142,7 +143,8 @@ class Beam:
         )
         if solver.verbose > 1:
             print(
-                f"[!] Total-Field/Scattered-Field injection started at t={t:.3e}s, Jmax={solver.J_max:.3e} Cm/s"
+                f"[!] Total-Field/Scattered-Field injection started at t={t:.3e}s, "
+                f"Jmax={solver.J_max:.3e} Cm/s"
             )
         if self.at_low_boundary:
             self._calculate_tfsf_injected_fields(
@@ -207,7 +209,8 @@ class Beam:
             del solver.tf_dxz, solver.tf_dyz, solver.tf_dtxz, solver.tf_dtyz
             if solver.verbose > 1:
                 print(
-                    f"[!] Total-Field/Scattered-Field injection done at t={t:.3e}s, switching to regular field updates"
+                    f"[!] Total-Field/Scattered-Field injection done at t={t:.3e}s, "
+                    f"switching to regular field updates"
                 )
 
     def _set_tfsf_planes(self, solver):
@@ -330,7 +333,7 @@ class Beam:
             shape=(node_count, node_count),
             dtype=solver.dtype,
         ).tocsr()
-        potential = spsolve(matrix, source_term)
+        potential = np.asarray(spsolve(matrix, source_term), dtype=solver.dtype)
         return potential.reshape((nx, ny))
 
     def _calculate_tfsf_injected_fields(self, solver, z_index, side):
@@ -348,8 +351,9 @@ class Beam:
         electric_x[:-1, :] = -np.diff(potential, axis=0) / solver.dx[:-1, None]
         electric_y[:, :-1] = -np.diff(potential, axis=1) / solver.dy[None, :-1]
 
-        magnetic_x = -electric_y / Z0
-        magnetic_y = electric_x / Z0
+        wave_impedance = np.dtype(solver.dtype).type(Z0)
+        magnetic_x = -electric_y / wave_impedance
+        magnetic_y = electric_x / wave_impedance
         self._tfsf_field_templates[side] = (
             electric_x,
             electric_y,
@@ -381,16 +385,17 @@ class Beam:
         profile = self._compute_longitudinal_profile(z_pos, t, self.zmin)
         Jz_pos = self.q * self.v * profile  # [A]
         Jz_pos /= solver.tdx[self.ixs] * solver.tdy[self.iys]  # [A/m²]
+        Jz_pos = np.asarray(Jz_pos, dtype=solver.dtype)
 
         electric_x, electric_y, magnetic_x, magnetic_y = self._tfsf_field_templates[
             side
         ]
 
-        return (
-            electric_x * Jz_pos,
-            electric_y * Jz_pos,
-            magnetic_x * Jz_pos,
-            magnetic_y * Jz_pos,
+        return (  # compatibility with np.float32
+            np.multiply(electric_x, Jz_pos, dtype=solver.dtype),
+            np.multiply(electric_y, Jz_pos, dtype=solver.dtype),
+            np.multiply(magnetic_x, Jz_pos, dtype=solver.dtype),
+            np.multiply(magnetic_y, Jz_pos, dtype=solver.dtype),
         )
 
     def plot(self, t):
