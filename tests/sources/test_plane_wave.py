@@ -1,3 +1,5 @@
+"""Test plane-wave phase, impedance, plotting, and propagation."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -6,50 +8,50 @@ from scipy.constants import c, mu_0
 from wakis.sources import PlaneWave
 
 
-def test_source_updates_component(source_solver):
+def test_source_updates_component(unit_solver):
     source = PlaneWave(zs=2, nodes=1, f=1e9, amplitude=2.0)
 
-    source.update(source_solver, 0.0)
+    source.update(unit_solver, 0.0)
 
-    np.testing.assert_allclose(source_solver.H[:, :, 2, "y"], 2.0)
-    assert np.all(source_solver.E[:, :, 2, "x"] > 0.0)
-    assert not np.any(source_solver.H[:, :, 1, "y"])
+    np.testing.assert_allclose(unit_solver.H[:, :, 2, "y"], 2.0)
+    assert np.all(unit_solver.E[:, :, 2, "x"] > 0.0)
+    assert not np.any(unit_solver.H[:, :, 1, "y"])
 
-    source.update(source_solver, source.tmax + source_solver.dt)
+    source.update(unit_solver, source.tmax + unit_solver.dt)
 
-    assert not np.any(source_solver.H[:, :, 2, "y"])
-    assert not np.any(source_solver.E[:, :, 2, "x"])
+    assert not np.any(unit_solver.H[:, :, 2, "y"])
+    assert not np.any(unit_solver.E[:, :, 2, "x"])
 
 
-def test_plane_wave_follows_harmonic_phase_and_positive_z_direction(source_solver):
+def test_plane_wave_follows_harmonic_phase_and_positive_z_direction(unit_solver):
     source = PlaneWave(zs=2, f=1e9, amplitude=2.0)
     period = 1.0 / source.f
 
-    source.update(source_solver, 0.0)
-    assert np.all(source_solver.E[:, :, 2, "x"] * source_solver.H[:, :, 2, "y"] > 0)
-    source.update(source_solver, period / 4)
-    np.testing.assert_allclose(source_solver.H[:, :, 2, "y"], 0.0, atol=1e-14)
-    source.update(source_solver, period / 2)
-    np.testing.assert_allclose(source_solver.H[:, :, 2, "y"], -2.0)
+    source.update(unit_solver, 0.0)
+    assert np.all(unit_solver.E[:, :, 2, "x"] * unit_solver.H[:, :, 2, "y"] > 0)
+    source.update(unit_solver, period / 4)
+    np.testing.assert_allclose(unit_solver.H[:, :, 2, "y"], 0.0, atol=1e-14)
+    source.update(unit_solver, period / 2)
+    np.testing.assert_allclose(unit_solver.H[:, :, 2, "y"], -2.0)
 
 
-def test_plane_wave_uses_medium_wave_impedance(source_solver):
+def test_plane_wave_uses_medium_wave_impedance(unit_solver):
     source = PlaneWave(zs=2, f=1e9, amplitude=2.0, beta=0.8)
 
-    source.update(source_solver, 0.0)
+    source.update(unit_solver, 0.0)
 
-    electric = source_solver.E[source_solver.Nx // 2, source_solver.Ny // 2, 2, "x"]
-    magnetic = source_solver.H[source_solver.Nx // 2, source_solver.Ny // 2, 2, "y"]
+    electric = unit_solver.E[unit_solver.Nx // 2, unit_solver.Ny // 2, 2, "x"]
+    magnetic = unit_solver.H[unit_solver.Nx // 2, unit_solver.Ny // 2, 2, "y"]
     np.testing.assert_allclose(electric / magnetic, mu_0 * source.vp)
 
 
-def test_plane_wave_uses_vacuum_impedance_at_beta_one(source_solver):
+def test_plane_wave_uses_vacuum_impedance_at_beta_one(unit_solver):
     source = PlaneWave(zs=2, f=1e9, amplitude=2.0, beta=1.0)
 
-    source.update(source_solver, 0.0)
+    source.update(unit_solver, 0.0)
 
-    electric = source_solver.E[source_solver.Nx // 2, source_solver.Ny // 2, 2, "x"]
-    magnetic = source_solver.H[source_solver.Nx // 2, source_solver.Ny // 2, 2, "y"]
+    electric = unit_solver.E[unit_solver.Nx // 2, unit_solver.Ny // 2, 2, "x"]
+    magnetic = unit_solver.H[unit_solver.Nx // 2, unit_solver.Ny // 2, 2, "y"]
     np.testing.assert_allclose(electric / magnetic, mu_0 * c)
 
 
@@ -72,3 +74,21 @@ def test_plane_wave_plot_matches_update_sign(monkeypatch):
     assert magnetic > 0.0
     assert electric > 0.0
     plt.close()
+
+
+def test_plane_wave_propagates_uniform_impedance_matched_fields(
+    propagation_solver, simulate_source
+):
+    source = PlaneWave(zs=8, f=5e9, nodes=1)
+
+    result = simulate_source(
+        propagation_solver, source, ("H", "y"), ("E", "x"), ("H", "y")
+    )
+
+    peak = np.argmax(np.abs(result["observed"]))
+    profile = result["profile_x"][peak]
+    np.testing.assert_allclose(profile, profile[0], rtol=1e-12, atol=1e-12)
+    assert result["observed"][peak] * result["companion"][peak] > 0.0
+    assert result["observed"][peak] / result["companion"][peak] == pytest.approx(
+        mu_0 * c, rel=0.25
+    )

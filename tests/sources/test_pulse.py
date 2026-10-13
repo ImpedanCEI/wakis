@@ -1,3 +1,5 @@
+"""Test pulse profiles, component injection, plotting, and propagation."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -14,27 +16,27 @@ from wakis.sources import Pulse
         ("rectangular", 0.5, 1.0),
     ],
 )
-def test_source_updates_component(source_solver, shape, time_factor, expected):
+def test_source_updates_component(unit_solver, shape, time_factor, expected):
     length = 0.02
     source = Pulse(field="Jz", shape=shape, L=length, amplitude=2.0)
     time = time_factor * length / c
 
-    source.update(source_solver, time)
+    source.update(unit_solver, time)
 
-    center = (source_solver.Nx // 2, source_solver.Ny // 2, source_solver.Nz // 2)
+    center = (unit_solver.Nx // 2, unit_solver.Ny // 2, unit_solver.Nz // 2)
     np.testing.assert_allclose(
-        source_solver.J[center[0], center[1], center[2], "z"], 2.0 * expected
+        unit_solver.J[center[0], center[1], center[2], "z"], 2.0 * expected
     )
-    assert not np.any(source_solver.E.toarray())
-    assert not np.any(source_solver.H.toarray())
+    assert not np.any(unit_solver.E.toarray())
+    assert not np.any(unit_solver.H.toarray())
 
 
-def test_default_pulse_length_is_expressed_as_distance(source_solver):
+def test_default_pulse_length_is_expressed_as_distance(unit_solver):
     source = Pulse()
 
-    source.update(source_solver, 0.0)
+    source.update(unit_solver, 0.0)
 
-    assert source.L == pytest.approx(50 * c * source_solver.dt)
+    assert source.L == pytest.approx(50 * c * unit_solver.dt)
 
 
 def test_pulse_plot_shows_injected_component(monkeypatch):
@@ -49,3 +51,22 @@ def test_pulse_plot_shows_injected_component(monkeypatch):
     assert line.get_label() == "Jz"
     assert line.get_ydata()[0] == pytest.approx(2.0)
     plt.close()
+
+
+def test_pulse_propagates_a_transverse_harris_wave(propagation_solver, simulate_source):
+    source = Pulse(
+        field="Ex",
+        xs=slice(None),
+        ys=slice(None),
+        zs=8,
+        shape="harris",
+        L=8 * c * propagation_solver.dt,
+    )
+
+    result = simulate_source(
+        propagation_solver, source, ("E", "x"), ("E", "x"), ("H", "y")
+    )
+
+    assert np.max(np.abs(result["companion"])) > 1e-5
+    assert np.min(result["injected"]) >= 0.0
+    assert np.max(result["injected"]) == pytest.approx(1.0)

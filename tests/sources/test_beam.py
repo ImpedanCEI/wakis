@@ -1,18 +1,20 @@
+"""Test beam-current deposition, profile stability, and plotting."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 
 from wakis.sources import Beam
 
 
-def test_source_updates_component(source_solver):
+def test_source_updates_component(unit_solver):
     beam = Beam(sigmaz=0.01, ti=0.0)
 
-    beam.update(source_solver, 0.0)
+    beam.update(unit_solver, 0.0)
 
-    assert np.any(source_solver.J[:, :, :, "z"])
-    assert not np.any(source_solver.J[:, :, :, "x"])
-    assert not np.any(source_solver.J[:, :, :, "y"])
-    assert beam.Jold.shape == source_solver.z.shape
+    assert np.any(unit_solver.J[:, :, :, "z"])
+    assert not np.any(unit_solver.J[:, :, :, "x"])
+    assert not np.any(unit_solver.J[:, :, :, "y"])
+    assert beam.Jold.shape == unit_solver.z.shape
 
 
 def test_beam_plot_uses_longitudinal_current_profile(monkeypatch):

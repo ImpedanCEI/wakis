@@ -1,3 +1,5 @@
+"""Test the shared waveform-source interface, profiles, frame, and injection."""
+
 import numpy as np
 import pytest
 
@@ -81,9 +83,7 @@ def test_oscillating_sources_name_angular_frequency_omega():
 
 
 @pytest.mark.parametrize("injection, expected", [("hard", 2.0), ("soft", 5.0)])
-def test_injection_method_controls_field_application(
-    source_solver, injection, expected
-):
+def test_injection_method_controls_field_application(unit_solver, injection, expected):
     source = Dipole(
         field="Ex",
         xs=2,
@@ -94,11 +94,11 @@ def test_injection_method_controls_field_application(
         phase=np.pi / 2,
         injection=injection,
     )
-    source_solver.E[2, 2, 2, "x"] = 3.0
+    unit_solver.E[2, 2, 2, "x"] = 3.0
 
-    source.update(source_solver, 0.0)
+    source.update(unit_solver, 0.0)
 
-    assert source_solver.E[2, 2, 2, "x"] == pytest.approx(expected)
+    assert unit_solver.E[2, 2, 2, "x"] == pytest.approx(expected)
 
 
 def test_source_rejects_unknown_injection_method():
