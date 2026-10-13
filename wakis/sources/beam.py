@@ -85,7 +85,6 @@ class Beam:
         profile = self._compute_longitudinal_profile(
             solver.z, t + solver.dt / 2, self.zmin
         )
-        profile = np.asarray(profile, dtype=solver.dtype)
         if solver.source_type == "tfsf":
             self._update_tfsf(solver, t, profile)
         else:
@@ -157,16 +156,26 @@ class Beam:
 
     def _update_direct(self, solver, profile):
         """Update the longitudinal current over the complete local domain."""
-        Jprofile = self.q * self.v * profile  # [C] [m/s] [1/m] = [A]
-        Jprofile /= solver.tdx[self.ixs] * solver.tdy[self.iys]  # [A/m²]
+        # Keep the profile and sequential divisions in their original precision;
+        # only the accumulated solver field is rounded to its selected dtype.
+        # [C] [m/s] [1/m] / [m] / [m] = [A/m²]
+        Jprofile = (
+            self.q * self.v * profile / solver.tdx[self.ixs] / solver.tdy[self.iys]
+        )
         dJ = Jprofile - self.Jold
         solver.J[self.ixs, self.iys, :, "z"] += dJ
         self.Jold = Jprofile
 
     def _update_tfsf(self, solver, t, profile):
         """Update the current and transverse fields inside the TF/SF region."""
-        Jprofile = self.q * self.v * profile[self.j_start : self.j_stop]  # [A]
-        Jprofile /= solver.tdx[self.ixs] * solver.tdy[self.iys]  # [A/m²]
+        # [C] [m/s] [1/m] / [m] / [m] = [A/m²]
+        Jprofile = (
+            self.q
+            * self.v
+            * profile[self.j_start : self.j_stop]
+            / solver.tdx[self.ixs]
+            / solver.tdy[self.iys]
+        )
         dJ = Jprofile - self.Jold
         solver.J[self.ixs, self.iys, self.j_start : self.j_stop, "z"] += dJ
         self.Jold = Jprofile
