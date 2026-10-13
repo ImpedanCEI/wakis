@@ -25,3 +25,6 @@ dist/
 wakis.egg-info/
 .coverage
 .vscode/
+notes/*
+tmp/*
+*.stl
