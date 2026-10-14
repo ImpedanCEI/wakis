@@ -95,8 +95,11 @@ def test_serial_tfsf_field_update_preserves_precision(dtype):
     )
     assert all(field.dtype == dtype for field in injected_fields)
     electric_x, electric_y, magnetic_x, magnetic_y = injected_fields
-    np.testing.assert_allclose(magnetic_x, -electric_y / Z0)
-    np.testing.assert_allclose(magnetic_y, electric_x / Z0)
+    # Templates divide by impedance before scaling by the beam current, while
+    # these checks scale first; allow a few float32 rounding steps.
+    field_tol = dict(rtol=5e-7) if dtype == np.float32 else {}
+    np.testing.assert_allclose(magnetic_x, -electric_y / Z0, **field_tol)
+    np.testing.assert_allclose(magnetic_y, electric_x / Z0, **field_tol)
 
     # With zero initial fields, the first H update isolates the TF/SF correction.
     expected_hx = (
@@ -109,8 +112,8 @@ def test_serial_tfsf_field_update_preserves_precision(dtype):
     solver.one_step()
     assert solver.E.toarray().dtype == dtype
     assert solver.H.toarray().dtype == dtype
-    np.testing.assert_allclose(solver.H.field_x, expected_hx)
-    np.testing.assert_allclose(solver.H.field_y, expected_hy)
+    np.testing.assert_allclose(solver.H.field_x, expected_hx, **field_tol)
+    np.testing.assert_allclose(solver.H.field_y, expected_hy, **field_tol)
 
     # The corresponding E update combines the regular curl/current terms and TF/SF.
     base_e = solver.dt * (
@@ -123,8 +126,8 @@ def test_serial_tfsf_field_update_preserves_precision(dtype):
     expected_ey = base_e[solver.N : 2 * solver.N] + solver.dt * solver.ieps.field_y * (
         solver.tf_dtyz * solver.H_trans.field_x
     )
-    np.testing.assert_allclose(solver.E.field_x, expected_ex)
-    np.testing.assert_allclose(solver.E.field_y, expected_ey)
+    np.testing.assert_allclose(solver.E.field_x, expected_ex, **field_tol)
+    np.testing.assert_allclose(solver.E.field_y, expected_ey, **field_tol)
 
 
 def test_serial_tfsf_injection_lifecycle():
