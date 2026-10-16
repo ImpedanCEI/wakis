@@ -63,6 +63,50 @@ def test_gaussian_packet_envelope_peak_and_width(unit_solver):
     np.testing.assert_allclose(one_sigma_t / peak, np.exp(-0.5))
 
 
+def test_gaussian_packet_oblique_envelope_arrival_delay(unit_solver):
+    theta = np.pi / 6
+    source = GaussianPacket(
+        zs=2,
+        sigmaz=0.01,
+        sigmaxy=0.03,
+        tinj=0.03,
+        beta=0.8,
+        theta=theta,
+    )
+    left, right = 1, 3
+    center_y = unit_solver.Ny // 2
+    z_pos = unit_solver.z[source.zs]
+    peak_times = (
+        source.tinj
+        + unit_solver.x[[left, right]] * np.sin(theta)
+        + z_pos * (np.cos(theta) - 1)
+    ) / (source.beta * c)
+
+    source.update(unit_solver, peak_times[0])
+    left_peak = -unit_solver.H[left, center_y, source.zs, "y"]
+    right_before_peak = -unit_solver.H[right, center_y, source.zs, "y"]
+    source.update(unit_solver, peak_times[1])
+    right_peak = -unit_solver.H[right, center_y, source.zs, "y"]
+
+    expected_profile = np.exp(
+        -(unit_solver.x[[left, right]] ** 2 + unit_solver.y[center_y] ** 2)
+        / (2 * source.sigmaxy**2)
+    )
+    np.testing.assert_allclose([left_peak, right_peak], expected_profile)
+    arrival_distance = (unit_solver.x[right] - unit_solver.x[left]) * np.sin(theta)
+    np.testing.assert_allclose(
+        right_before_peak / right_peak,
+        np.exp(-(arrival_distance**2) / (2 * source.sigmaz**2)),
+    )
+
+    # The legacy angle occupied the positional slot immediately after phase.
+    positional = GaussianPacket(
+        None, None, 2, 0.01, 0.03, 0.03, 1.0, 0.8, None, 0, theta
+    )
+    assert positional.theta == theta
+    assert positional.field == "H"
+
+
 def test_gaussian_packet_spatial_and_spectral_widths_are_reciprocal():
     from_space = GaussianPacket(sigmaz=0.02)
     from_frequency = GaussianPacket(sigmaf=from_space.sigmaf)

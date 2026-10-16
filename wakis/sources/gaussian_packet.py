@@ -13,11 +13,15 @@ from .source import WaveformSource
 
 
 class GaussianPacket(WaveformSource):
-    """Carrier-free soft source with Gaussian temporal and transverse profiles.
+    """Carrier-free field source with Gaussian temporal and transverse profiles.
 
     The source writes either ``Ex`` or ``Hy`` on a plane normal to the z-axis;
-    the solver evolves the companion field. ``sigmaf`` and ``sigmaz`` use the
-    vacuum relation ``sigmaf = c / (2*pi*sigmaz)``.
+    the solver evolves the companion field.
+
+    By default, hard injection overwrites the field; ``injection="soft"`` adds to it.
+    ``sigmaf`` and ``sigmaz`` use the vacuum relation ``sigmaf = c / (2*pi*sigmaz)``.
+    ``theta`` tilts only the temporal envelope, not the transverse profile or
+    injected field.
     """
 
     def __init__(
@@ -32,11 +36,12 @@ class GaussianPacket(WaveformSource):
         beta=1.0,
         sigmaf=None,
         phase=0,
+        theta=0,
         field="H",
         injection="hard",
     ):
         """
-        Inject a carrier-free Gaussian soft source on an xy plane.
+        Inject a carrier-free Gaussian field on an xy plane.
 
         Parameters
         ----------
@@ -58,6 +63,9 @@ class GaussianPacket(WaveformSource):
         phase : float, optional
             Reserved for API compatibility. This nonoscillatory source does
             not currently apply a carrier phase.
+        theta : float, optional
+            Envelope tilt from the z-axis toward +x [rad]. Default is 0.
+            This does not rotate the transverse profile or injected field.
         field : {'E', 'H'}, optional
             Field to inject. ``'E'`` writes Ex in V/m and ``'H'`` writes Hy
             in A/m. Default is ``'H'``.
@@ -83,6 +91,8 @@ class GaussianPacket(WaveformSource):
             Relativistic beta.
         phase : float
             Reserved phase value; currently unused.
+        theta : float
+            Angle of the temporal envelope [rad].
         field : str
             Injected field, either ``'E'`` or ``'H'``.
         is_first_update : bool
@@ -100,6 +110,7 @@ class GaussianPacket(WaveformSource):
         self.tinj = tinj
         self.amplitude = amplitude
         self.phase = phase
+        self.theta = theta
         self.field = str(field).upper()
         if self.field not in ("E", "H"):
             raise ValueError("field must be either 'E' or 'H'")
@@ -133,8 +144,11 @@ class GaussianPacket(WaveformSource):
 
         X, Y = np.meshgrid(solver.x[self.xs], solver.y[self.ys], indexing="ij")
         zs_physical = solver.z[self.zs]
+        w = X * np.sin(self.theta) + zs_physical * np.cos(self.theta)
         spatial = self.gaussian_spatial_profile(X, Y, self.sigmaxy)
-        temporal = self._compute_temporal_envelope(t, zs_physical)
+        temporal = self.gaussian_profile(
+            w - zs_physical + self.tinj - self.beta * c_light * t, self.sigmaz
+        )
         waveform = self.amplitude * spatial * temporal
 
         index = (self.xs, self.ys, self.zs)
