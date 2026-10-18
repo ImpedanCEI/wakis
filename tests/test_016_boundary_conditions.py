@@ -225,6 +225,38 @@ def test_rebuilt_curl_preserves_conductor_masks(boundary):
     assert np.count_nonzero(selected.toarray()) == 0
 
 
+@pytest.mark.parametrize("bc_y", ["periodic", "pmc"])
+@pytest.mark.parametrize("bc_z", ["periodic", "pmc"])
+def test_parallel_plate_tem_with_mixed_boundaries(bc_y, bc_z):
+    """A TEM wave between PEC x-plates stays uniform in x with any y/z faces.
+
+    Ex(z) with Hy(z) is an exact TEM solution of the discrete equations of a
+    parallel-plate line: every x column evolves identically and the tangential
+    E on the plates stays zero. A y or z face must therefore neither unmask
+    the PEC edge lines it shares with the plates nor mask the interior H
+    components next to the plates.
+    """
+    grid = GridFIT3D(0, 0.1, 0, 0.1, 0, 1, 4, 3, 40, verbose=0)
+    solver = SolverFIT3D(
+        grid,
+        bc_low=["pec", bc_y, bc_z],
+        bc_high=["pec", bc_y, bc_z],
+        verbose=0,
+    )
+    Ex = np.zeros((solver.Nx, solver.Ny, solver.Nz))
+    Ex[:-1] = np.cos(np.pi * grid.z[:-1])  # last x index is outside the plates
+    solver.E.from_matrix(Ex, "x")
+    for _ in range(300):
+        solver.one_step()
+
+    for field, component in (("E", "x"), ("H", "y")):
+        values = getattr(solver, field).to_matrix(component)[:-1]
+        spread = np.ptp(values, axis=0).max() / np.abs(values).max()
+        assert spread < 1e-12, f"{field}{component} is not uniform between plates"
+    for component in "yz":
+        np.testing.assert_array_equal(solver.E.to_matrix(component)[[0, -1]], 0)
+
+
 def test_unpaired_periodic_rejected():
     grid = GridFIT3D(0, 1, 0, 1, 0, 1, 4, 4, 4, verbose=0)
     with pytest.raises(ValueError, match="must be paired"):
