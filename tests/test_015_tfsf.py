@@ -107,10 +107,12 @@ def test_serial_cpml_tfsf_injection():
 def test_tfsf_matches_serial_across_mpi_boundary():
     MPI = pytest.importorskip("mpi4py.MPI")
     comm = MPI.COMM_WORLD
-    if comm.Get_size() != 2:
-        pytest.skip("requires exactly two MPI ranks")
+    if comm.Get_size() not in (2, 3):
+        pytest.skip("run with two or three MPI ranks")
 
-    bounds = (-1.0, 1.0, -1.0, 1.0, 0.0, 1.0, 6, 6, 40)
+    # With three ranks the middle rank has no CPML face and steps with
+    # `_mpi_one_step`; its ghost exchanges must match those of the CPML ranks.
+    bounds = (-1.0, 1.0, -1.0, 1.0, 0.0, 1.0, 6, 6, 42)
     solver_kw = dict(
         bc_low=["pec", "pec", "cpml"],
         bc_high=["pec", "pec", "cpml"],
