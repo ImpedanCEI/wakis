@@ -310,9 +310,6 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
                 self.source_type = (
                     "tfsf"  # Force Total-Field/Scattered-Field injection for PML
                 )
-                print(
-                    "[!] PML works better with Total-Field/Scattered-Field injection, setting source_type='tfsf'"
-                )
                 self.update_logger(["source_type"])
             self.n_pml = n_pml
             self._initialize_PML()
@@ -326,12 +323,7 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
                 print("Filling CPML parameters...")
             self.one_step = self._one_step_cpml
             if self.source_type != "tfsf":
-                self.source_type = (
-                    "tfsf"  # Force Total-Field/Scattered-Field injection for CPML
-                )
-                print(
-                    "[!] CPML requires Total-Field/Scattered-Field injection, setting source_type='tfsf'"
-                )
+                self.source_type = "tfsf"  # Forced for CPML
                 self.update_logger(["source_type"])
             self.n_pml = n_pml
             self.kappa_max = kappa_max
@@ -926,8 +918,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
             self.J.fromarray(self.J.toarray() + dJ)
             self.J_old = Jtemp
 
-            if self.use_mpi:
-                self._mpi_communicate(self.J)
+        # Exchange J on every rank, as `_mpi_one_step` does: interior ranks
+        # without CPML faces step with it, and the exchanges must match.
+        if self.use_mpi:
+            self._mpi_communicate(self.J)
 
         # Compute the curl of H fields
         dtxyHz = self.dtxy * self.H.field_z
@@ -1252,8 +1246,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
             self.J.fromarray(self.J.toarray() + self.dJ)
             self.J_old = Jtemp
 
-            if self.use_mpi:
-                self._mpi_communicate(self.J)
+        # Exchange J on every rank, as `_mpi_one_step` does: interior ranks
+        # without CPML faces step with it, and the exchanges must match.
+        if self.use_mpi:
+            self._mpi_communicate(self.J)
 
         # Compute the curl of H fields using MKL dot products
         dtxyHz = dot_product_mkl(self.dtxy, self.H.field_z)
