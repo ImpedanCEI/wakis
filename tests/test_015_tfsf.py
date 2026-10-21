@@ -152,6 +152,46 @@ def test_serial_tfsf_injection_lifecycle():
     assert np.any(solver.E.toarray())
 
 
+def test_tfsf_matches_serial_across_mpi_boundary():
+    MPI = pytest.importorskip("mpi4py.MPI")
+    comm = MPI.COMM_WORLD
+    if comm.Get_size() not in (2, 3):
+        pytest.skip("run with two or three MPI ranks")
+
+    # With three ranks the middle rank has no CPML face and steps with
+    # `_mpi_one_step`; its ghost exchanges must match those of the CPML ranks.
+    bounds = (-1.0, 1.0, -1.0, 1.0, 0.0, 1.0, 6, 6, 42)
+    solver_kw = dict(
+        bc_low=["pec", "pec", "cpml"],
+        bc_high=["pec", "pec", "cpml"],
+        n_pml=3,
+        bg=[1.0, 1.0, 0.0],
+        verbose=0,
+    )
+    grid = GridFIT3D(*bounds, use_mpi=True, verbose=0)
+    solver = SolverFIT3D(grid, use_mpi=True, **solver_kw)
+    beam = Beam(sigmaz=0.1, ti=1e-9)
+    for n in range(180):
+        beam.update(solver, n * solver.dt)
+        if n == 0 and comm.Get_rank() == 0:
+            # The final physical cell on a non-last rank must receive beam current.
+            assert beam.j_stop == solver.Nz - 1
+            assert solver.J[beam.ixs, beam.iys, solver.Nz - 2, "z"] != 0
+        solver.one_step()
+
+    mpi_ez = solver.mpi_gather("Ez", x=3, y=3)
+    if comm.Get_rank() == 0:
+        serial_grid = GridFIT3D(*bounds, verbose=0)
+        serial_solver = SolverFIT3D(serial_grid, **solver_kw)
+        serial_beam = Beam(sigmaz=0.1, ti=1e-9)
+        for n in range(180):
+            serial_beam.update(serial_solver, n * serial_solver.dt)
+            serial_solver.one_step()
+        np.testing.assert_allclose(
+            mpi_ez, serial_solver.E[3, 3, :, "z"], rtol=1e-8, atol=1e-9
+        )
+
+
 def test_007_geometry_with_tfsf_across_mpi_boundaries(request):
     """Use test 007's lossy cavity and PEC boundaries with TF/SF on 2 or 3 ranks."""
     MPI = pytest.importorskip("mpi4py.MPI")

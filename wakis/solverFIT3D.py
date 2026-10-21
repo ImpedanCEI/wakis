@@ -904,8 +904,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
             self.J.fromarray(self.J.toarray() + dJ)
             self.J_old = Jtemp
 
-            if self.use_mpi:
-                self._mpi_communicate(self.J)
+        # Exchange J on every rank, as `_mpi_one_step` does: interior ranks
+        # without CPML faces step with it, and the exchanges must match.
+        if self.use_mpi:
+            self._mpi_communicate(self.J)
 
         # Compute the curl of H fields
         dtxyHz = self.dtxy * self.H.field_z
@@ -1230,8 +1232,10 @@ class SolverFIT3D(PlotMixin, RoutinesMixin, BCsMixin):
             self.J.fromarray(self.J.toarray() + self.dJ)
             self.J_old = Jtemp
 
-            if self.use_mpi:
-                self._mpi_communicate(self.J)
+        # Exchange J on every rank, as `_mpi_one_step` does: interior ranks
+        # without CPML faces step with it, and the exchanges must match.
+        if self.use_mpi:
+            self._mpi_communicate(self.J)
 
         # Compute the curl of H fields using MKL dot products
         dtxyHz = dot_product_mkl(self.dtxy, self.H.field_z)
