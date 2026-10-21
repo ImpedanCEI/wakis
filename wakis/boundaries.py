@@ -32,8 +32,8 @@ class BCsMixin:
         ABC and PML/CPML options and also configures MPI-internal faces when the
         grid is subdivided.
         """
-        xlo, ylo, zlo = 1.0, 1.0, 1.0
-        xhi, yhi, zhi = 1.0, 1.0, 1.0
+        xlo, ylo, zlo = 1, 1, 1
+        xhi, yhi, zhi = 1, 1, 1
 
         # Check BCs for internal MPI subdomains
         if self.use_mpi and self.grid.use_mpi:
@@ -175,16 +175,19 @@ class BCsMixin:
             # Assemble matrix
             self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
 
+            # Multiply the face factors: assigning them would let a non-masked
+            # face (e.g. periodic) unmask the edge lines it shares with a
+            # masked face.
             for d in ["x", "y", "z"]:  # tangential to zero
                 if d != "x":
-                    self.BC[0, :, :, d] = xlo
-                    self.BC[-1, :, :, d] = xhi
+                    self.BC[0, :, :, d] *= xlo
+                    self.BC[-1, :, :, d] *= xhi
                 if d != "y":
-                    self.BC[:, 0, :, d] = ylo
-                    self.BC[:, -1, :, d] = yhi
+                    self.BC[:, 0, :, d] *= ylo
+                    self.BC[:, -1, :, d] *= yhi
                 if d != "z":
-                    self.BC[:, :, 0, d] = zlo
-                    self.BC[:, :, -1, d] = zhi
+                    self.BC[:, :, 0, d] *= zlo
+                    self.BC[:, :, -1, d] *= zhi
 
             self.Dbc = diags(
                 self.BC.toarray(),
@@ -214,6 +217,9 @@ class BCsMixin:
         if any(True for x in self.bc_low if x.lower() in ("magnetic", "pmc")) or any(
             True for x in self.bc_high if x.lower() in ("magnetic", "pmc")
         ):
+            # Reset the face factors so that PEC faces do not also mask H
+            xlo, ylo, zlo = 1, 1, 1
+            xhi, yhi, zhi = 1, 1, 1
             if self.bc_low[0].lower() == "magnetic" or self.bc_low[0] == "pmc":
                 xlo = 0
             if self.bc_low[1].lower() == "magnetic" or self.bc_low[1] == "pmc":
@@ -230,16 +236,19 @@ class BCsMixin:
             # Assemble matrix
             self.BC = Field(self.Nx, self.Ny, self.Nz, dtype=np.int8, use_ones=True)
 
+            # Multiply the face factors: assigning them would let a non-masked
+            # face (e.g. periodic) unmask the edge lines it shares with a
+            # masked face.
             for d in ["x", "y", "z"]:  # tangential to zero
                 if d != "x":
-                    self.BC[0, :, :, d] = xlo
-                    self.BC[-1, :, :, d] = xhi
+                    self.BC[0, :, :, d] *= xlo
+                    self.BC[-1, :, :, d] *= xhi
                 if d != "y":
-                    self.BC[:, 0, :, d] = ylo
-                    self.BC[:, -1, :, d] = yhi
+                    self.BC[:, 0, :, d] *= ylo
+                    self.BC[:, -1, :, d] *= yhi
                 if d != "z":
-                    self.BC[:, :, 0, d] = zlo
-                    self.BC[:, :, -1, d] = zhi
+                    self.BC[:, :, 0, d] *= zlo
+                    self.BC[:, :, -1, d] *= zhi
 
             self.Dbc = diags(
                 self.BC.toarray(),
